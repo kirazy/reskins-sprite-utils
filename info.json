@@ -8,5 +8,8 @@
     "homepage": "https://github.com/kirazy/reskins-sprite-utils",
     "dependencies": [
         "base"
-    ]
+    ],
+    "package": {
+        "git_publish_branch": "main"
+    }
 }
