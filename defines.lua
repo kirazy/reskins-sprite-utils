@@ -8,7 +8,7 @@
 local defines_api = {}
 
 ---Represents stages of the Factorio mod loading process.
----@enum Reskins.Lib.Defines.Stage
+---@enum Reskins.SpriteUtils.Defines.Stage
 defines_api.stage = {
 	---The settings stage.
 	settings = 0,
