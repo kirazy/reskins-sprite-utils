@@ -1,7 +1,14 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.0.1
+Version: 1.1.0
 Date: ????
+  Features:
+    - Added additional types:
+      - 'types.IconDefaultsTypes' as an alias for discriminators to set the icon defaults; extends from string to make it convenient to pass the prototype type as a parameter in the majority of cases (e.g. all except for the 'ShortcutPrototype.small_icons' default).
+      - 'types.PrototypeWithIcons' as a short-hand for all prototype types that have icon/icon_size/icons.
   Changes:
+    - 'icons.empty_icon' now takes an optional parameter 'icon_type' to get an empty icon of a suitable size for the specified type e.g. a technology or starmap. In most cases this should be omitted.
+    - Reworked all occurrences of 'is_technology_icon' parameters to take a 'defaults_type' parameter that facilitates setting the correct icon defaults for the specified type.
+      - See 'types.IconDefaultsType' and 'types.PrototypeWithIcons' for further information
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.0
 Date: 2026-01-10

@@ -1,3 +1,33 @@
+---Represents any Prototype with the required `icons` or `icon` fields.
+---@alias PrototypeWithIcons
+---| data.AchievementPrototype
+---| data.AmmoCategory
+---| data.AsteroidChunkPrototype
+---| data.EntityPrototype
+---| data.FluidPrototype
+---| data.ItemGroup
+---| data.ItemPrototype
+---| data.QualityPrototype
+---| data.RecipePrototype
+---| data.ShortcutPrototype
+---| data.SpaceConnectionPrototype
+---| data.SpaceLocationPrototype
+---| data.SurfacePrototype
+---| data.TechnologyPrototype
+---| data.TilePrototype
+---| data.TipsAndTricksItem
+---| data.VirtualSignalPrototype
+
+---Type names/aliases that map to icon_size defaults as per https://lua-api.factorio.com/latest/types/IconData.html#scale
+---@alias IconDefaultsType
+---| "technology"
+---| "space-location"
+---| "shortcut"
+---| "shortcut-small"
+---| "achievement"
+---| "item-group"
+---| string
+
 ---Represents an icon from an array of `IconData` objects that may be stored for deferred assignment.
 ---@class DeferrableIconData
 ---The name of the prototype to be assigned this icon.
@@ -22,10 +52,9 @@
 ---@class IconDatumSource
 ---The icon data to be used for the icon.
 ---@field icon_datum data.IconData
----When `true`, indicates that `icon_data` represents a technology icon. Note: this field is used for setting icon
----defaults and may change or be removed in the future to enable more broad support with the (now 6) types of default
----icon sizes.
----@field is_technology_icon boolean?
+---The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale.
+---Unrecognized names resolve to `defines.default_icon_size`.
+---@field defaults_type IconDefaultsType?
 ---The scale to apply to the sourced icon. Default `nil`.
 ---@field scale double?
 ---The shift to apply to the sourced icon. Default `nil`.
@@ -37,10 +66,9 @@
 ---@class IconDataSource
 ---The icon data to be used for the icon.
 ---@field icon_data data.IconData[]
----When `true`, indicates that `icon_data` represents a technology icon. Note: this field is used for setting icon
----defaults and may change or be removed in the future to enable more broad support with the (now 6) types of default
----icon sizes.
----@field is_technology_icon boolean?
+---The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale.
+---Unrecognized names resolve to `defines.default_icon_size`.
+---@field defaults_type IconDefaultsType?
 ---The scale to apply to the sourced icon. Default `nil`.
 ---@field scale double?
 ---The shift to apply to the sourced icon. Default `nil`.

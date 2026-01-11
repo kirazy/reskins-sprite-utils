@@ -7,6 +7,15 @@
 ---@class Reskins.SpriteUtils.Icons
 local icons_api = {}
 
+local default_icon_sizes = {
+	["space-location"] = 512,
+	["technology"] = 256,
+	["achievement"] = 128,
+	["item-group"] = 128,
+	["shortcut"] = 32,
+	["shortcut-small"] = 24,
+}
+
 ---
 ---Gets an empty icon.
 ---
@@ -24,11 +33,21 @@ local icons_api = {}
 ---local icon_data = icons_api.empty_icon()
 ---```
 ---@return data.IconData
-function icons_api.empty_icon()
+---
+---### Parameters
+---@param icon_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
+function icons_api.empty_icon(icon_type)
+	local expected_icon_size
+	if icon_type and type(icon_type) == "string" then
+		expected_icon_size = default_icon_sizes[icon_type] or defines.default_icon_size
+	else
+		expected_icon_size = defines.default_icon_size
+	end
+
 	return {
 		icon = "__core__/graphics/empty.png",
 		icon_size = 1,
-		scale = 32,
+		scale = expected_icon_size / 2,
 	}
 end
 
@@ -87,9 +106,9 @@ end
 ---### Parameters
 ---@param icon_data data.IconData[]
 ---@param scalar double # The scalar to rescale the icon by.
----@param is_technology_icon? boolean # When `true`, indicates that `icon_data` represents a technology icon.
-function icons_api.scale_icon(icon_data, scalar, is_technology_icon)
-	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, is_technology_icon)
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
+function icons_api.scale_icon(icon_data, scalar, defaults_type)
+	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, defaults_type)
 
 	for _, icon_datum in pairs(icon_data_copy) do
 		icon_datum.scale = icon_datum.scale * scalar
@@ -142,6 +161,9 @@ end
 ---Adds default values to missing fields from the given `icon_datum`.<br>
 ---`icon_data` is not modified.
 ---
+---Note: this method does not set `IconData.draw_background` or `IconData.floating`.
+---These represent an advanced use case and should be handled directly.
+---
 ---### Returns
 ---@return data.IconData # A copy of `icon_datum` with missing fields set to default values.
 ---
@@ -159,14 +181,14 @@ end
 ---
 ---### Parameters
 ---@param icon_datum data.IconData # An `IconData` object.
----@param is_technology_icon? boolean # When `true`, indicates that `icon_datum` represents a technology icon.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `icon_dataum` is `nil`<br/>
 ---*@throws* `string` — Thrown when `icon_dataum.icon` is not a mod-prefixed absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_dataum.icon_size` is not a positive integer.<br/>
 ---@nodiscard
-function icons_api.add_missing_icon_defaults(icon_datum, is_technology_icon)
+function icons_api.add_missing_icon_defaults(icon_datum, defaults_type)
 	assert(icon_datum, "Missing required parameter: 'icon_datum' must not be nil.")
 	assert(not (icon_datum[1] and icon_datum[1].icon), "Invalid parameter type: 'icon_datum' must be IconData, but was IconData[].")
 	assert(not icon_datum[1], "Invalid parameter type: 'icon_datum' must be IconData, and not an array.")
@@ -176,8 +198,9 @@ function icons_api.add_missing_icon_defaults(icon_datum, is_technology_icon)
 	assert(icon_datum.icon:find("^__[%a%d%-%_-]+__"), "Invalid filename: 'icon' must be an absolute file path, but was '" .. icon_datum.icon .. "'.")
 	assert(icon_datum.icon:match("%.([%a%d]+)$"), "Invalid filename: 'icon' must have a valid file extension, but was '" .. icon_datum.icon .. "'.")
 
-	-- Validate icon size, which is now optional.
-	local icon_size = icon_datum.icon_size or defines.default_icon_size
+	-- Set icon_size to default for the type, if not explicitly provided.
+	local expected_icon_size = default_icon_sizes[defaults_type or ""] or defines.default_icon_size
+	local icon_size = icon_datum.icon_size or expected_icon_size
 
 	assert(type(icon_size) == "number", "Invalid type: 'icon_size' must be a number, but was a '" .. type(icon_size) .. "'.")
 	assert(icon_size > 0 and icon_size % 1 == 0, "Invalid value: 'icon_size' must be an integer greater than zero, but was '" .. icon_size .. "'.")
@@ -185,7 +208,7 @@ function icons_api.add_missing_icon_defaults(icon_datum, is_technology_icon)
 	return {
 		icon = icon_datum.icon,
 		icon_size = icon_size,
-		scale = icon_datum.scale or (is_technology_icon and 256 / icon_size) or (32 / icon_size),
+		scale = icon_datum.scale or ((expected_icon_size / 2) / icon_size),
 		shift = icon_datum.shift or nil,
 		tint = icon_datum.tint or nil,
 	}
@@ -194,6 +217,9 @@ end
 ---
 ---Adds default values to missing fields from each element of the given `icon_data` array.<br>
 ---`icon_data` is not modified.
+---
+---Note: this method does not set `IconData.draw_background` or `IconData.floating`.
+---These represent an advanced use case and should be handled directly.
 ---
 ---### Returns
 ---@return data.IconData[] # A copy of `icon_data` with missing fields on each element set to default values.
@@ -220,19 +246,19 @@ end
 ---
 ---### Parameters
 ---@param icon_data data.IconData[] # An icon represented by an array of `IconData` objects.
----@param is_technology_icon? boolean # When `true`, indicates that `icon_data` represents a technology icon.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `icon_data` is `nil`.<br/>
 ---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.<br/>
 ---@nodiscard
-function icons_api.add_missing_icons_defaults(icon_data, is_technology_icon)
+function icons_api.add_missing_icons_defaults(icon_data, defaults_type)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 
 	local new_icon_data = {}
 	for n = 1, #icon_data do
-		new_icon_data[n] = icons_api.add_missing_icon_defaults(icon_data[n], is_technology_icon)
+		new_icon_data[n] = icons_api.add_missing_icon_defaults(icon_data[n], defaults_type)
 	end
 
 	return new_icon_data
@@ -294,7 +320,7 @@ end
 ---*@throws* `string` — Thrown when `icon_size` is not a positive integer.<br/>
 ---@nodiscard
 function icons_api.create_icon(icon, icon_size, scale, shift, tint)
-	return icons_api.add_missing_icon_defaults(pack_as_icon_datum(icon, icon_size, scale, shift, tint), false)
+	return icons_api.add_missing_icon_defaults(pack_as_icon_datum(icon, icon_size, scale, shift, tint))
 end
 
 ---
@@ -321,7 +347,7 @@ end
 ---*@throws* `string` — Thrown when `icon_size` is not a positive integer.<br/>
 ---@nodiscard
 function icons_api.create_technology_icon(icon, icon_size, scale, shift, tint)
-	return icons_api.add_missing_icon_defaults(pack_as_icon_datum(icon, icon_size, scale, shift, tint), true)
+	return icons_api.add_missing_icon_defaults(pack_as_icon_datum(icon, icon_size, scale, shift, tint), "technology")
 end
 
 ---
@@ -342,7 +368,7 @@ end
 ---```
 ---
 ---### Parameters
----@param prototype data.EntityPrototype|data.ItemPrototype|data.FluidPrototype|data.RecipePrototype|data.TechnologyPrototype # The prototype to get the icon from.
+---@param prototype PrototypeWithIcons # The prototype to get the icon from.
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `prototype` has no defined field `icon` or `icons`.<br/>
@@ -361,23 +387,24 @@ function icons_api.get_icon_from_prototype_by_reference(prototype)
 	local icons
 
 	-- Give precedence to an existing icons field.
+	local default_icon_size = default_icon_sizes[prototype.type] or defines.default_icon_size
 	if prototype.icons then
 		---@type data.IconData[]
 		icons = util.copy(prototype.icons)
 
 		-- Ensure icon_size is set for all elements before adding defaults.
 		for n = 1, #icons do
-			icons[n].icon_size = icons[n].icon_size or prototype.icon_size or defines.default_icon_size
+			icons[n].icon_size = icons[n].icon_size or prototype.icon_size or default_icon_size
 		end
 	else
 		---@type data.IconData[]
 		icons = { {
 			icon = prototype.icon,
-			icon_size = prototype.icon_size,
+			icon_size = prototype.icon_size or default_icon_size,
 		} }
 	end
 
-	return icons_api.add_missing_icons_defaults(icons, prototype.type == "technology")
+	return icons_api.add_missing_icons_defaults(icons, prototype.type)
 end
 
 ---
@@ -458,7 +485,7 @@ local related_prototypes = {
 function icons_api.assign_icons_to_prototype_and_related_prototypes(name, type_name, icon_data, pictures)
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 
-	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, type_name == "technology")
+	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, type_name)
 
 	local prototype = (type_name and not related_prototypes[type_name]) and data.raw[type_name][name] or nil
 
@@ -606,7 +633,7 @@ function icons_api.store_icon_for_deferred_assignment_in_stage(deferred_icons, s
 	assert(deferrable_icon.icon_data and deferrable_icon.icon_data[1], "Invalid operation: 'deferrable_icon.icon_data' must not be an empty array.")
 
 	-- Validate the icon data and add missing defaults.
-	deferrable_icon.icon_data = icons_api.add_missing_icons_defaults(deferrable_icon.icon_data, deferrable_icon.type_name == "technology")
+	deferrable_icon.icon_data = icons_api.add_missing_icons_defaults(deferrable_icon.icon_data, deferrable_icon.type_name)
 
 	if not deferred_icons[stage] then
 		deferred_icons[stage] = {}
@@ -660,24 +687,24 @@ end
 ---- Inputs are not modified.
 ---
 ---### Parameters
----@param is_technology_icon boolean # When `true`, indicates that the inputs represent a technology icon.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
 ---@param ... data.IconData|data.IconData[] # An variable set of `IconData` or `IconData` arrays to combine.
 ---
 ---### See Also
 ---@see Reskins.SpriteUtils.Icons.add_missing_icon_defaults
 ---@nodiscard
-function icons_api.compose_icons(is_technology_icon, ...)
+function icons_api.compose_icons(defaults_type, ...)
 	---@type data.IconData[]
 	local combined_icon_data = {}
 
 	for _, input_icon in pairs({ ... }) do
 		if input_icon and input_icon.icon then
 			-- It's an IconData object.
-			table.insert(combined_icon_data, icons_api.add_missing_icon_defaults(input_icon, is_technology_icon))
+			table.insert(combined_icon_data, icons_api.add_missing_icon_defaults(input_icon, defaults_type))
 		elseif input_icon[1] and input_icon[1].icon then
 			-- It's an array of IconData objects.
 			for _, icon_datum in pairs(input_icon) do
-				table.insert(combined_icon_data, icons_api.add_missing_icon_defaults(icon_datum, is_technology_icon))
+				table.insert(combined_icon_data, icons_api.add_missing_icon_defaults(icon_datum, defaults_type))
 			end
 		else
 			-- Skip.
@@ -737,7 +764,7 @@ function icons_api.add_icons_from_prototype_to_icons_by_reference(icon_data, pro
 		return util.copy(icon_data)
 	end
 
-	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, prototype.type == "technology")
+	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, prototype.type)
 
 	-- Ensure working with a copy of the prototype.
 	-- This method sets default values for missing fields, so scale is present.
@@ -747,7 +774,7 @@ function icons_api.add_icons_from_prototype_to_icons_by_reference(icon_data, pro
 	end
 
 	for _, icon_datum in pairs(sourced_icon_data) do
-		table.insert(icon_data_copy, icons_api.transform_icon(icon_datum, scale, shift, tint, prototype.type == "technology"))
+		table.insert(icon_data_copy, icons_api.transform_icon(icon_datum, scale, shift, tint, prototype.type))
 	end
 
 	return icon_data_copy
@@ -930,15 +957,15 @@ end
 ---@param scale? double # The scale to apply to the sourced icon. Default `nil`.
 ---@param shift? data.Vector # The shift to apply to the sourced icon. Default `nil`.
 ---@param tint? data.Color # The tint to apply to the sourced icon. Default `nil`.
----@param is_technology_icon? boolean # When `true`, indicates that `icon_data` represents a technology icon.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `icon_data` is `nil`.<br/>
 ---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.<br/>
 ---@nodiscard
-function icons_api.transform_icon(icon_data, scale, shift, tint, is_technology_icon)
-	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, is_technology_icon)
+function icons_api.transform_icon(icon_data, scale, shift, tint, defaults_type)
+	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, defaults_type)
 	if not scale and not shift and not tint then
 		return icon_data_copy
 	end
@@ -987,18 +1014,18 @@ end
 ---
 ---### Parameters
 ---@param source? IconSource # A source of `icon_data`.
----@param is_technology_icon? boolean # When `true`, indicates that a blank technology icon should be returned if the source is missing.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
 ---@nodiscard
-local function get_icons_from_source(source, is_technology_icon)
+local function get_icons_from_source(source, defaults_type)
 	---@type data.IconData[]
 	local icon_data
 
 	if source and source.icon_data then
 		---@cast source IconDataSource
-		icon_data = icons_api.add_missing_icons_defaults(source.icon_data, source.is_technology_icon)
+		icon_data = icons_api.add_missing_icons_defaults(source.icon_data, source.defaults_type)
 	elseif source and source.icon_datum then
 		---@cast source IconDatumSource
-		icon_data = { icons_api.add_missing_icon_defaults(source.icon_datum, source.is_technology_icon) }
+		icon_data = { icons_api.add_missing_icon_defaults(source.icon_datum, source.defaults_type) }
 	elseif source and source.name then
 		---@cast source PrototypeIconSource
 		icon_data = icons_api.get_icon_from_prototype_by_name(source.name, source.type_name)
@@ -1007,7 +1034,7 @@ local function get_icons_from_source(source, is_technology_icon)
 	local is_blank_icon = false
 	if not icon_data then
 		is_blank_icon = true
-		icon_data = is_technology_icon and { icons_api.empty_technology_icon() } or { icons_api.empty_icon() }
+		icon_data = { icons_api.empty_icon(defaults_type) }
 	end
 
 	return icon_data, is_blank_icon
@@ -1029,7 +1056,7 @@ end
 ---### Parameters
 ---@param icon_data data.IconData[] # An `IconData` object to be combined with the sourced icons from `sources`.
 ---@param sources IconSources # An array of `IconData` sources to layer on `icon_data`.
----@param is_technology_icon? boolean # When `true`, indicates that `icon_data` represents a technology icon.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`. Individual source types take precedence over this value.
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `icon_data` is `nil`.<br/>
@@ -1040,20 +1067,20 @@ end
 ---@see Reskins.SpriteUtils.Icons.add_missing_icon_defaults
 ---@see Reskins.SpriteUtils.Icons.get_icon_from_prototype_by_name
 ---@nodiscard
-function icons_api.add_icons_from_sources_to_icons(icon_data, sources, is_technology_icon)
+function icons_api.add_icons_from_sources_to_icons(icon_data, sources, defaults_type)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 	assert(sources, "Invalid parameter: 'sources' must not be nil.")
 
 	---@type data.IconData[]
-	local combined_icon = icons_api.add_missing_icons_defaults(icon_data, is_technology_icon)
+	local combined_icon = icons_api.add_missing_icons_defaults(icon_data, defaults_type)
 
 	local has_blank_layers = false
 	for _, source in pairs(sources) do
 		-- Icon may be blank if the prototype did not exist.
-		local icon, is_blank_icon = get_icons_from_source(source, is_technology_icon)
+		local icon, is_blank_icon = get_icons_from_source(source, defaults_type)
 		has_blank_layers = has_blank_layers or is_blank_icon
 
-		local transformed_icon = icons_api.transform_icon(icon, source.scale, source.shift, source.tint, source.is_technology_icon or source.type_name == "technology")
+		local transformed_icon = icons_api.transform_icon(icon, source.scale, source.shift, source.tint, source.type_name or source.defaults_type or defaults_type)
 
 		for _, icon_datum in pairs(transformed_icon) do
 			table.insert(combined_icon, icon_datum)
