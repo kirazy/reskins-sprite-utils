@@ -2,6 +2,11 @@
 Version: 1.1.0
 Date: ????
   Features:
+    - Added icon retrieval methods for dark_background_icons and starmap_icons:
+      - 'icons.get_dark_background_icon_from_prototype_by_reference' 
+      - 'icons.get_dark_background_icon_from_prototype_by_name' 
+      - [space-age] 'icons.get_starmap_icon_from_prototype_by_reference'
+      - [space-age] 'icons.get_starmap_icon_from_prototype_by_name'
     - Added additional types:
       - 'types.IconDefaultsTypes' as an alias for discriminators to set the icon defaults; extends from string to make it convenient to pass the prototype type as a parameter in the majority of cases (e.g. all except for the 'ShortcutPrototype.small_icons' default).
       - 'types.PrototypeWithIcons' as a short-hand for all prototype types that have icon/icon_size/icons.

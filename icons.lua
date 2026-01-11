@@ -351,7 +351,7 @@ function icons_api.create_technology_icon(icon, icon_size, scale, shift, tint)
 end
 
 ---
----Gets an array of `IconData` objects directly from the given `prototype`.
+---Gets the icon as an array of `IconData` objects directly from the given `prototype`.
 ---
 ---### Remarks
 ---- If `prototype` is a `RecipePrototype` object, the `icon` or `icons` field must be defined,
@@ -379,6 +379,10 @@ function icons_api.get_icon_from_prototype_by_reference(prototype)
 	end
 
 	-- Recipes must have an icon or icons field if being passed to this function.
+	---
+	-- NOTE: the motivation for this was that it avoids trying to figure out what the recipe product is and fetching the
+	-- item from that (e.g. the recipe has no icon and inherits it). With the removal of normal/expensive, this is less
+	-- cumbersome and it may be reasonable to add logic to retrieve the inherited icon.
 	assert((prototype.type ~= "recipe" or (prototype.icons or prototype.icon)), "Invalid parameter: 'prototype' must not be a RecipePrototype with an undefined 'icon' or 'icons' field.")
 
 	assert(prototype.icons or prototype.icon, "Invalid parameter: 'prototype' must have a defined 'icon' or 'icons' field.")
@@ -408,11 +412,12 @@ function icons_api.get_icon_from_prototype_by_reference(prototype)
 end
 
 ---
----Gets a fully defined `IconData` array from the prototype with the given `name` and `type_name`.<br>
----If `type_name` is `"recipe"`, the `icon` or `icons` field on the `RecipePrototype` object must be defined.
+---Gets the icon as an array of `IconData` objects from the prototype with the given `name` and `type_name`.<br>
 ---
----Missing icon fields are set to default values as appropriate.
----The prototype is not modified.
+---### Remarks
+---- If `type_name` is `"recipe"`, the `icon` or `icons` field on the `RecipePrototype` object must be defined.
+---- Missing icon fields are set to default values as appropriate.
+---- The prototype is not modified.
 ---
 ---### Returns
 ---@return data.IconData[]|nil # A copy of the icon retrieved from the prototype, or `nil` if the prototype does not exist.
@@ -436,6 +441,160 @@ function icons_api.get_icon_from_prototype_by_name(name, type_name)
 	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
 
 	return icons_api.get_icon_from_prototype_by_reference(data.raw[type_name][name])
+end
+
+---
+---Gets the dark-background icon as an array of `IconData` objects directly from the given `item_prototype`.
+---
+---Missing icon fields are set to default values as appropriate.
+---The `prototype` is not modified.
+---
+---### Returns
+---@return data.IconData[]|nil # A copy of the dark-background icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined dark-background icon.
+---
+---### Examples
+---```
+---local item = data.raw.item["coal"]
+---local dark_background_icon_data = icons_api.get_dark_background_icon_from_prototype_by_reference(item)
+---```
+---
+---### Parameters
+---@param item_prototype data.ItemPrototype # The item prototype to get the icon from.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `prototype` has no defined field `icon` or `icons`.<br/>
+---@nodiscard
+function icons_api.get_dark_background_icon_from_prototype_by_reference(item_prototype)
+	if not item_prototype then
+		return
+	end
+
+	---@type data.IconData[]
+	local icons
+
+	-- Give precedence to an existing icons field.
+	if item_prototype.dark_background_icons then
+		---@type data.IconData[]
+		icons = util.copy(item_prototype.dark_background_icons)
+
+		-- Ensure icon_size is set for all elements before adding defaults.
+		for n = 1, #icons do
+			icons[n].icon_size = icons[n].icon_size or item_prototype.icon_size or defines.default_icon_size
+		end
+	else
+		---@type data.IconData[]
+		icons = { {
+			icon = item_prototype.dark_background_icon,
+			icon_size = item_prototype.dark_background_icon_size or defines.default_icon_size,
+		} }
+	end
+
+	return icons_api.add_missing_icons_defaults(icons, item_prototype.type)
+end
+
+---
+---Gets the dark-background icon as an array of `IconData` objects from the item prototype with the given `name` and
+---`type_name`.
+---
+---Missing icon fields are set to default values as appropriate.
+---The prototype is not modified.
+---
+---### Returns
+---@return data.IconData[]|nil # A copy of the dark-background icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined dark-background icon.
+---
+---### Examples
+---```
+---local dark_background_icon_data = icons_api.get_dark_background_icon_from_prototype_by_name("coal", "item")
+---```
+---
+---### Parameters
+---@param name string # The name of the item prototype.
+---@param type_name string # The type name of the item prototype.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `name` is `nil` or an empty string.<br/>
+---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.<br/>
+---@nodiscard
+function icons_api.get_dark_background_icon_from_prototype_by_name(name, type_name)
+	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
+	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
+
+	return icons_api.get_dark_background_icon_from_prototype_by_reference(data.raw[type_name][name])
+end
+
+---
+---Gets the starmap icon as an array of `IconData` objects directly from the given `space_location_prototype`.
+---
+---Missing icon fields are set to default values as appropriate.
+---The `prototype` is not modified.
+---
+---### Returns
+---@return data.IconData[]|nil # A copy of the starmap icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined starmap.
+---
+---### Examples
+---```
+---local planet = data.raw["starmap-location"]["shattered-planet"]
+---local planet_starmap_icon_data = icons_api.get_starmap_icon_from_prototype_by_reference(planet)
+---```
+---
+---### Parameters
+---@param space_location_prototype data.SpaceLocationPrototype # The space location prototype to get the icon from.
+---@nodiscard
+function icons_api.get_starmap_icon_from_prototype_by_reference(space_location_prototype)
+	if not space_location_prototype then
+		return
+	end
+
+	---@type data.IconData[]
+	local icons
+
+	-- Give precedence to an existing icons field.
+	if space_location_prototype.starmap_icons then
+		---@type data.IconData[]
+		icons = util.copy(space_location_prototype.starmap_icons)
+
+		-- Ensure icon_size is set for all elements before adding defaults.
+		for n = 1, #icons do
+			icons[n].icon_size = icons[n].icon_size or space_location_prototype.icon_size or default_icon_sizes["space-location"]
+		end
+	else
+		---@type data.IconData[]
+		icons = { {
+			icon = space_location_prototype.starmap_icon,
+			icon_size = space_location_prototype.starmap_icon_size or default_icon_sizes["space-location"],
+		} }
+	end
+
+	return icons_api.add_missing_icons_defaults(icons, space_location_prototype.type)
+end
+
+---
+---Gets the starmap icon as an array of `IconData` objects from the prototype with the given `name` and `type_name`.
+---
+---Missing icon fields are set to default values as appropriate.
+---The prototype is not modified.
+---
+---### Returns
+---@return data.IconData[]|nil # A copy of the starmap icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined starmap.
+---
+---### Examples
+---```
+---local starmap_icon_data = icons_api.get_starmap_icon_from_prototype_by_name("shattered-planet", "space-location")
+---```
+---
+---### Parameters
+---@param name string # The name of the prototype with a starmap.
+---@param type_name string # The type name of the prototype with a starmap.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `name` is `nil` or an empty string.<br/>
+---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.<br/>
+---@nodiscard
+function icons_api.get_starmap_icon_from_prototype_by_name(name, type_name)
+	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
+	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
+
+	return icons_api.get_starmap_icon_from_prototype_by_reference(data.raw[type_name][name])
 end
 
 local related_prototypes = {
