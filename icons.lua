@@ -2,10 +2,10 @@
 ---
 ---### Examples
 ---```lua
----local icons_api = require("__reskins-sprit-utils__.icons")
+---local _icons = require("__reskins-sprite-utils__.icons")
 ---```
 ---@class Reskins.SpriteUtils.Icons
-local icons_api = {}
+local _icons = {}
 
 local default_icon_sizes = {
 	["space-location"] = 512,
@@ -30,13 +30,13 @@ local default_icon_sizes = {
 ---
 ---### Examples
 ---```lua
----local icon_data = icons_api.empty_icon()
+---local icon_data = _icons.empty_icon()
 ---```
 ---@return data.IconData
 ---
 ---### Parameters
 ---@param icon_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
-function icons_api.empty_icon(icon_type)
+function _icons.empty_icon(icon_type)
 	local expected_icon_size
 	if icon_type and type(icon_type) == "string" then
 		expected_icon_size = default_icon_sizes[icon_type] or defines.default_icon_size
@@ -48,31 +48,6 @@ function icons_api.empty_icon(icon_type)
 		icon = "__core__/graphics/empty.png",
 		icon_size = 1,
 		scale = expected_icon_size / 2,
-	}
-end
-
----
----Gets an empty technology icon.
----
----### Returns
----```lua
----local icon_data = {
----    icon = "__core__/graphics/empty.png",
----    icon_size = 1,
----    scale = 256,
----}
----```
----
----### Examples
----```lua
----local icon_data = icons_api.empty_technology_icon()
----```
----@return data.IconData
-function icons_api.empty_technology_icon()
-	return {
-		icon = "__core__/graphics/empty.png",
-		icon_size = 1,
-		scale = 256,
 	}
 end
 
@@ -100,15 +75,15 @@ end
 ---}
 ---
 ----- Increase the size of the icon by a factor of 2.
----icon_data = icons_api.rescale_icon(icon_data, 2)
+---icon_data = _icons.scale_icon(icon_data, 2)
 ---```
 ---
 ---### Parameters
----@param icon_data data.IconData[]
+---@param icon_data data.IconData[] # An array of `IconData` objects to scale.
 ---@param scalar double # The scalar to rescale the icon by.
 ---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
-function icons_api.scale_icon(icon_data, scalar, defaults_type)
-	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, defaults_type)
+function _icons.scale_icon(icon_data, scalar, defaults_type)
+	local icon_data_copy = _icons.add_missing_icons_defaults(icon_data, defaults_type)
 
 	for _, icon_datum in pairs(icon_data_copy) do
 		icon_datum.scale = icon_datum.scale * scalar
@@ -126,12 +101,12 @@ end
 ---
 ---### Examples
 ---```
----icons_api.clear_icon_from_prototype_by_reference(data.raw.item["iron-plate"])
+---_icons.clear_icon_from_prototype(data.raw.item["iron-plate"])
 ---```
 ---
 ---### Parameters
 ---@param prototype data.EntityPrototype|data.ItemPrototype|data.FluidPrototype|data.RecipePrototype|data.TechnologyPrototype # The prototype object.
-function icons_api.clear_icon_from_prototype_by_reference(prototype)
+function _icons.clear_icon_from_prototype(prototype)
 	if prototype then
 		prototype.icons = nil
 		prototype.icon = nil
@@ -147,14 +122,14 @@ end
 ---
 ---### Examples
 ---```
----icons_api.clear_icon_from_prototype_by_name("iron-plate", "item")
+---_icons.clear_icon_from_named_prototype("iron-plate", "item")
 ---```
 ---
 ---### Parameters
 ---@param name string # The name of the prototype.
 ---@param type_name string # The type name of the prototype.
-function icons_api.clear_icon_from_prototype_by_name(name, type_name)
-	icons_api.clear_icon_from_prototype_by_reference(data.raw[type_name][name])
+function _icons.clear_icon_from_named_prototype(name, type_name)
+	_icons.clear_icon_from_prototype(data.raw[type_name][name])
 end
 
 ---
@@ -176,7 +151,7 @@ end
 ---    scale = 0.5,
 ---}
 ---
----icon_datum = icons_api.add_missing_icon_defaults(icon_datum)
+---icon_datum = _icons.add_missing_icon_defaults(icon_datum)
 ---```
 ---
 ---### Parameters
@@ -188,37 +163,24 @@ end
 ---*@throws* `string` — Thrown when `icon_dataum.icon` is not a mod-prefixed absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_dataum.icon_size` is not a positive integer.<br/>
 ---@nodiscard
-function icons_api.add_missing_icon_defaults(icon_datum, defaults_type)
+function _icons.add_missing_icon_defaults(icon_datum, defaults_type)
+	-- stylua: ignore start
 	assert(icon_datum, "Missing required parameter: 'icon_datum' must not be nil.")
-	assert(
-		not (icon_datum[1] and icon_datum[1].icon),
-		"Invalid parameter type: 'icon_datum' must be IconData, but was IconData[]."
-	)
+	assert(not (icon_datum[1] and icon_datum[1].icon), "Invalid parameter type: 'icon_datum' must be IconData, but was IconData[].")
 	assert(not icon_datum[1], "Invalid parameter type: 'icon_datum' must be IconData, and not an array.")
 
 	-- Validate icon file path.
-	assert(icon_datum.icon and icon_datum.icon ~= "", "Missing required field: 'icon' must not be nil or empty.")
-	assert(
-		icon_datum.icon:find("^__[%a%d%-%_-]+__"),
-		"Invalid filename: 'icon' must be an absolute file path, but was '" .. icon_datum.icon .. "'."
-	)
-	assert(
-		icon_datum.icon:match("%.([%a%d]+)$"),
-		"Invalid filename: 'icon' must have a valid file extension, but was '" .. icon_datum.icon .. "'."
-	)
+	assert(icon_datum.icon and icon_datum.icon ~= "",  "Missing required field: 'icon' must not be nil or empty.")
+	assert(icon_datum.icon:find("^__[%a%d%-%_-]+__"), "Invalid filename: 'icon' must be an absolute file path, but was '" .. icon_datum.icon .. "'.")
+	assert(icon_datum.icon:match("%.([%a%d]+)$"), "Invalid filename: 'icon' must have a valid file extension, but was '" .. icon_datum.icon .. "'.")
 
 	-- Set icon_size to default for the type, if not explicitly provided.
 	local expected_icon_size = default_icon_sizes[defaults_type or ""] or defines.default_icon_size
 	local icon_size = icon_datum.icon_size or expected_icon_size
 
-	assert(
-		type(icon_size) == "number",
-		"Invalid type: 'icon_size' must be a number, but was a '" .. type(icon_size) .. "'."
-	)
-	assert(
-		icon_size > 0 and icon_size % 1 == 0,
-		"Invalid value: 'icon_size' must be an integer greater than zero, but was '" .. icon_size .. "'."
-	)
+	assert(type(icon_size) == "number", "Invalid type: 'icon_size' must be a number, but was a '" .. type(icon_size) .. "'.")
+	assert(icon_size > 0 and icon_size % 1 == 0, "Invalid value: 'icon_size' must be an integer greater than zero, but was '" .. icon_size .. "'.")
+	-- stylua: ignore end
 
 	return {
 		icon = icon_datum.icon,
@@ -256,7 +218,7 @@ end
 ---    },
 ---}
 ---
----icon_data = icons_api.add_missing_icons_defaults(icon_data)
+---icon_data = _icons.add_missing_icons_defaults(icon_data)
 ---```
 ---
 ---### Parameters
@@ -268,12 +230,12 @@ end
 ---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.<br/>
 ---@nodiscard
-function icons_api.add_missing_icons_defaults(icon_data, defaults_type)
+function _icons.add_missing_icons_defaults(icon_data, defaults_type)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 
 	local new_icon_data = {}
 	for n = 1, #icon_data do
-		new_icon_data[n] = icons_api.add_missing_icon_defaults(icon_data[n], defaults_type)
+		new_icon_data[n] = _icons.add_missing_icon_defaults(icon_data[n], defaults_type)
 	end
 
 	return new_icon_data
@@ -320,7 +282,7 @@ end
 ---
 ---### Examples
 ---```
----local icon_data = icons_api.create_icon("__base__/graphics/icons/iron-plate.png", 64, 4, 0.5)
+---local icon_data = _icons.create_icon("__base__/graphics/icons/iron-plate.png", 64, 4, 0.5)
 ---```
 ---
 ---### Parameters
@@ -334,8 +296,8 @@ end
 ---*@throws* `string` — Thrown when `icon` is not a mod-prefixed absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_size` is not a positive integer.<br/>
 ---@nodiscard
-function icons_api.create_icon(icon, icon_size, scale, shift, tint)
-	return icons_api.add_missing_icon_defaults(pack_as_icon_datum(icon, icon_size, scale, shift, tint))
+function _icons.create_icon(icon, icon_size, scale, shift, tint)
+	return _icons.add_missing_icon_defaults(pack_as_icon_datum(icon, icon_size, scale, shift, tint))
 end
 
 ---
@@ -346,7 +308,7 @@ end
 ---
 ---### Examples
 ---```
----local icon_data = icons_api.create_technology_icon("__base__/graphics/technology/logistics-1.png", 256, 4)
+---local icon_data = _icons.create_technology_icon("__base__/graphics/technology/logistics-1.png", 256, 4)
 ---```
 ---
 ---### Parameters
@@ -361,8 +323,8 @@ end
 ---*@throws* `string` — Thrown when `icon` is not a mod-prefixed absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_size` is not a positive integer.<br/>
 ---@nodiscard
-function icons_api.create_technology_icon(icon, icon_size, scale, shift, tint)
-	return icons_api.add_missing_icon_defaults(pack_as_icon_datum(icon, icon_size, scale, shift, tint), "technology")
+function _icons.create_technology_icon(icon, icon_size, scale, shift, tint)
+	return _icons.add_missing_icon_defaults(pack_as_icon_datum(icon, icon_size, scale, shift, tint), "technology")
 end
 
 ---
@@ -379,7 +341,7 @@ end
 ---
 ---### Examples
 ---```
----local icon_data = icons_api.get_icon_from_prototype_by_reference(data.raw.item["iron-plate"])
+---local icon_data = _icons.get_icon_from_prototype(data.raw.item["iron-plate"])
 ---```
 ---
 ---### Parameters
@@ -388,7 +350,7 @@ end
 ---### Exceptions
 ---*@throws* `string` — Thrown when `prototype` has no defined field `icon` or `icons`.<br/>
 ---@nodiscard
-function icons_api.get_icon_from_prototype_by_reference(prototype)
+function _icons.get_icon_from_prototype(prototype)
 	if not prototype then
 		return
 	end
@@ -398,15 +360,10 @@ function icons_api.get_icon_from_prototype_by_reference(prototype)
 	-- NOTE: the motivation for this was that it avoids trying to figure out what the recipe product is and fetching the
 	-- item from that (e.g. the recipe has no icon and inherits it). With the removal of normal/expensive, this is less
 	-- cumbersome and it may be reasonable to add logic to retrieve the inherited icon.
-	assert(
-		(prototype.type ~= "recipe" or (prototype.icons or prototype.icon)),
-		"Invalid parameter: 'prototype' must not be a RecipePrototype with an undefined 'icon' or 'icons' field."
-	)
-
-	assert(
-		prototype.icons or prototype.icon,
-		"Invalid parameter: 'prototype' must have a defined 'icon' or 'icons' field."
-	)
+	-- stylua: ignore start
+	assert((prototype.type ~= "recipe" or (prototype.icons or prototype.icon)), "Invalid parameter: 'prototype' must not be a RecipePrototype with an undefined 'icon' or 'icons' field.")	
+	assert(prototype.icons or prototype.icon, "Invalid parameter: 'prototype' must have a defined 'icon' or 'icons' field.")
+	-- stylua: ignore end
 
 	---@type data.IconData[]
 	local icons
@@ -429,7 +386,7 @@ function icons_api.get_icon_from_prototype_by_reference(prototype)
 		} }
 	end
 
-	return icons_api.add_missing_icons_defaults(icons, prototype.type)
+	return _icons.add_missing_icons_defaults(icons, prototype.type)
 end
 
 ---
@@ -445,7 +402,7 @@ end
 ---
 ---### Examples
 ---```
----local icon_data = icons_api.get_icon_from_prototype_by_name("iron-plate", "item")
+---local icon_data = _icons.get_icon_from_named_prototype("iron-plate", "item")
 ---```
 ---
 ---### Parameters
@@ -457,11 +414,11 @@ end
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.<br/>
 ---*@throws* `string` — Thrown when the prototype has no defined field `icon` or `icons`.<br/>
 ---@nodiscard
-function icons_api.get_icon_from_prototype_by_name(name, type_name)
+function _icons.get_icon_from_named_prototype(name, type_name)
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
 
-	return icons_api.get_icon_from_prototype_by_reference(data.raw[type_name][name])
+	return _icons.get_icon_from_prototype(data.raw[type_name][name])
 end
 
 ---
@@ -476,7 +433,7 @@ end
 ---### Examples
 ---```
 ---local item = data.raw.item["coal"]
----local dark_background_icon_data = icons_api.get_dark_background_icon_from_prototype_by_reference(item)
+---local dark_background_icon_data = _icons.get_dark_background_icon_from_prototype(item)
 ---```
 ---
 ---### Parameters
@@ -485,7 +442,7 @@ end
 ---### Exceptions
 ---*@throws* `string` — Thrown when `prototype` has no defined field `icon` or `icons`.<br/>
 ---@nodiscard
-function icons_api.get_dark_background_icon_from_prototype_by_reference(item_prototype)
+function _icons.get_dark_background_icon_from_prototype(item_prototype)
 	if not item_prototype then
 		return
 	end
@@ -512,7 +469,7 @@ function icons_api.get_dark_background_icon_from_prototype_by_reference(item_pro
 		}
 	end
 
-	return icons_api.add_missing_icons_defaults(icons, item_prototype.type)
+	return _icons.add_missing_icons_defaults(icons, item_prototype.type)
 end
 
 ---
@@ -527,7 +484,7 @@ end
 ---
 ---### Examples
 ---```
----local dark_background_icon_data = icons_api.get_dark_background_icon_from_prototype_by_name("coal", "item")
+---local dark_background_icon_data = _icons.get_dark_background_icon_from_named_prototype("coal", "item")
 ---```
 ---
 ---### Parameters
@@ -538,11 +495,11 @@ end
 ---*@throws* `string` — Thrown when `name` is `nil` or an empty string.<br/>
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.<br/>
 ---@nodiscard
-function icons_api.get_dark_background_icon_from_prototype_by_name(name, type_name)
+function _icons.get_dark_background_icon_from_named_prototype(name, type_name)
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
 
-	return icons_api.get_dark_background_icon_from_prototype_by_reference(data.raw[type_name][name])
+	return _icons.get_dark_background_icon_from_prototype(data.raw[type_name][name])
 end
 
 ---
@@ -557,13 +514,13 @@ end
 ---### Examples
 ---```
 ---local planet = data.raw["starmap-location"]["shattered-planet"]
----local planet_starmap_icon_data = icons_api.get_starmap_icon_from_prototype_by_reference(planet)
+---local planet_starmap_icon_data = _icons.get_starmap_icon_from_prototype(planet)
 ---```
 ---
 ---### Parameters
 ---@param space_location_prototype data.SpaceLocationPrototype # The space location prototype to get the icon from.
 ---@nodiscard
-function icons_api.get_starmap_icon_from_prototype_by_reference(space_location_prototype)
+function _icons.get_starmap_icon_from_prototype(space_location_prototype)
 	if not space_location_prototype then
 		return
 	end
@@ -592,7 +549,7 @@ function icons_api.get_starmap_icon_from_prototype_by_reference(space_location_p
 		}
 	end
 
-	return icons_api.add_missing_icons_defaults(icons, space_location_prototype.type)
+	return _icons.add_missing_icons_defaults(icons, space_location_prototype.type)
 end
 
 ---
@@ -606,7 +563,7 @@ end
 ---
 ---### Examples
 ---```
----local starmap_icon_data = icons_api.get_starmap_icon_from_prototype_by_name("shattered-planet", "space-location")
+---local starmap_icon_data = _icons.get_starmap_icon_from_named_prototype("shattered-planet", "space-location")
 ---```
 ---
 ---### Parameters
@@ -617,11 +574,11 @@ end
 ---*@throws* `string` — Thrown when `name` is `nil` or an empty string.<br/>
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.<br/>
 ---@nodiscard
-function icons_api.get_starmap_icon_from_prototype_by_name(name, type_name)
+function _icons.get_starmap_icon_from_named_prototype(name, type_name)
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
 
-	return icons_api.get_starmap_icon_from_prototype_by_reference(data.raw[type_name][name])
+	return _icons.get_starmap_icon_from_prototype(data.raw[type_name][name])
 end
 
 local related_prototypes = {
@@ -654,7 +611,7 @@ local related_prototypes = {
 ---local labeled_icon = tier_tools.add_tier_labels_to_icon(1, icon_datum)
 ---
 -----Update the tier-1 assembly machine prototype and its related prototypes.
----icons_api.assign_icons_to_prototype_and_related_prototypes("assembling-machine-1", "assembling-machine", labeled_icon, unlabeled_pictures)
+---_icons.assign_icons_to_prototype_and_related_prototypes("assembling-machine-1", "assembling-machine", labeled_icon, unlabeled_pictures)
 ---```
 ---
 ---### Parameters
@@ -668,10 +625,10 @@ local related_prototypes = {
 ---*@throws* `string` — Thrown when `icon_data` is `nil`.<br/>
 ---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.<br/>
-function icons_api.assign_icons_to_prototype_and_related_prototypes(name, type_name, icon_data, pictures)
+function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name, icon_data, pictures)
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 
-	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, type_name)
+	local icon_data_copy = _icons.add_missing_icons_defaults(icon_data, type_name)
 
 	local prototype = (type_name and not related_prototypes[type_name]) and data.raw[type_name][name] or nil
 
@@ -679,14 +636,14 @@ function icons_api.assign_icons_to_prototype_and_related_prototypes(name, type_n
 	if type_name ~= "technology" and type_name ~= "recipe" then
 		local item = data.raw["item"][name]
 		if item then
-			icons_api.clear_icon_from_prototype_by_reference(item)
+			_icons.clear_icon_from_prototype(item)
 			item.icons = icon_data_copy
 			item.pictures = pictures
 		end
 
 		local item_with_entity_data = data.raw["item-with-entity-data"][name]
 		if item_with_entity_data then
-			icons_api.clear_icon_from_prototype_by_reference(item_with_entity_data)
+			_icons.clear_icon_from_prototype(item_with_entity_data)
 			item_with_entity_data.icons = icon_data_copy
 
 			-- The pictures field is ignored as of 1.0, this has been left active
@@ -696,14 +653,14 @@ function icons_api.assign_icons_to_prototype_and_related_prototypes(name, type_n
 
 		local explosion = data.raw["explosion"][name .. "-explosion"]
 		if explosion then
-			icons_api.clear_icon_from_prototype_by_reference(explosion)
+			_icons.clear_icon_from_prototype(explosion)
 			explosion.icons = icon_data_copy
 		end
 
 		-- FIXME: This can be improved by fetching the corpse off the prototype, if it exists, as a first option.
 		local remnants = data.raw["corpse"][name .. "-remnants"]
 		if remnants then
-			icons_api.clear_icon_from_prototype_by_reference(remnants)
+			_icons.clear_icon_from_prototype(remnants)
 			remnants.icons = icon_data_copy
 		end
 
@@ -712,11 +669,11 @@ function icons_api.assign_icons_to_prototype_and_related_prototypes(name, type_n
 		-- are intended to inherit the icon directly and do not use a custom icon.
 		-- Possible additional checks to make sure the recipe has only one output and it's the item?
 		local recipe = data.raw["recipe"][name]
-		icons_api.clear_icon_from_prototype_by_reference(recipe)
+		_icons.clear_icon_from_prototype(recipe)
 	end
 
 	if prototype then
-		icons_api.clear_icon_from_prototype_by_reference(prototype)
+		_icons.clear_icon_from_prototype(prototype)
 		prototype.icons = icon_data_copy
 	end
 end
@@ -737,7 +694,7 @@ end
 ---    } },
 ---}
 ---
----icons_api.assign_deferrable_icon(deferrable_icon)
+---_icons.assign_deferrable_icon(deferrable_icon)
 ---```
 ---
 ---### Parameters
@@ -752,15 +709,15 @@ end
 ---
 ---### See Also
 ---@see Reskins.SpriteUtils.Icons.assign_icons_to_prototype_and_related_prototypes
-function icons_api.assign_deferrable_icon(deferrable_icon)
+function _icons.assign_deferrable_icon(deferrable_icon)
 	if deferrable_icon.icon_datum then
-		icons_api.assign_icons_to_prototype_and_related_prototypes(
+		_icons.assign_icons_to_prototype_and_related_prototypes(
 			deferrable_icon.name,
 			deferrable_icon.type_name,
 			{ deferrable_icon.icon_datum }
 		)
 	elseif deferrable_icon.icon_data then
-		icons_api.assign_icons_to_prototype_and_related_prototypes(
+		_icons.assign_icons_to_prototype_and_related_prototypes(
 			deferrable_icon.name,
 			deferrable_icon.type_name,
 			deferrable_icon.icon_data,
@@ -774,7 +731,7 @@ end
 ---given `deferred_icons` dictionary of `DeferrableIconData` for later assignment in the
 ---given `stage`.
 ---
----Pass the same `deferrable_icon` table to the method `icons_api.assign_icons_deferred_to_stage` with
+---Pass the same `deferrable_icon` table to the method `_icons.assign_icons_deferred_to_stage` with
 ---the same `stage` during appropriate stage, to assign the deferred icons to the associated prototypes.
 ---
 ---### Examples
@@ -798,7 +755,7 @@ end
 ---}
 ---
 ----- Store the icon for deferred assignment in the data-updates stage.
----icons_api.store_icon_for_deferred_assignment_in_stage(deferred_icons, reskins.defines.stage.data_updates, deferrable_icon)
+---_icons.store_icon_for_deferred_assignment_in_stage(deferred_icons, reskins.defines.stage.data_updates, deferrable_icon)
 ---```
 ---
 ---### Parameters
@@ -816,31 +773,21 @@ end
 ---
 ---### See Also
 ---@see Reskins.SpriteUtils.Icons.assign_icons_deferred_to_stage
-function icons_api.store_icon_for_deferred_assignment_in_stage(deferred_icons, stage, deferrable_icon)
+function _icons.store_icon_for_deferred_assignment_in_stage(deferred_icons, stage, deferrable_icon)
+	-- stylua: ignore start
 	assert(deferred_icons, "Invalid parameter: 'deferred_icons' must not be nil.")
 	assert(stage, "Invalid parameter: 'stage' must not be nil.")
 
 	-- Validate the deferred icon.
 	assert(deferrable_icon, "Invalid parameter: 'deferrable_icon' must not be nil.")
-	assert(
-		deferrable_icon.name and deferrable_icon.name ~= "",
-		"Invalid operation: 'deferrable_icon.name' must not be nil or an empty string."
-	)
-	assert(
-		deferrable_icon.type_name and deferrable_icon.type_name ~= "",
-		"Invalid operation: 'deferrable_icon.type_name' must not be nil or an empty string."
-	)
-	assert(
-		deferrable_icon.icon_data or deferrable_icon.icon_datum,
-		"Invalid operation: 'deferrable_icon.icon_data' or `deferrable_icon.icon_datum` are required."
-	)
-	assert(
-		deferrable_icon.icon_data and deferrable_icon.icon_data[1],
-		"Invalid operation: 'deferrable_icon.icon_data' must not be an empty array."
-	)
+	assert(deferrable_icon.name and deferrable_icon.name ~= "", "Invalid operation: 'deferrable_icon.name' must not be nil or an empty string.")
+	assert(deferrable_icon.type_name and deferrable_icon.type_name ~= "", "Invalid operation: 'deferrable_icon.type_name' must not be nil or an empty string.")
+	assert(deferrable_icon.icon_data or deferrable_icon.icon_datum, "Invalid operation: 'deferrable_icon.icon_data' or `deferrable_icon.icon_datum` are required.")
+	assert(deferrable_icon.icon_data and deferrable_icon.icon_data[1], "Invalid operation: 'deferrable_icon.icon_data' must not be an empty array.")
+	-- stylua: ignore end
 
 	-- Validate the icon data and add missing defaults.
-	deferrable_icon.icon_data = icons_api.add_missing_icons_defaults(deferrable_icon.icon_data, deferrable_icon.type_name)
+	deferrable_icon.icon_data = _icons.add_missing_icons_defaults(deferrable_icon.icon_data, deferrable_icon.type_name)
 
 	if not deferred_icons[stage] then
 		deferred_icons[stage] = {}
@@ -872,13 +819,13 @@ end
 ---### See Also
 ---@see Reskins.SpriteUtils.Icons.store_icon_for_deferred_assignment_in_stage
 ---@see Reskins.SpriteUtils.Icons.assign_deferrable_icon
-function icons_api.assign_icons_deferred_to_stage(deferred_icons, stage)
+function _icons.assign_icons_deferred_to_stage(deferred_icons, stage)
 	if not deferred_icons[stage] then
 		return
 	end
 
 	for _, deferrable_icon in pairs(deferred_icons[stage]) do
-		icons_api.assign_deferrable_icon(deferrable_icon)
+		_icons.assign_deferrable_icon(deferrable_icon)
 	end
 end
 
@@ -894,24 +841,24 @@ end
 ---- Inputs are not modified.
 ---
 ---### Parameters
----@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
 ---@param ... data.IconData|data.IconData[] # An variable set of `IconData` or `IconData` arrays to combine.
 ---
 ---### See Also
 ---@see Reskins.SpriteUtils.Icons.add_missing_icon_defaults
 ---@nodiscard
-function icons_api.compose_icons(defaults_type, ...)
+function _icons.compose_icons(defaults_type, ...)
 	---@type data.IconData[]
 	local combined_icon_data = {}
 
 	for _, input_icon in pairs({ ... }) do
 		if input_icon and input_icon.icon then
 			-- It's an IconData object.
-			table.insert(combined_icon_data, icons_api.add_missing_icon_defaults(input_icon, defaults_type))
+			table.insert(combined_icon_data, _icons.add_missing_icon_defaults(input_icon, defaults_type))
 		elseif input_icon[1] and input_icon[1].icon then
 			-- It's an array of IconData objects.
 			for _, icon_datum in pairs(input_icon) do
-				table.insert(combined_icon_data, icons_api.add_missing_icon_defaults(icon_datum, defaults_type))
+				table.insert(combined_icon_data, _icons.add_missing_icon_defaults(icon_datum, defaults_type))
 			end
 		else
 			-- Skip.
@@ -947,7 +894,7 @@ end
 ---
 ----- Add the copper wire icon at one-half scale to the bottom left corner of the icon.
 ---local prototype = data.raw["item"]["copper-wire"]
----local iron_plate_with_copper_wire = icons_api.add_icons_from_prototype_to_icons_by_reference(icon_data, prototype, 0.5, { -16, 16 })
+---local iron_plate_with_copper_wire = _icons.add_icons_from_prototype_to_icons(icon_data, prototype, 0.5, { -16, 16 })
 ---```
 ---
 ---### Parameters
@@ -962,26 +909,26 @@ end
 ---
 ---### See Also
 ---@see Reskins.SpriteUtils.Icons.add_missing_icons_defaults
----@see Reskins.SpriteUtils.Icons.get_icon_from_prototype_by_reference
+---@see Reskins.SpriteUtils.Icons.get_icon_from_prototype
 ---@nodiscard
-function icons_api.add_icons_from_prototype_to_icons_by_reference(icon_data, prototype, scale, shift, tint)
+function _icons.add_icons_from_prototype_to_icons(icon_data, prototype, scale, shift, tint)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 
 	if not prototype then
 		return util.copy(icon_data)
 	end
 
-	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, prototype.type)
+	local icon_data_copy = _icons.add_missing_icons_defaults(icon_data, prototype.type)
 
 	-- Ensure working with a copy of the prototype.
 	-- This method sets default values for missing fields, so scale is present.
-	local sourced_icon_data = icons_api.get_icon_from_prototype_by_reference(prototype)
+	local sourced_icon_data = _icons.get_icon_from_prototype(prototype)
 	if not sourced_icon_data then
 		return icon_data_copy
 	end
 
 	for _, icon_datum in pairs(sourced_icon_data) do
-		table.insert(icon_data_copy, icons_api.transform_icon(icon_datum, scale, shift, tint, prototype.type))
+		table.insert(icon_data_copy, _icons.transform_icon(icon_datum, scale, shift, tint, prototype.type))
 	end
 
 	return icon_data_copy
@@ -1012,7 +959,7 @@ end
 ---
 ----- Add the copper wire icon at one-half scale to the bottom left corner of the icon.
 ---local prototype = data.raw["item"]["copper-wire"]
----local iron_plate_with_copper_wire = icons_api.add_icons_from_prototype_to_icon_by_reference(icon_datum, prototype, 0.5, { -16, 16 })
+---local iron_plate_with_copper_wire = _icons.add_icons_from_prototype_to_icon(icon_datum, prototype, 0.5, { -16, 16 })
 ---```
 ---
 ---### Parameters
@@ -1027,13 +974,13 @@ end
 ---*@throws* `string` — Thrown when `icon_datum` is not an IconData object with a defined `icon` field.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.add_icons_from_prototype_to_icons_by_reference
+---@see Reskins.SpriteUtils.Icons.add_icons_from_prototype_to_icons
 ---@nodiscard
-function icons_api.add_icons_from_prototype_to_icon_by_reference(icon_datum, prototype, scale, shift, tint)
+function _icons.add_icons_from_prototype_to_icon(icon_datum, prototype, scale, shift, tint)
 	assert(icon_datum, "Invalid parameter: 'icon_datum' must not be nil.")
 	assert(icon_datum.icon, "Invalid parameter: 'icon_datum' must be an IconData object with a defined 'icon' field.")
 
-	return icons_api.add_icons_from_prototype_to_icons_by_reference({ icon_datum }, prototype, scale, shift, tint)
+	return _icons.add_icons_from_prototype_to_icons({ icon_datum }, prototype, scale, shift, tint)
 end
 ---
 ---Adds the icon from the prototype with the given `name` and `type_name` a copy the given
@@ -1063,20 +1010,14 @@ end
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.add_icons_from_prototype_to_icons_by_reference
+---@see Reskins.SpriteUtils.Icons.add_icons_from_prototype_to_icons
 ---@nodiscard
-function icons_api.add_icons_from_prototype_to_icons_by_name(icon_data, name, type_name, scale, shift, tint)
+function _icons.add_icons_from_prototype_to_icons_by_name(icon_data, name, type_name, scale, shift, tint)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
 
-	return icons_api.add_icons_from_prototype_to_icons_by_reference(
-		icon_data,
-		data.raw[type_name][name],
-		scale,
-		shift,
-		tint
-	)
+	return _icons.add_icons_from_prototype_to_icons(icon_data, data.raw[type_name][name], scale, shift, tint)
 end
 
 ---
@@ -1103,7 +1044,7 @@ end
 ---}
 ---
 ----- Add the copper wire icon at one-half scale to the bottom left corner of the icon.
----local iron_plate_with_copper_wire = icons_api.add_icons_from_prototype_to_icon_by_name(icon_datum, "copper-wire", "item", 0.5, { -16, 16 })
+---local iron_plate_with_copper_wire = _icons.add_icons_from_prototype_to_icon_by_name(icon_datum, "copper-wire", "item", 0.5, { -16, 16 })
 ---```
 ---
 --- ### Parameters
@@ -1121,21 +1062,15 @@ end
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.add_icons_from_prototype_to_icons_by_reference
+---@see Reskins.SpriteUtils.Icons.add_icons_from_prototype_to_icons
 ---@nodiscard
-function icons_api.add_icons_from_prototype_to_icon_by_name(icon_datum, name, type_name, scale, shift, tint)
+function _icons.add_icons_from_prototype_to_icon_by_name(icon_datum, name, type_name, scale, shift, tint)
 	assert(icon_datum, "Invalid parameter: 'icon_datum' must not be nil.")
 	assert(icon_datum.icon, "Invalid parameter: 'icon_datum' must be an IconData object with a defined 'icon' field.")
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
 
-	return icons_api.add_icons_from_prototype_to_icons_by_reference(
-		{ icon_datum },
-		data.raw[type_name][name],
-		scale,
-		shift,
-		tint
-	)
+	return _icons.add_icons_from_prototype_to_icons({ icon_datum }, data.raw[type_name][name], scale, shift, tint)
 end
 
 ---
@@ -1168,7 +1103,7 @@ end
 ---
 ----- Transform the icon by scaling it to 1.5 times its original size
 ----- and shifting it by 16 pixels to the right.
----local transformed_icon_data = icons_api.transform_icon(icon_data, 1.5, { 16, 0 })
+---local transformed_icon_data = _icons.transform_icon(icon_data, 1.5, { 16, 0 })
 ---```
 ---
 ---### Parameters
@@ -1183,8 +1118,8 @@ end
 ---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.<br/>
 ---@nodiscard
-function icons_api.transform_icon(icon_data, scale, shift, tint, defaults_type)
-	local icon_data_copy = icons_api.add_missing_icons_defaults(icon_data, defaults_type)
+function _icons.transform_icon(icon_data, scale, shift, tint, defaults_type)
+	local icon_data_copy = _icons.add_missing_icons_defaults(icon_data, defaults_type)
 	if not scale and not shift and not tint then
 		return icon_data_copy
 	end
@@ -1228,7 +1163,7 @@ end
 ---
 ----- Get the icon data from the source.
 ------@type data.IconData[]
----local icon_data = icons_api.get_icon_from_source(icon_datum_source)
+---local icon_data = _icons.get_icon_from_source(icon_datum_source)
 ---```
 ---
 ---### Parameters
@@ -1241,19 +1176,19 @@ local function get_icons_from_source(source, defaults_type)
 
 	if source and source.icon_data then
 		---@cast source IconDataSource
-		icon_data = icons_api.add_missing_icons_defaults(source.icon_data, source.defaults_type)
+		icon_data = _icons.add_missing_icons_defaults(source.icon_data, source.defaults_type)
 	elseif source and source.icon_datum then
 		---@cast source IconDatumSource
-		icon_data = { icons_api.add_missing_icon_defaults(source.icon_datum, source.defaults_type) }
+		icon_data = { _icons.add_missing_icon_defaults(source.icon_datum, source.defaults_type) }
 	elseif source and source.name then
 		---@cast source PrototypeIconSource
-		icon_data = icons_api.get_icon_from_prototype_by_name(source.name, source.type_name)
+		icon_data = _icons.get_icon_from_named_prototype(source.name, source.type_name)
 	end
 
 	local is_blank_icon = false
 	if not icon_data then
 		is_blank_icon = true
-		icon_data = { icons_api.empty_icon(defaults_type) }
+		icon_data = { _icons.empty_icon(defaults_type) }
 	end
 
 	return icon_data, is_blank_icon
@@ -1284,14 +1219,14 @@ end
 ---### See Also
 ---@see Reskins.SpriteUtils.Icons.add_missing_icons_defaults
 ---@see Reskins.SpriteUtils.Icons.add_missing_icon_defaults
----@see Reskins.SpriteUtils.Icons.get_icon_from_prototype_by_name
+---@see Reskins.SpriteUtils.Icons.get_icon_from_named_prototype
 ---@nodiscard
-function icons_api.add_icons_from_sources_to_icons(icon_data, sources, defaults_type)
+function _icons.add_icons_from_sources_to_icons(icon_data, sources, defaults_type)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 	assert(sources, "Invalid parameter: 'sources' must not be nil.")
 
 	---@type data.IconData[]
-	local combined_icon = icons_api.add_missing_icons_defaults(icon_data, defaults_type)
+	local combined_icon = _icons.add_missing_icons_defaults(icon_data, defaults_type)
 
 	local has_blank_layers = false
 	for _, source in pairs(sources) do
@@ -1299,7 +1234,7 @@ function icons_api.add_icons_from_sources_to_icons(icon_data, sources, defaults_
 		local icon, is_blank_icon = get_icons_from_source(source, defaults_type)
 		has_blank_layers = has_blank_layers or is_blank_icon
 
-		local transformed_icon = icons_api.transform_icon(
+		local transformed_icon = _icons.transform_icon(
 			icon,
 			source.scale,
 			source.shift,
@@ -1349,7 +1284,7 @@ end
 ---}
 ---
 ----- Create the icon from the sources.
----local icon_data = icons_api.create_icons_from_sources(sources)
+---local icon_data = _icons.create_icons_from_sources(sources)
 ---```
 ---
 ---### Parameters
@@ -1358,7 +1293,7 @@ end
 ---### Exceptions
 ---*@throws* `string` — Thrown when `sources` is `nil`.<br/>
 ---@nodiscard
-function icons_api.create_icons_from_sources(sources)
+function _icons.create_icons_from_sources(sources)
 	assert(sources, "Invalid parameter: 'sources' must not be nil.")
 
 	---@type IconSources
@@ -1377,7 +1312,7 @@ function icons_api.create_icons_from_sources(sources)
 		icon_datum.tint = sources[1].tint or icon_datum.tint
 	end
 
-	local icon_data, added_blank_layers = icons_api.add_icons_from_sources_to_icons(base_icon_data, sources_copy)
+	local icon_data, added_blank_layers = _icons.add_icons_from_sources_to_icons(base_icon_data, sources_copy)
 	has_blank_layers = (has_blank_layers or added_blank_layers)
 
 	return icon_data, has_blank_layers
@@ -1404,16 +1339,16 @@ end
 ---    },
 ---}
 ---
----icons_api.assign_combined_icons_from_sources_to_recipe(recipe_icon_source_map)
+---_icons.assign_combined_icons_from_sources_to_recipe(recipe_icon_source_map)
 ---```
 ---
 ---### Parameters
 ---@param recipe_icon_source_map { [string]: IconSources } # A map of recipe names to the icon sources used to create a combined icon. The first entry in each IconSources is the first layer of the created icon.
-function icons_api.create_and_assign_composed_icons_from_sources_to_recipe(recipe_icon_source_map)
+function _icons.create_and_assign_composed_icons_from_sources_to_recipe(recipe_icon_source_map)
 	for recipe_name, sources in pairs(recipe_icon_source_map) do
-		local icon_data = icons_api.create_icons_from_sources(sources)
-		icons_api.assign_icons_to_prototype_and_related_prototypes(recipe_name, "recipe", icon_data)
+		local icon_data = _icons.create_icons_from_sources(sources)
+		_icons.assign_icons_to_prototype_and_related_prototypes(recipe_name, "recipe", icon_data)
 	end
 end
 
-return icons_api
+return _icons

@@ -2,18 +2,18 @@
 ---
 ---### Examples
 ---```lua
----local sprite_utils = require("__reskins-sprite-utils__.sprites")
+---local _sprites = require("__reskins-sprite-utils__.sprites")
 ---```
 ---@class Reskins.SpriteUtils.Sprites
-local sprite_utils = {}
+local _sprites = {}
 
-local icon_utils = require("__reskins-sprite-utils__.icons")
+local _icons = require("__reskins-sprite-utils__.icons")
 
 ---@param icon_layer data.IconData # An icon layer.
 ---@param scale? double # The scale to apply to the sprite.
 ---@return data.Sprite # A layer of sprite data.
 local function convert_icon_layer_to_sprite_layer(icon_layer, scale)
-	local icon_copy = icon_utils.add_missing_icon_defaults(icon_layer)
+	local icon_copy = _icons.add_missing_icon_defaults(icon_layer)
 	local scale_to_apply = scale and scale * icon_copy.scale or icon_copy.scale or 32 / icon_copy.icon_size
 
 	-- Icon shift is in pixels, so we need to scale it down to 32 pixels per tile.
@@ -57,7 +57,7 @@ end
 ---    },
 ---}
 ---
----local sprite = sprite_utils.create_sprite_from_icons(icon_data, 1.0)
+---local sprite = _sprites.create_sprite_from_icons(icon_data, 1.0)
 ---```
 ---
 ---### Parameters
@@ -71,7 +71,7 @@ end
 ---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.<br/>
 ---@nodiscard
-function sprite_utils.create_sprite_from_icons(icon_data, scale)
+function _sprites.create_sprite_from_icons(icon_data, scale)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 
 	---@type data.Sprite
@@ -105,7 +105,7 @@ end
 ---    scale = 0.5,
 ---}
 ---
----local sprite = sprite_utils.create_sprite_from_icon(icon_datum, 1.0)
+---local sprite = _sprites.create_sprite_from_icon(icon_datum, 1.0)
 ---```
 ---
 ---### Parameters
@@ -120,7 +120,7 @@ end
 ---*@throws* `string` — Thrown when `icon_datum.icon` is not an absolute file path with a valid extension.<br/>
 ---*@throws* `string` — Thrown when `icon_datum.icon_size` is not a positive integer.<br/>
 ---@nodiscard
-function sprite_utils.create_sprite_from_icon(icon_datum, scale)
+function _sprites.create_sprite_from_icon(icon_datum, scale)
 	assert(icon_datum, "Invalid parameter: 'icon_datum' must not be nil.")
 
 	return convert_icon_layer_to_sprite_layer(icon_datum, scale)
@@ -159,7 +159,7 @@ end
 ---### Parameters
 ---@param animation VerticallyOrientableAnimation|data.Animation # The animation object to create the 4-way animation from.
 ---@nodiscard
-function sprite_utils.make_4way_animation_from_spritesheet(animation)
+function _sprites.make_4way_animation_from_spritesheet(animation)
 	local animation_copy = util.copy(animation)
 
 	---@class DirectionDefines : integer
@@ -300,17 +300,17 @@ local excluded_fields = {
 ---```lua
 ----- Rescale the "big-electric-pole" by a factor of 2.
 ----- The resulting entity will have a 4 x 4 tile footprint, and sprite to match.
----sprite_utils.rescale_prototype(data.raw["electric-pole"]["big-electric-pole"], 2)
+---_sprites.rescale_prototype(data.raw["electric-pole"]["big-electric-pole"], 2)
 ---
 ----- Rescale the "oil-refinery" by a factor of 3 / 5.
 ----- The resulting entity will have a 3 x 3 tile footprint, and sprite to match.
----sprite_utils.rescale_prototype(data.raw["assembling-machine"]["oil-refinery"], 3 / 5)
+---_sprites.rescale_prototype(data.raw["assembling-machine"]["oil-refinery"], 3 / 5)
 ---```
 ---
 ---### Parameters
 ---@param entity_prototype any # The entity prototype to rescale.
 ---@param scalar double # The scale factor to resize the prototype by.
-function sprite_utils.rescale_prototype(entity_prototype, scalar)
+function _sprites.rescale_prototype(entity_prototype, scalar)
 	---
 	---Recursively scales all numeric values in the given `table`, regardless of depth.
 	---
@@ -351,7 +351,7 @@ function sprite_utils.rescale_prototype(entity_prototype, scalar)
 		elseif excluded_fields[key] then
 			-- Do nothing.
 		elseif type(value) == "table" then
-			sprite_utils.rescale_prototype(value, scalar)
+			_sprites.rescale_prototype(value, scalar)
 
 			-- Scale is not a supported property of stripes, but will be added in child tables.
 			-- FIXME: This is a hacky solution to a problem of unused prototypes, and it would be better
@@ -377,7 +377,7 @@ end
 ---```lua
 ----- Rescale the remnants of the "big-electric-pole" by a factor of 2.
 ----- The resulting entity will have a 4 x 4 tile footprint, and sprite to match.
----sprite_utils.rescale_remnants_of_prototype(data.raw["electric-pole"]["big-electric-pole"], 2)
+---_sprites.rescale_remnants_of_prototype(data.raw["electric-pole"]["big-electric-pole"], 2)
 ---```
 ---
 ---### Parameters
@@ -386,7 +386,7 @@ end
 ---
 ---### See Also
 ---@see Reskins.SpriteUtils.Sprites.rescale_prototype
-function sprite_utils.rescale_remnants_of_prototype(prototype, scalar)
+function _sprites.rescale_remnants_of_prototype(prototype, scalar)
 	-- Check the entity exists
 	if not prototype then
 		return
@@ -403,7 +403,7 @@ function sprite_utils.rescale_remnants_of_prototype(prototype, scalar)
 			local rescaled_remnant = util.copy(remnant)
 			rescaled_remnant.name = "rescaled-" .. rescaled_remnant.name
 
-			sprite_utils.rescale_prototype(rescaled_remnant, scalar)
+			_sprites.rescale_prototype(rescaled_remnant, scalar)
 			data:extend({ rescaled_remnant })
 
 			prototype.corpse = rescaled_remnant.name
@@ -411,4 +411,4 @@ function sprite_utils.rescale_remnants_of_prototype(prototype, scalar)
 	end
 end
 
-return sprite_utils
+return _sprites
