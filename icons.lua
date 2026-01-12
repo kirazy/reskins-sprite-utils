@@ -190,20 +190,35 @@ end
 ---@nodiscard
 function icons_api.add_missing_icon_defaults(icon_datum, defaults_type)
 	assert(icon_datum, "Missing required parameter: 'icon_datum' must not be nil.")
-	assert(not (icon_datum[1] and icon_datum[1].icon), "Invalid parameter type: 'icon_datum' must be IconData, but was IconData[].")
+	assert(
+		not (icon_datum[1] and icon_datum[1].icon),
+		"Invalid parameter type: 'icon_datum' must be IconData, but was IconData[]."
+	)
 	assert(not icon_datum[1], "Invalid parameter type: 'icon_datum' must be IconData, and not an array.")
 
 	-- Validate icon file path.
 	assert(icon_datum.icon and icon_datum.icon ~= "", "Missing required field: 'icon' must not be nil or empty.")
-	assert(icon_datum.icon:find("^__[%a%d%-%_-]+__"), "Invalid filename: 'icon' must be an absolute file path, but was '" .. icon_datum.icon .. "'.")
-	assert(icon_datum.icon:match("%.([%a%d]+)$"), "Invalid filename: 'icon' must have a valid file extension, but was '" .. icon_datum.icon .. "'.")
+	assert(
+		icon_datum.icon:find("^__[%a%d%-%_-]+__"),
+		"Invalid filename: 'icon' must be an absolute file path, but was '" .. icon_datum.icon .. "'."
+	)
+	assert(
+		icon_datum.icon:match("%.([%a%d]+)$"),
+		"Invalid filename: 'icon' must have a valid file extension, but was '" .. icon_datum.icon .. "'."
+	)
 
 	-- Set icon_size to default for the type, if not explicitly provided.
 	local expected_icon_size = default_icon_sizes[defaults_type or ""] or defines.default_icon_size
 	local icon_size = icon_datum.icon_size or expected_icon_size
 
-	assert(type(icon_size) == "number", "Invalid type: 'icon_size' must be a number, but was a '" .. type(icon_size) .. "'.")
-	assert(icon_size > 0 and icon_size % 1 == 0, "Invalid value: 'icon_size' must be an integer greater than zero, but was '" .. icon_size .. "'.")
+	assert(
+		type(icon_size) == "number",
+		"Invalid type: 'icon_size' must be a number, but was a '" .. type(icon_size) .. "'."
+	)
+	assert(
+		icon_size > 0 and icon_size % 1 == 0,
+		"Invalid value: 'icon_size' must be an integer greater than zero, but was '" .. icon_size .. "'."
+	)
 
 	return {
 		icon = icon_datum.icon,
@@ -383,9 +398,15 @@ function icons_api.get_icon_from_prototype_by_reference(prototype)
 	-- NOTE: the motivation for this was that it avoids trying to figure out what the recipe product is and fetching the
 	-- item from that (e.g. the recipe has no icon and inherits it). With the removal of normal/expensive, this is less
 	-- cumbersome and it may be reasonable to add logic to retrieve the inherited icon.
-	assert((prototype.type ~= "recipe" or (prototype.icons or prototype.icon)), "Invalid parameter: 'prototype' must not be a RecipePrototype with an undefined 'icon' or 'icons' field.")
+	assert(
+		(prototype.type ~= "recipe" or (prototype.icons or prototype.icon)),
+		"Invalid parameter: 'prototype' must not be a RecipePrototype with an undefined 'icon' or 'icons' field."
+	)
 
-	assert(prototype.icons or prototype.icon, "Invalid parameter: 'prototype' must have a defined 'icon' or 'icons' field.")
+	assert(
+		prototype.icons or prototype.icon,
+		"Invalid parameter: 'prototype' must have a defined 'icon' or 'icons' field."
+	)
 
 	---@type data.IconData[]
 	local icons
@@ -483,10 +504,12 @@ function icons_api.get_dark_background_icon_from_prototype_by_reference(item_pro
 		end
 	else
 		---@type data.IconData[]
-		icons = { {
-			icon = item_prototype.dark_background_icon,
-			icon_size = item_prototype.dark_background_icon_size or defines.default_icon_size,
-		} }
+		icons = {
+			{
+				icon = item_prototype.dark_background_icon,
+				icon_size = item_prototype.dark_background_icon_size or defines.default_icon_size,
+			},
+		}
 	end
 
 	return icons_api.add_missing_icons_defaults(icons, item_prototype.type)
@@ -555,14 +578,18 @@ function icons_api.get_starmap_icon_from_prototype_by_reference(space_location_p
 
 		-- Ensure icon_size is set for all elements before adding defaults.
 		for n = 1, #icons do
-			icons[n].icon_size = icons[n].icon_size or space_location_prototype.icon_size or default_icon_sizes["space-location"]
+			icons[n].icon_size = icons[n].icon_size
+				or space_location_prototype.icon_size
+				or default_icon_sizes["space-location"]
 		end
 	else
 		---@type data.IconData[]
-		icons = { {
-			icon = space_location_prototype.starmap_icon,
-			icon_size = space_location_prototype.starmap_icon_size or default_icon_sizes["space-location"],
-		} }
+		icons = {
+			{
+				icon = space_location_prototype.starmap_icon,
+				icon_size = space_location_prototype.starmap_icon_size or default_icon_sizes["space-location"],
+			},
+		}
 	end
 
 	return icons_api.add_missing_icons_defaults(icons, space_location_prototype.type)
@@ -727,9 +754,18 @@ end
 ---@see Reskins.SpriteUtils.Icons.assign_icons_to_prototype_and_related_prototypes
 function icons_api.assign_deferrable_icon(deferrable_icon)
 	if deferrable_icon.icon_datum then
-		icons_api.assign_icons_to_prototype_and_related_prototypes(deferrable_icon.name, deferrable_icon.type_name, { deferrable_icon.icon_datum })
+		icons_api.assign_icons_to_prototype_and_related_prototypes(
+			deferrable_icon.name,
+			deferrable_icon.type_name,
+			{ deferrable_icon.icon_datum }
+		)
 	elseif deferrable_icon.icon_data then
-		icons_api.assign_icons_to_prototype_and_related_prototypes(deferrable_icon.name, deferrable_icon.type_name, deferrable_icon.icon_data, deferrable_icon.pictures)
+		icons_api.assign_icons_to_prototype_and_related_prototypes(
+			deferrable_icon.name,
+			deferrable_icon.type_name,
+			deferrable_icon.icon_data,
+			deferrable_icon.pictures
+		)
 	end
 end
 
@@ -786,10 +822,22 @@ function icons_api.store_icon_for_deferred_assignment_in_stage(deferred_icons, s
 
 	-- Validate the deferred icon.
 	assert(deferrable_icon, "Invalid parameter: 'deferrable_icon' must not be nil.")
-	assert(deferrable_icon.name and deferrable_icon.name ~= "", "Invalid operation: 'deferrable_icon.name' must not be nil or an empty string.")
-	assert(deferrable_icon.type_name and deferrable_icon.type_name ~= "", "Invalid operation: 'deferrable_icon.type_name' must not be nil or an empty string.")
-	assert(deferrable_icon.icon_data or deferrable_icon.icon_datum, "Invalid operation: 'deferrable_icon.icon_data' or `deferrable_icon.icon_datum` are required.")
-	assert(deferrable_icon.icon_data and deferrable_icon.icon_data[1], "Invalid operation: 'deferrable_icon.icon_data' must not be an empty array.")
+	assert(
+		deferrable_icon.name and deferrable_icon.name ~= "",
+		"Invalid operation: 'deferrable_icon.name' must not be nil or an empty string."
+	)
+	assert(
+		deferrable_icon.type_name and deferrable_icon.type_name ~= "",
+		"Invalid operation: 'deferrable_icon.type_name' must not be nil or an empty string."
+	)
+	assert(
+		deferrable_icon.icon_data or deferrable_icon.icon_datum,
+		"Invalid operation: 'deferrable_icon.icon_data' or `deferrable_icon.icon_datum` are required."
+	)
+	assert(
+		deferrable_icon.icon_data and deferrable_icon.icon_data[1],
+		"Invalid operation: 'deferrable_icon.icon_data' must not be an empty array."
+	)
 
 	-- Validate the icon data and add missing defaults.
 	deferrable_icon.icon_data = icons_api.add_missing_icons_defaults(deferrable_icon.icon_data, deferrable_icon.type_name)
@@ -1022,7 +1070,13 @@ function icons_api.add_icons_from_prototype_to_icons_by_name(icon_data, name, ty
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
 
-	return icons_api.add_icons_from_prototype_to_icons_by_reference(icon_data, data.raw[type_name][name], scale, shift, tint)
+	return icons_api.add_icons_from_prototype_to_icons_by_reference(
+		icon_data,
+		data.raw[type_name][name],
+		scale,
+		shift,
+		tint
+	)
 end
 
 ---
@@ -1075,7 +1129,13 @@ function icons_api.add_icons_from_prototype_to_icon_by_name(icon_datum, name, ty
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
 
-	return icons_api.add_icons_from_prototype_to_icons_by_reference({ icon_datum }, data.raw[type_name][name], scale, shift, tint)
+	return icons_api.add_icons_from_prototype_to_icons_by_reference(
+		{ icon_datum },
+		data.raw[type_name][name],
+		scale,
+		shift,
+		tint
+	)
 end
 
 ---
@@ -1239,7 +1299,13 @@ function icons_api.add_icons_from_sources_to_icons(icon_data, sources, defaults_
 		local icon, is_blank_icon = get_icons_from_source(source, defaults_type)
 		has_blank_layers = has_blank_layers or is_blank_icon
 
-		local transformed_icon = icons_api.transform_icon(icon, source.scale, source.shift, source.tint, source.type_name or source.defaults_type or defaults_type)
+		local transformed_icon = icons_api.transform_icon(
+			icon,
+			source.scale,
+			source.shift,
+			source.tint,
+			source.type_name or source.defaults_type or defaults_type
+		)
 
 		for _, icon_datum in pairs(transformed_icon) do
 			table.insert(combined_icon, icon_datum)
