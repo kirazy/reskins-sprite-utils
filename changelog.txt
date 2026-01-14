@@ -2,6 +2,7 @@
 Version: 0.0.2
 Date: ????
   Changes:
+    - Added "default" as the first item in IconDefaultsType to support tab-autocomplete.
 ---------------------------------------------------------------------------------------------------
 Version: 0.0.1
 Date: 2026-01-11

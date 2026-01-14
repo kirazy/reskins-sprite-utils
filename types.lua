@@ -20,6 +20,7 @@
 
 ---Type names/aliases that map to icon_size defaults as per https://lua-api.factorio.com/latest/types/IconData.html#scale
 ---@alias IconDefaultsType
+---| "default"
 ---| "technology"
 ---| "space-location"
 ---| "shortcut"
