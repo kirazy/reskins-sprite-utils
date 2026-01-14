@@ -1,6 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.0.2
 Date: ????
+  Features:
+    - Added new `colors` module with method `colors.from_argb` method taking an 8-character ARGB hex code and converting it to a Factorio RGBA color vector.
   Changes:
     - Added "default" as the first item in IconDefaultsType to support tab-autocomplete.
 ---------------------------------------------------------------------------------------------------
