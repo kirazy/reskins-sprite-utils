@@ -1,4 +1,11 @@
-local colors = {}
+--- Provides color tools for use with Artisanal Reskins: Sprite Utils.
+---
+---### Examples
+---```lua
+---local _colors = require("__reskins-sprite-utils__.colors")
+---```
+---@class Reskins.SpriteUtils.Colors
+local _colors = {}
 
 ---Converts an ARGB hex code to an RGBA color vector compatible with Factorio prototypes.
 ---
@@ -24,7 +31,7 @@ local colors = {}
 ---### Exceptions
 ---*@throws* - `string` When `hex` is not a string.</br>
 ---*@throws* - `string` When `hex` is not 8 characters.
-function colors.from_argb(hex)
+function _colors.from_argb(hex)
 	if type(hex) ~= "string" then
 		error("Invalid type: 'hex' must be a string.")
 	elseif #hex ~= 8 then
@@ -33,4 +40,4 @@ function colors.from_argb(hex)
 	return util.color(hex:sub(3, 8) .. hex:sub(1, 2))
 end
 
-return colors
+return _colors
