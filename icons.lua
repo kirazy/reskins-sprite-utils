@@ -667,9 +667,12 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 		-- Clear out recipes of the same name so that the item icon is inherited properly.
 		-- Possibly a dangerous assumption that all recipes with the same name as the item
 		-- are intended to inherit the icon directly and do not use a custom icon.
-		-- Possible additional checks to make sure the recipe has only one output and it's the item?
+
+		-- icon is required if the recipe does not have a main product.
 		local recipe = data.raw["recipe"][name]
-		_icons.clear_icon_from_prototype(recipe)
+		if recipe and recipe.main_product then
+			_icons.clear_icon_from_prototype(recipe)
+		end
 	end
 
 	if prototype then

@@ -1,7 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.0.3
 Date: ????
-  Changes:
+  Bugfixes:
+    - Fixed that recipe prototypes would have their icon cleared when an icon was required in some circumstances.
 ---------------------------------------------------------------------------------------------------
 Version: 0.0.2
 Date: 2026-05-08
