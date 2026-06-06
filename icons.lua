@@ -337,7 +337,7 @@ end
 ---- `prototype` is not modified.
 ---
 ---### Returns
----@return data.IconData[]|nil # A copy of the icon retrieved from the prototype, or `nil` if the prototype does not exist.
+---@return data.IconData[] # A copy of the icon retrieved from the prototype.
 ---
 ---### Examples
 ---```
@@ -348,12 +348,11 @@ end
 ---@param prototype PrototypeWithIcons # The prototype to get the icon from.
 ---
 ---### Exceptions
+---*@throws* `string` — Thrown when `prototype` is `nil`.<br/>
 ---*@throws* `string` — Thrown when `prototype` has no defined field `icon` or `icons`.<br/>
 ---@nodiscard
 function _icons.get_icon_from_prototype(prototype)
-	if not prototype then
-		return
-	end
+	assert(prototype, "Invalid parameter: 'prototype' is must not be nil.")
 
 	-- Recipes must have an icon or icons field if being passed to this function.
 	---

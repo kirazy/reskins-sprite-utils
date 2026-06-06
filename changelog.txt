@@ -2,6 +2,7 @@
 Version: 0.0.4
 Date: ????
   Changes:
+    - Revised `icons.get_icon_from_prototype` to throw on nil input rather than return nil; for a concrete input the method always returns a concrete output.
 ---------------------------------------------------------------------------------------------------
 Version: 0.0.3
 Date: 2026-05-10
