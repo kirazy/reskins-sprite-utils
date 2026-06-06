@@ -265,6 +265,64 @@ function _sprites.make_4way_animation_from_spritesheet(animation)
 	return animation_4way
 end
 
+---
+---Creates a `RotatedAnimationVariations` object from the given `sheet`, slicing the sprite sheet
+---into `variation_count` individual `RotatedAnimation` objects by computing the Y offset for each.
+---
+---Each variation is assumed to occupy the same vertical span on the sheet, derived from
+---`frame_count`, `line_length`, and `direction_count` on the source animation layer.
+---
+---### Returns
+---@return data.RotatedAnimationVariations # An array of `RotatedAnimation` objects, one per variation.
+---
+---### Examples
+---```lua
+---local variations = _sprites.make_rotated_animation_variations_from_spritesheet(4, {
+---    filename = "__mod-name__/graphics/entity/prototype/prototype.png",
+---    priority = "high",
+---    width = 128,
+---    height = 128,
+---    direction_count = 36,
+---    frame_count = 1,
+---})
+---```
+---
+---### Parameters
+---@param variation_count integer # The number of variations to slice from `sheet`.
+---@param sheet data.RotatedAnimation # The source animation referencing a sprite sheet with all variations stacked vertically.
+function _sprites.make_rotated_animation_variations_from_spritesheet(variation_count, sheet)
+	---@type data.RotatedAnimationVariations
+	local result = {}
+
+	---@param variation data.RotatedAnimation
+	---@param i integer
+	local function set_y_offset(variation, i)
+		local frame_count = variation.frame_count or 1
+		local line_length = variation.line_length or frame_count
+		if line_length < 1 then
+			line_length = frame_count
+		end
+
+		local height_in_frames = math.floor((frame_count * variation.direction_count + line_length - 1) / line_length)
+		variation.y = variation.height * (i - 1) * height_in_frames
+	end
+
+	for i = 1, variation_count do
+		local variation = util.copy(sheet) --[[@as data.RotatedAnimation]]
+
+		if variation.layers then
+			for _, layer in pairs(variation.layers) do
+				set_y_offset(layer, i)
+			end
+		else
+			set_y_offset(variation, i)
+		end
+
+		table.insert(result, variation)
+	end
+	return result
+end
+
 -- Filtering tables for rescale_entity
 local included_fields = {
 	["shift"] = true,
