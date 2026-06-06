@@ -728,9 +728,11 @@ function _icons.assign_deferrable_icon(deferrable_icon)
 	end
 end
 
+---@alias Reskins.SpriteUtils.DeferredIconStore { [Reskins.SpriteUtils.Defines.Stage]: (DeferrableIconData|DeferrableIconDatum)[] }
+
 ---
 ---Performs validation and sanitization of the given `deferrable_icon`, and adds it to the
----given `deferred_icons` dictionary of `DeferrableIconData` for later assignment in the
+---given `deferred_icon_store` dictionary of `DeferrableIconData` for later assignment in the
 ---given `stage`.
 ---
 ---Pass the same `deferrable_icon` table to the method `_icons.assign_icons_deferred_to_stage` with
@@ -742,7 +744,7 @@ end
 ---
 ----- Create the empty table to hold the stored icons. No pre-configuration is required.
 ----- The lifetime of this variable must continue between stages.
----globals.deferred_icons = {}
+---globals.deferred_icon_store = {}
 ---
 ----- Create the icon data (or use a pre-existing one).
 ------@type DeferrableIconsData
@@ -757,16 +759,16 @@ end
 ---}
 ---
 ----- Store the icon for deferred assignment in the data-updates stage.
----_icons.store_icon_for_deferred_assignment_in_stage(deferred_icons, reskins.defines.stage.data_updates, deferrable_icon)
+---_icons.store_icon_for_deferred_assignment_in_stage(deferred_icon_store, reskins.defines.stage.data_updates, deferrable_icon)
 ---```
 ---
 ---### Parameters
----@param deferred_icons { [Reskins.SpriteUtils.Defines.Stage]: (DeferrableIconData|DeferrableIconDatum)[] } # The dictionary of deferrable icons, indexed by stage, to add the deferrable icon to.
+---@param deferred_icon_store Reskins.SpriteUtils.DeferredIconStore # The dictionary of deferrable icons, indexed by stage, to add the deferrable icon to.
 ---@param stage Reskins.SpriteUtils.Defines.Stage # The key to the data stage to store the deferrable icon in.
 ---@param deferrable_icon DeferrableIconData|DeferrableIconDatum # The icon data to store for deferred assignment.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `deferred_icons` is `nil`.<br/>
+---*@throws* `string` — Thrown when `deferred_icon_store` is `nil`.<br/>
 ---*@throws* `string` — Thrown when `stage` is `nil` <br/>
 ---*@throws* `string` — Thrown when `deferrable_icon` is `nil`.<br/>
 ---*@throws* `string` — Thrown when `deferrable_icon.name` is `nil` or an empty string.<br/>
@@ -775,9 +777,9 @@ end
 ---
 ---### See Also
 ---@see Reskins.SpriteUtils.Icons.assign_icons_deferred_to_stage
-function _icons.store_icon_for_deferred_assignment_in_stage(deferred_icons, stage, deferrable_icon)
+function _icons.store_icon_for_deferred_assignment_in_stage(deferred_icon_store, stage, deferrable_icon)
 	-- stylua: ignore start
-	assert(deferred_icons, "Invalid parameter: 'deferred_icons' must not be nil.")
+	assert(deferred_icon_store, "Invalid parameter: 'deferred_icon_store' must not be nil.")
 	assert(stage, "Invalid parameter: 'stage' must not be nil.")
 
 	-- Validate the deferred icon.
@@ -791,24 +793,24 @@ function _icons.store_icon_for_deferred_assignment_in_stage(deferred_icons, stag
 	-- Validate the icon data and add missing defaults.
 	deferrable_icon.icon_data = _icons.add_missing_icons_defaults(deferrable_icon.icon_data, deferrable_icon.type_name)
 
-	if not deferred_icons[stage] then
-		deferred_icons[stage] = {}
+	if not deferred_icon_store[stage] then
+		deferred_icon_store[stage] = {}
 	end
 
-	table.insert(deferred_icons[stage], deferrable_icon)
+	table.insert(deferred_icon_store[stage], deferrable_icon)
 end
 
 ---
----Assigns the deferrable icons in `deferred_icons[stage]` to the associated prototypes.
+---Assigns the deferrable icons in `deferred_icon_store[stage]` to the associated prototypes.
 ---
 ---### Examples
 ---```
 ----- Using the variable created earlier to store deferrable icons.
----reskins._internal.assign_icons_deferred_to_stage(globals.deferred_icons, reskins.defines.stage.data_updates)
+---reskins._internal.assign_icons_deferred_to_stage(globals.deferred_icon_store, reskins.defines.stage.data_updates)
 ---```
 ---
 ---### Parameters
----@param deferred_icons { [Reskins.SpriteUtils.Defines.Stage]: (DeferrableIconData|DeferrableIconDatum)[] } # The dictionary of deferrable icons, indexed by stage, to assign the deferrable icons from.
+---@param deferred_icon_store Reskins.SpriteUtils.DeferredIconStore # The dictionary of deferrable icons, indexed by stage, to assign the deferrable icons from.
 ---@param stage Reskins.SpriteUtils.Defines.Stage # The index of the data stage to source deferrable icons from.
 ---
 ---### Exceptions
@@ -821,12 +823,12 @@ end
 ---### See Also
 ---@see Reskins.SpriteUtils.Icons.store_icon_for_deferred_assignment_in_stage
 ---@see Reskins.SpriteUtils.Icons.assign_deferrable_icon
-function _icons.assign_icons_deferred_to_stage(deferred_icons, stage)
-	if not deferred_icons[stage] then
+function _icons.assign_icons_deferred_to_stage(deferred_icon_store, stage)
+	if not deferred_icon_store[stage] then
 		return
 	end
 
-	for _, deferrable_icon in pairs(deferred_icons[stage]) do
+	for _, deferrable_icon in pairs(deferred_icon_store[stage]) do
 		_icons.assign_deferrable_icon(deferrable_icon)
 	end
 end
