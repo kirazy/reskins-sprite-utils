@@ -365,6 +365,45 @@ function _sprites.rescale_prototype(entity_prototype, scalar)
 	end
 end
 
+---Returns a rescaled copy of the given `prototype`, resized by the given `scalar`.
+---
+---Recursively iterates through a copy of the given `prototype` and applies the given `scalar` to all
+---the numeric values in the fields listed in `included_fields`.
+---
+---### Returns
+---@generic T
+---@return T # A rescaled copy of `entity_prototype`.
+---
+---### Remarks
+---`scalar` is recommended to be the ratio of the new tile and the original tile size.
+---For example, if rescaling a 5 x 5 tile entity to a 3 x 3 tile entity, `scalar` should be `3 / 5`.
+---
+---`prototype` is not modified.
+---
+---### Examples
+---```lua
+----- Get a rescaled copy of the "big-electric-pole" by a factor of 2.
+----- The resulting entity will have a 4 x 4 tile footprint, and sprite to match.
+---local rescaled = _sprites.get_rescaled_prototype(data.raw["electric-pole"]["big-electric-pole"], 2)
+---
+----- Get a rescaled copy of the "oil-refinery" by a factor of 3 / 5.
+----- The resulting entity will have a 3 x 3 tile footprint, and sprite to match.
+---local rescaled = _sprites.get_rescaled_prototype(data.raw["assembling-machine"]["oil-refinery"], 3 / 5)
+---```
+---
+---### Parameters
+---@param entity_prototype T # The entity prototype to rescale.
+---@param scalar double # The scale factor to resize the prototype by.
+---
+---### See Also
+---@see Reskins.SpriteUtils.Sprites.rescale_prototype
+---@nodiscard
+function _sprites.get_rescaled_prototype(entity_prototype, scalar)
+	local entity_prototype_copy = util.copy(entity_prototype)
+	_sprites.rescale_prototype(entity_prototype_copy, scalar)
+	return entity_prototype_copy
+end
+
 ---Resizes a copy of the `CorpsePrototype` associated with the given `prototype` by the given
 ---`scalar`, and assigns the rescaled copy to `prototype`. The name of the rescaled copy is
 ---prefixed with "rescaled-".

@@ -2,6 +2,7 @@
 Version: 0.0.4
 Date: ????
   Features:
+    - Added `sprites.get_rescaled_prototype`, a non-mutating counterpart to `sprites.rescale_prototype` that returns a rescaled copy.
     - Added `colors.rgba_to_hsva` and `colors.rgba_to_hsla` for converting RGBA colors to HSVA and HSLA color spaces respectively.
     - Added `colors.hsva_to_rgba` and `colors.hsla_to_rgba` for converting HSVA and HSLA colors back to RGBA.
     - Added `colors.normalize` for normalizing a color's channel values to between 0 and 1.
