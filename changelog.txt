@@ -1,6 +1,12 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.0.4
 Date: ????
+  Features:
+    - Added `colors.rgba_to_hsva` and `colors.rgba_to_hsla` for converting RGBA colors to HSVA and HSLA color spaces respectively.
+    - Added `colors.hsva_to_rgba` and `colors.hsla_to_rgba` for converting HSVA and HSLA colors back to RGBA.
+    - Added `colors.normalize` for normalizing a color's channel values to between 0 and 1.
+    - Added `colors.overlay` for alpha-compositing an overlay color on top of a base color in linear light.
+    - Added `colors.blend` for blending two colors uniformly in perceptual color space using Oklab.
   Changes:
     - Revised `icons.get_icon_from_prototype` to throw on nil input rather than return nil; for a concrete input the method always returns a concrete output.
 ---------------------------------------------------------------------------------------------------
