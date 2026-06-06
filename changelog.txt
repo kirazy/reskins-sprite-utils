@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.0
-Date: ????
+Date: 2026-06-06
   Features:
     - Added `sprites.make_rotated_animation_variations_from_spritesheet`, a typed variant of the base-mod equivalent method.
     - Added `sprites.get_rescaled_prototype`, a non-mutating counterpart to `sprites.rescale_prototype` that returns a rescaled copy.
