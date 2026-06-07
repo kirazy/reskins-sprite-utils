@@ -650,19 +650,6 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 			item_with_entity_data.pictures = pictures
 		end
 
-		local explosion = data.raw["explosion"][name .. "-explosion"]
-		if explosion then
-			_icons.clear_icon_from_prototype(explosion)
-			explosion.icons = icon_data_copy
-		end
-
-		-- FIXME: This can be improved by fetching the corpse off the prototype, if it exists, as a first option.
-		local remnants = data.raw["corpse"][name .. "-remnants"]
-		if remnants then
-			_icons.clear_icon_from_prototype(remnants)
-			remnants.icons = icon_data_copy
-		end
-
 		-- Clear out recipes of the same name so that the item icon is inherited properly.
 		-- Possibly a dangerous assumption that all recipes with the same name as the item
 		-- are intended to inherit the icon directly and do not use a custom icon.
@@ -677,6 +664,60 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 	if prototype then
 		_icons.clear_icon_from_prototype(prototype)
 		prototype.icons = icon_data_copy
+
+		-- Try to grab the explosion name from the prototype directly, to ensure it is picked up in the
+		-- event it does not follow the expected pattern.
+		local dying_explosion_name
+		if prototype.dying_explosion then
+			if prototype.dying_explosion.name then
+				dying_explosion_name = prototype.dying_explosion
+			elseif prototype.dying_explosion[1] and prototype.dying_explosion[1].name then
+				dying_explosion_name = prototype.dying_explosion[1].name
+			end
+		end
+
+		local explosion_names = {
+			[name .. "-explosion"] = true,
+			["ar-" .. name .. "-explosion"] = true,
+		}
+
+		if dying_explosion_name then
+			explosion_names[dying_explosion_name] = true
+		end
+
+		for explosion_name, _ in pairs(explosion_names) do
+			local explosion = data.raw["explosion"][explosion_name]
+			if explosion then
+				_icons.clear_icon_from_prototype(explosion)
+				explosion.icons = icon_data_copy
+			end
+		end
+
+		-- Try to grab the corpse name from the prototype directly, to ensure it is picked up in the
+		-- event it does not follow the expected pattern.
+		local corpse_name
+		if type(prototype.corpse) == "string" then
+			corpse_name = prototype.corpse
+		elseif type(prototype.corpse) == "table" and type(prototype.corpse[1]) == "string" then
+			corpse_name = prototype.corpse[1]
+		end
+
+		local remnants_names = {
+			[name .. "-remnants"] = true,
+			["ar-" .. name .. "-remnants"] = true,
+		}
+
+		if corpse_name then
+			remnants_names[corpse_name] = true
+		end
+
+		for remnants_name, _ in pairs(remnants_names) do
+			local remnants = data.raw["corpse"][remnants_name]
+			if remnants then
+				_icons.clear_icon_from_prototype(remnants)
+				remnants.icons = icon_data_copy
+			end
+		end
 	end
 end
 
