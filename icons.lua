@@ -188,6 +188,8 @@ function _icons.add_missing_icon_defaults(icon_datum, defaults_type)
 		scale = icon_datum.scale or ((expected_icon_size / 2) / icon_size),
 		shift = icon_datum.shift or nil,
 		tint = icon_datum.tint or nil,
+		draw_background = icon_datum.draw_background,
+		floating = icon_datum.floating,
 	}
 end
 
