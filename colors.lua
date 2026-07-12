@@ -51,6 +51,7 @@ end
 ---### Exceptions
 ---*@throws* - `string` When `hex` is not a string.</br>
 ---*@throws* - `string` When `hex` is not 8 characters.
+---@deprecated EmmyLua color picker correctly maintains RGBA syntax; prefer util.color("#RRGGBBAA") if using EmmyLua as opposed to Sumneko Lua
 function _colors.from_argb(hex)
 	if type(hex) ~= "string" then
 		error("Invalid type: 'hex' must be a string.")
