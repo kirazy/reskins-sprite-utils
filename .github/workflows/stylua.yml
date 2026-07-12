@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - dev2.1
 
 jobs:
   format:
