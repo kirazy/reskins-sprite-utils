@@ -356,7 +356,7 @@ end
 ---*@throws* `string` — Thrown when `prototype` has no defined field `icon` or `icons`.<br/>
 ---@nodiscard
 function _icons.get_icon_from_prototype(prototype)
-	assert(prototype, "Invalid parameter: 'prototype' is must not be nil.")
+	assert(prototype, "Invalid parameter: 'prototype' must not be nil.")
 
 	-- Recipes must have an icon or icons field if being passed to this function.
 	---
@@ -401,7 +401,7 @@ end
 ---- The prototype is not modified.
 ---
 ---### Returns
----@return data.IconData[]|nil # A copy of the icon retrieved from the prototype, or `nil` if the prototype does not exist.
+---@return data.IconData[] # A copy of the icon retrieved from the prototype.
 ---
 ---### Examples
 ---```
@@ -413,13 +413,17 @@ end
 ---@param type_name string # The type name of the prototype.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `name` is `nil` or an empty string.<br/>
----*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.<br/>
+---*@throws* `string` — Thrown when `name` is not a non-empty string.<br/>
+---*@throws* `string` — Thrown when `type_name` is not a non-empty string.<br/>
+---*@throws* `string` — Thrown when `type_name` is not a known prototype type.<br/>
+---*@throws* `string` — Thrown when the prototype does not exist.<br/>
 ---*@throws* `string` — Thrown when the prototype has no defined field `icon` or `icons`.<br/>
 ---@nodiscard
 function _icons.get_icon_from_named_prototype(name, type_name)
-	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
-	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
+	assert(type(name) == "string" and name ~= "", "Invalid parameter: 'name' must be a non-empty string.")
+	assert(type(type_name) == "string" and type_name ~= "", "Invalid parameter: 'type_name' must be a non-empty string.")
+	assert(data.raw[type_name], "Invalid parameter: '" .. type_name .. "' is not a valid prototype type name.")
+	assert(data.raw[type_name][name], "Prototype not found: " .. name .. " (" .. type_name .. ")")
 
 	return _icons.get_icon_from_prototype(data.raw[type_name][name])
 end

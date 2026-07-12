@@ -2,6 +2,7 @@
 Version: 0.2.1
 Date: ????
   Changes:
+    - Revised `icons.get_icon_from_named_prototype` to throw if the prototype is not found rather than return nil; the method will now either throw or return an icon
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2026-06-26
@@ -26,7 +27,7 @@ Date: 2026-06-06
     - Added `colors.overlay` for alpha-compositing an overlay color on top of a base color in linear light.
     - Added `colors.blend` for blending two colors uniformly in perceptual color space using Oklab.
   Changes:
-    - Revised `icons.get_icon_from_prototype` to throw on nil input rather than return nil; for a concrete input the method always returns a concrete output.
+    - Revised `icons.get_icon_from_prototype` to throw on nil input rather than return nil; the method will now either throw or return an icon
 ---------------------------------------------------------------------------------------------------
 Version: 0.0.3
 Date: 2026-05-10
