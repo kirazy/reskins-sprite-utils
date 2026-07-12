@@ -1234,8 +1234,10 @@ local function get_icons_from_source(source, defaults_type)
 		---@cast source IconDatumSource
 		icon_data = { _icons.add_missing_icon_defaults(source.icon_datum, source.defaults_type) }
 	elseif source and source.name then
-		---@cast source PrototypeIconSource
-		icon_data = _icons.get_icon_from_named_prototype(source.name, source.type_name)
+		local prototype = data.raw[source.type_name] and data.raw[source.type_name][source.name] or nil
+		if prototype then
+			icon_data = _icons.get_icon_from_prototype(prototype)
+		end
 	end
 
 	local is_blank_icon = false
