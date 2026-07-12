@@ -3,6 +3,7 @@ Version: 0.2.1
 Date: ????
   Changes:
     - Revised `icons.get_icon_from_named_prototype` to throw if the prototype is not found rather than return nil; the method will now either throw or return an icon
+    - Improved types of `prototype` parameters to `icons.clear_icon_from_prototype` and `icons.add_icons_from_prototype_to_icons` to include all prototypes that may have an icon
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2026-06-26

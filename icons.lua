@@ -107,7 +107,7 @@ end
 ---```
 ---
 ---### Parameters
----@param prototype data.EntityPrototype|data.ItemPrototype|data.FluidPrototype|data.RecipePrototype|data.TechnologyPrototype # The prototype object.
+---@param prototype PrototypeWithIcons # The prototype object.
 function _icons.clear_icon_from_prototype(prototype)
 	if prototype then
 		prototype.icons = nil
@@ -952,7 +952,7 @@ end
 ---
 ---### Parameters
 ---@param icon_data data.IconData[] # An array of `IconData` objects to receive the icon from `prototype`.
----@param prototype data.EntityPrototype|data.ItemPrototype|data.FluidPrototype|data.RecipePrototype|data.TechnologyPrototype # The prototype to source the icon from.
+---@param prototype PrototypeWithIcons # The prototype to source the icon from.
 ---@param scale? double # The scale to apply to the sourced icon. Default `nil`.
 ---@param shift? data.Vector # The shift to apply to the sourced icon. Default `nil`.
 ---@param tint? data.Color # The tint to apply to the sourced icon. Default `nil`.
