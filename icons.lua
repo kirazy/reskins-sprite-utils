@@ -1,10 +1,12 @@
+---@namespace Reskins.SpriteUtils
+
 --- Provides methods for manipulating icons.
 ---
 ---### Examples
 ---```lua
 ---local _icons = require("__reskins-sprite-utils__.icons")
 ---```
----@class Reskins.SpriteUtils.Icons
+---@class Icons
 local _icons = {}
 
 local default_icon_sizes = {
@@ -753,7 +755,7 @@ end
 ---*@throws* `string` — Thrown when a deferred icon's `icon_data[n].icon_size` field is not a positive integer.<br/>
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.assign_icons_to_prototype_and_related_prototypes
+---@see Icons.assign_icons_to_prototype_and_related_prototypes
 function _icons.assign_deferrable_icon(deferrable_icon)
 	if deferrable_icon.icon_datum then
 		_icons.assign_icons_to_prototype_and_related_prototypes(
@@ -771,7 +773,7 @@ function _icons.assign_deferrable_icon(deferrable_icon)
 	end
 end
 
----@alias Reskins.SpriteUtils.DeferredIconStore { [Reskins.SpriteUtils.Defines.Stage]: (DeferrableIconData|DeferrableIconDatum)[] }
+---@alias DeferredIconStore { [Stage]: (DeferrableIconData|DeferrableIconDatum)[] }
 
 ---
 ---Performs validation and sanitization of the given `deferrable_icon`, and adds it to the
@@ -806,8 +808,8 @@ end
 ---```
 ---
 ---### Parameters
----@param deferred_icon_store Reskins.SpriteUtils.DeferredIconStore # The dictionary of deferrable icons, indexed by stage, to add the deferrable icon to.
----@param stage Reskins.SpriteUtils.Defines.Stage # The key to the data stage to store the deferrable icon in.
+---@param deferred_icon_store DeferredIconStore # The dictionary of deferrable icons, indexed by stage, to add the deferrable icon to.
+---@param stage Stage # The key to the data stage to store the deferrable icon in.
 ---@param deferrable_icon DeferrableIconData|DeferrableIconDatum # The icon data to store for deferred assignment.
 ---
 ---### Exceptions
@@ -819,7 +821,7 @@ end
 ---*@throws* `string` — Thrown when both `deferrable_icon.icon_data` and `deferrable_icon.icon_datum` is `nil`, or `deferrable_icon.icon_data` is not an array of `IconData` objects, or the `IconData` objects are invalid.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.assign_icons_deferred_to_stage
+---@see Icons.assign_icons_deferred_to_stage
 function _icons.store_icon_for_deferred_assignment_in_stage(deferred_icon_store, stage, deferrable_icon)
 	-- stylua: ignore start
 	assert(deferred_icon_store, "Invalid parameter: 'deferred_icon_store' must not be nil.")
@@ -853,8 +855,8 @@ end
 ---```
 ---
 ---### Parameters
----@param deferred_icon_store Reskins.SpriteUtils.DeferredIconStore # The dictionary of deferrable icons, indexed by stage, to assign the deferrable icons from.
----@param stage Reskins.SpriteUtils.Defines.Stage # The index of the data stage to source deferrable icons from.
+---@param deferred_icon_store DeferredIconStore # The dictionary of deferrable icons, indexed by stage, to assign the deferrable icons from.
+---@param stage Stage # The index of the data stage to source deferrable icons from.
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when a deferred icon's `name` field is `nil` or an empty string.<br/>
@@ -864,8 +866,8 @@ end
 ---*@throws* `string` — Thrown when a deferred icon's `icon_data[n].icon_size` field is not a positive integer.<br/>
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.store_icon_for_deferred_assignment_in_stage
----@see Reskins.SpriteUtils.Icons.assign_deferrable_icon
+---@see Icons.store_icon_for_deferred_assignment_in_stage
+---@see Icons.assign_deferrable_icon
 function _icons.assign_icons_deferred_to_stage(deferred_icon_store, stage)
 	if not deferred_icon_store[stage] then
 		return
@@ -889,10 +891,10 @@ end
 ---
 ---### Parameters
 ---@param defaults_type IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.constant.default_icon_size`.
----@param ... data.IconData|data.IconData[] # An variable set of `IconData` or `IconData` arrays to combine.
+---@param ... data.IconData|data.IconData[]|nil # An variable set of `IconData` or `IconData` arrays to combine.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.add_missing_icon_defaults
+---@see Icons.add_missing_icon_defaults
 ---@nodiscard
 function _icons.compose_icons(defaults_type, ...)
 	---@type data.IconData[]
@@ -955,8 +957,8 @@ end
 ---*@throws* `string` — Thrown when `icon_data` is `nil`.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.add_missing_icons_defaults
----@see Reskins.SpriteUtils.Icons.get_icon_from_prototype
+---@see Icons.add_missing_icons_defaults
+---@see Icons.get_icon_from_prototype
 ---@nodiscard
 function _icons.add_icons_from_prototype_to_icons(icon_data, prototype, scale, shift, tint)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
@@ -1021,7 +1023,7 @@ end
 ---*@throws* `string` — Thrown when `icon_datum` is not an IconData object with a defined `icon` field.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.add_icons_from_prototype_to_icons
+---@see Icons.add_icons_from_prototype_to_icons
 ---@nodiscard
 function _icons.add_icons_from_prototype_to_icon(icon_datum, prototype, scale, shift, tint)
 	assert(icon_datum, "Invalid parameter: 'icon_datum' must not be nil.")
@@ -1057,7 +1059,7 @@ end
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.add_icons_from_prototype_to_icons
+---@see Icons.add_icons_from_prototype_to_icons
 ---@nodiscard
 function _icons.add_icons_from_prototype_to_icons_by_name(icon_data, name, type_name, scale, shift, tint)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
@@ -1109,7 +1111,7 @@ end
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.add_icons_from_prototype_to_icons
+---@see Icons.add_icons_from_prototype_to_icons
 ---@nodiscard
 function _icons.add_icons_from_prototype_to_icon_by_name(icon_datum, name, type_name, scale, shift, tint)
 	assert(icon_datum, "Invalid parameter: 'icon_datum' must not be nil.")
@@ -1264,9 +1266,9 @@ end
 ---*@throws* `string` — Thrown when `sources` is `nil`.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Icons.add_missing_icons_defaults
----@see Reskins.SpriteUtils.Icons.add_missing_icon_defaults
----@see Reskins.SpriteUtils.Icons.get_icon_from_named_prototype
+---@see Icons.add_missing_icons_defaults
+---@see Icons.add_missing_icon_defaults
+---@see Icons.get_icon_from_named_prototype
 ---@nodiscard
 function _icons.add_icons_from_sources_to_icons(icon_data, sources, defaults_type)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")

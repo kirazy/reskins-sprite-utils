@@ -1,10 +1,12 @@
+---@namespace Reskins.SpriteUtils
+
 --- Provides color tools for use with Artisanal Reskins: Sprite Utils.
 ---
 ---### Examples
 ---```lua
 ---local _colors = require("__reskins-sprite-utils__.colors")
 ---```
----@class Reskins.SpriteUtils.Colors
+---@class Colors
 local _colors = {}
 
 ---Table of hue, saturation, vibrance and alpha values between 0 and 1.

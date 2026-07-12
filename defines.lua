@@ -1,14 +1,16 @@
+---@namespace Reskins.SpriteUtils
+
 --- Provides enumerations for use with Artisanal Reskins: Sprite Utils.
 ---
 ---### Examples
 ---```lua
 ---local _defines = require("__reskins-sprite-utils__.defines")
 ---```
----@class Reskins.SpriteUtils.Defines
+---@class Defines
 local _defines = {}
 
 ---Represents stages of the Factorio mod loading process.
----@enum Reskins.SpriteUtils.Defines.Stage
+---@enum Stage
 _defines.stage = {
 	---The settings stage. Initial mod configuration setup.
 	settings = 0,

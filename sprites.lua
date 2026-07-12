@@ -1,13 +1,15 @@
+---@namespace Reskins.SpriteUtils
+
 --- Provides methods for manipulating sprites.
 ---
 ---### Examples
 ---```lua
 ---local _sprites = require("__reskins-sprite-utils__.sprites")
 ---```
----@class Reskins.SpriteUtils.Sprites
+---@class Sprites
 local _sprites = {}
 
-local _icons = require("__reskins-sprite-utils__.icons")
+local _icons = require("icons")
 
 ---@param icon_layer data.IconData # An icon layer.
 ---@param scale? double # The scale to apply to the sprite.
@@ -75,7 +77,7 @@ function _sprites.create_sprite_from_icons(icon_data, scale)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 
 	---@type data.Sprite
-	local sprite = {}
+	local sprite
 	if #icon_data == 1 then
 		sprite = convert_icon_layer_to_sprite_layer(icon_data[1], scale)
 	else
@@ -454,7 +456,7 @@ end
 ---@param scalar double # The scale factor to resize the prototype by.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Sprites.rescale_prototype
+---@see Sprites.rescale_prototype
 ---@nodiscard
 function _sprites.get_rescaled_prototype(entity_prototype, scalar)
 	local entity_prototype_copy = util.copy(entity_prototype)
@@ -482,7 +484,7 @@ end
 ---@param scalar double # The scale factor to resize the prototype by.
 ---
 ---### See Also
----@see Reskins.SpriteUtils.Sprites.rescale_prototype
+---@see Sprites.rescale_prototype
 function _sprites.rescale_remnants_of_prototype(prototype, scalar)
 	-- Check the entity exists
 	if not prototype then

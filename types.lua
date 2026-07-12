@@ -1,3 +1,5 @@
+---@namespace Reskins.SpriteUtils
+
 ---Represents any Prototype with the required `icons` or `icon` fields.
 ---@alias PrototypeWithIcons
 ---| data.AchievementPrototype
@@ -38,7 +40,7 @@
 ---The icon data to store for deferred assignment.
 ---@field icon_data data.IconData[]
 ---The pictures data to store for deferred assignment.
----@field pictures data.SpriteVariations?
+---@field pictures? data.SpriteVariations
 
 ---Represents an icon from a single `IconData` object that may be stored for deferred assignment.
 ---@class DeferrableIconDatum
@@ -55,13 +57,13 @@
 ---@field icon_datum data.IconData
 ---The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale.
 ---Unrecognized names resolve to `defines.default_icon_size`.
----@field defaults_type IconDefaultsType?
+---@field defaults_type? IconDefaultsType
 ---The scale to apply to the sourced icon. Default `nil`.
----@field scale double?
+---@field scale? double
 ---The shift to apply to the sourced icon. Default `nil`.
----@field shift data.Vector?
+---@field shift? data.Vector
 ---The tint to apply to the sourced icon. Default `nil`.
----@field tint data.Color?
+---@field tint? data.Color
 
 ---Provides the icon and optional transformations to a sourced array of `IconData` objects.
 ---@class IconDataSource
@@ -69,13 +71,13 @@
 ---@field icon_data data.IconData[]
 ---The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale.
 ---Unrecognized names resolve to `defines.default_icon_size`.
----@field defaults_type IconDefaultsType?
+---@field defaults_type? IconDefaultsType
 ---The scale to apply to the sourced icon. Default `nil`.
----@field scale double?
+---@field scale? double
 ---The shift to apply to the sourced icon. Default `nil`.
----@field shift data.Vector?
+---@field shift? data.Vector
 ---The tint to apply to the sourced icon. Default `nil`.
----@field tint data.Color?
+---@field tint? data.Color
 
 ---Provides the name and type information necessary to directly retrieve an icon
 ---from a source prototype, and apply a shift and scale to that icon.
@@ -85,11 +87,11 @@
 ---The type name of the prototype to source the icon from.
 ---@field type_name string
 ---The scale to apply to the sourced icon. Default `nil`.
----@field scale double?
+---@field scale? double
 ---The shift to apply to the sourced icon. Default `nil`.
----@field shift data.Vector?
+---@field shift? data.Vector
 ---The tint to apply to the sourced icon. Default `nil`.
----@field tint data.Color?
+---@field tint? data.Color
 
 ---A source of icon data, whether an explicit icon or a set of instructions on where to retrieve it.
 ---@alias IconSource IconDatumSource|IconDataSource|PrototypeIconSource
@@ -102,7 +104,7 @@
 ---@class VerticallyOrientableAnimation : data.Animation
 ---When `true`, indicates that the Animation sprites are laid out vertically and should be processed
 ---accordingly by `sprite_utils.make_4way_animation_from_spritesheet`.
----@field vertically_oriented boolean?
+---@field vertically_oriented? boolean
 ---
 ---If this property is present, all Animation definitions have to be placed as entries in the array,
 ---and they will all be loaded from there. layers may not be an empty table. Each definition in the
@@ -113,4 +115,4 @@
 ---
 ---If this property is present, all other properties, including those inherited from
 ---AnimationParameters, are ignored.
----@field layers VerticallyOrientableAnimation[]?
+---@field layers? VerticallyOrientableAnimation[]
