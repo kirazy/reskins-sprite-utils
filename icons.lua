@@ -593,6 +593,11 @@ local related_prototypes = {
 ---
 ---Optionally sets the `pictures` field as appropriate with the given `pictures`.
 ---
+---### Remarks
+---This method assumes that recipes with the same `name` as the target prototype, having a single result that is the
+---target prototype, should use the same icon. If this behavior is undesirable, handle assignment of icons to related
+---entities directly.
+---
 ---### Examples
 ---```lua
 ------@type IconData
@@ -653,10 +658,14 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 		-- Possibly a dangerous assumption that all recipes with the same name as the item
 		-- are intended to inherit the icon directly and do not use a custom icon.
 
-		-- icon is required if the recipe does not have a main product.
 		local recipe = data.raw["recipe"][name]
-		if recipe and recipe.main_product then
+		if recipe and recipe.results and #recipe.results == 1 and recipe.results[1].name == name then
 			_icons.clear_icon_from_prototype(recipe)
+
+			-- icon is required if the recipe does not have a main product.
+			if not recipe.main_product then
+				recipe.icons = icon_data_copy
+			end
 		end
 	end
 
