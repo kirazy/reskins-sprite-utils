@@ -489,22 +489,25 @@ function _sprites.rescale_remnants_of_prototype(prototype, scalar)
 		return
 	end
 
-	-- Fetch remnant
-	local remnant_name = prototype.corpse
+	local corpse_names = type(prototype.corpse) == "table" and prototype.corpse or { prototype.corpse }
 
-	-- Create, rescale, and assign rescaled remnant
-	if remnant_name then
-		local remnant = data.raw.corpse[remnant_name]
+	---@type EntityID[]
+	local new_corpse_names = {}
+	for _, name in pairs(corpse_names) do
+		local corpse = data.raw.corpse[name]
+		if corpse then
+			local rescaled_corpse = _sprites.get_rescaled_prototype(corpse, scalar)
+			rescaled_corpse.name = "ar-remnant" .. rescaled_corpse.name
+			data:extend({ rescaled_corpse })
 
-		if remnant then
-			local rescaled_remnant = util.copy(remnant)
-			rescaled_remnant.name = "rescaled-" .. rescaled_remnant.name
-
-			_sprites.rescale_prototype(rescaled_remnant, scalar)
-			data:extend({ rescaled_remnant })
-
-			prototype.corpse = rescaled_remnant.name
+			new_corpse_names[#new_corpse_names + 1] = rescaled_corpse.name
 		end
+	end
+
+	if #new_corpse_names > 1 then
+		prototype.corpse = new_corpse_names
+	elseif #new_corpse_names == 1 then
+		prototype.corpse = new_corpse_names[1]
 	end
 end
 

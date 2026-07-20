@@ -13,6 +13,7 @@ Date: ????
       - `icons.add_icons_from_prototype_to_icons_by_name`
       - `icons.get_icon_from_named_prototype`
     - Revised `icons.transform_icon` to handle the single-icon case, and added `icons.transform_icons` for the layered icon case
+    - `sprites.rescale_remnants_of_prototype` now works with the array form of `prototype.corpse` for entities with many corpse references.
   Bugfixes:
     - Fixed that `icons.get_dark_background_icon_from_prototype` and `icons.get_starmap_icon_from_prototype` could return an invalid icon if the target icon was not available; the methods both now return nil in that case
 ---------------------------------------------------------------------------------------------------
