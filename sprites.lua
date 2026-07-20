@@ -132,6 +132,38 @@ function _sprites.create_sprite_from_icon(icon_datum, scale)
 	return convert_icon_layer_to_sprite_layer(icon_datum, scale)
 end
 
+---@param prototype? { height?: SpriteSizeType, size?: (SpriteSizeType)|([SpriteSizeType, SpriteSizeType]) }
+---@return SpriteSizeType
+local function get_height(prototype)
+	if prototype then
+		if type(prototype.height) == "number" then
+			return prototype.height
+		elseif type(prototype.size) == "number" then
+			return prototype.size
+		elseif type(prototype.size) == "table" and #prototype.size == 2 then
+			return prototype.size[2]
+		end
+	end
+
+	return 0
+end
+
+---@param prototype? { width?: SpriteSizeType, size?: (SpriteSizeType)|([SpriteSizeType, SpriteSizeType]) }
+---@return SpriteSizeType
+local function get_width(prototype)
+	if prototype then
+		if type(prototype.width) == "number" then
+			return prototype.width
+		elseif type(prototype.size) == "number" then
+			return prototype.size
+		elseif type(prototype.size) == "table" and #prototype.size == 2 then
+			return prototype.size[1]
+		end
+	end
+
+	return 0
+end
+
 ---
 ---Creates an `Animation4Way` object using the given `animation`, parsing the `line_length`
 ---and `frame_count` fields to slice a sprite sheet into direction-based `Animation` objects.
@@ -192,16 +224,19 @@ function _sprites.make_4way_animation_from_spritesheet(animation)
 
 		-- Extend vanilla function with handling for vertically_oriented sprite sheets.
 		if source_animation.vertically_oriented then
+			local height = math.max(get_height(source_animation), 0)
 			if source_animation.line_length then
-				y = direction * source_animation.height * math.floor(start_frame / (source_animation.line_length or 1))
+				y = math.floor(direction * height) * math.floor(start_frame / (source_animation.line_length or 1))
 			else
-				y = direction * source_animation.height
+				y = math.floor(direction * height)
 			end
 		else
 			if source_animation.line_length then
-				y = source_animation.height * math.floor(start_frame / (source_animation.line_length or 1))
+				local height = math.max(get_height(source_animation), 0)
+				y = height * math.floor(start_frame / (source_animation.line_length or 1))
 			else
-				x = direction * source_animation.width
+				local width = math.max(get_width(source_animation), 0)
+				x = math.floor(direction * width)
 			end
 		end
 
@@ -298,14 +333,13 @@ function _sprites.make_rotated_animation_variations_from_spritesheet(variation_c
 	---@param variation RotatedAnimation
 	---@param i integer
 	local function set_y_offset(variation, i)
-		local frame_count = variation.frame_count or 1
-		local line_length = variation.line_length or frame_count
-		if line_length < 1 then
-			line_length = frame_count
-		end
+		local frame_count = math.max(variation.frame_count or 1, 1)
+		local line_length = math.max(variation.line_length or frame_count, 1)
 
-		local height_in_frames = math.floor((frame_count * variation.direction_count + line_length - 1) / line_length)
-		variation.y = variation.height * (i - 1) * height_in_frames
+		local height = math.max(get_height(variation) or 0, 0)
+		local direction_count = math.max(variation.direction_count or 1, 1)
+		local height_in_frames = math.floor((frame_count * direction_count + line_length - 1) / line_length)
+		variation.y = (height or 0) * (i - 1) * height_in_frames
 	end
 
 	for i = 1, variation_count do
