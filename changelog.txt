@@ -18,6 +18,8 @@ Date: ????
     - `sprites.make_rotated_animation_variations_from_spritesheet` and `sprites.make_4way_animation_from_spritesheet` now handle `size` as the means to specify width/height
   Bugfixes:
     - Fixed that `icons.get_dark_background_icon_from_prototype` and `icons.get_starmap_icon_from_prototype` could return an invalid icon if the target icon was not available; the methods both now return nil in that case
+  Deprecated:
+    - `colors.from_argb` is deprecated with the introduction of EmmyLua (and removal of sumneko) by the Factorio Modding Tool Kit, which correctly handles RGBA color strings
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2026-06-26
