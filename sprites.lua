@@ -208,16 +208,10 @@ function _sprites.make_4way_animation_from_spritesheet(animation)
 		west = 3,
 	}
 
-	---
-	---Creates the `Animation` object for the given `direction` using the given
-	---`source_animation`.
-	---
-	---### Returns
-	---@return Animation # The new animation for the given `direction`.
-	---
-	---### Parameters
+	---Creates the `Animation` object for the given `direction` using the given `source_animation`.
 	---@param direction DirectionDefines # The direction to create the animation for.
 	---@param source_animation VerticallyOrientableAnimation # The source animation object with a sprite sheet supporting direction-based configurations.
+	---@return Animation # The new animation for the given `direction`.
 	local function make_animation_layer_for_direction(direction, source_animation)
 		local start_frame = (source_animation.frame_count or 1) * direction
 		local x, y = 0, 0
@@ -273,7 +267,6 @@ function _sprites.make_4way_animation_from_spritesheet(animation)
 		return animation_for_direction
 	end
 
-	---
 	---Creates the `Animation` object for the given `direction` using the given `source_animation`.
 	---@param direction DirectionDefines # The direction to create the animation for.
 	---@return Animation # The new animation for the given `direction`.
@@ -360,9 +353,6 @@ end
 ---Each variation is assumed to occupy the same vertical span on the sheet, derived from
 ---`frame_count`, `line_length`, and `direction_count` on the source animation layer.
 ---
----### Returns
----@return RotatedAnimationVariations # An array of `RotatedAnimation` objects, one per variation.
----
 ---### Examples
 ---```lua
 ---local variations = _sprites.make_rotated_animation_variations_from_spritesheet(4, {
@@ -378,6 +368,10 @@ end
 ---### Parameters
 ---@param variation_count integer # The number of variations to slice from `sheet`.
 ---@param sheet RotatedAnimation # The source animation referencing a sprite sheet with all variations stacked vertically.
+---
+---### Returns
+---@return RotatedAnimationVariations # An array of `RotatedAnimation` objects, one per variation.
+---@nodiscard
 function _sprites.make_rotated_animation_variations_from_spritesheet(variation_count, sheet)
 	---@type RotatedAnimationVariations
 	local result = {}
@@ -456,14 +450,10 @@ local excluded_fields = {
 ---@param entity_prototype any # The entity prototype to rescale.
 ---@param scalar double # The scale factor to resize the prototype by.
 function _sprites.rescale_prototype(entity_prototype, scalar)
-	---
 	---Recursively scales all numeric values in the given `table`, regardless of depth.
-	---
-	---### Returns
-	---@return table # The rescaled table.
-	---
-	---### Parameters
-	---@param table table # The table to rescale.
+	---@generic T
+	---@param table T # The table to rescale.
+	---@return T # The rescaled table.
 	local function rescale_table_recursively(table)
 		for key, value in pairs(table) do
 			if type(value) == "table" then
@@ -515,10 +505,6 @@ end
 ---Recursively iterates through a copy of the given `prototype` and applies the given `scalar` to all
 ---the numeric values in the fields listed in `included_fields`.
 ---
----### Returns
----@generic T
----@return T # A rescaled copy of `entity_prototype`.
----
 ---### Remarks
 ---`scalar` is recommended to be the ratio of the new tile and the original tile size.
 ---For example, if rescaling a 5 x 5 tile entity to a 3 x 3 tile entity, `scalar` should be `3 / 5`.
@@ -537,8 +523,12 @@ end
 ---```
 ---
 ---### Parameters
+---@generic T
 ---@param entity_prototype T # The entity prototype to rescale.
 ---@param scalar double # The scale factor to resize the prototype by.
+---
+---### Returns
+---@return T # A rescaled copy of `entity_prototype`.
 ---
 ---### See Also
 ---@see Sprites.rescale_prototype
