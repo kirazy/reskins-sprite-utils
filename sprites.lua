@@ -302,6 +302,58 @@ function _sprites.make_4way_animation_from_spritesheet(animation)
 end
 
 ---
+---Creates a `WorkingVisualisation` object using the given `visualisations`, slicing the sprite
+---sheet referenced by its `animation` field into direction-based `north_animation`,
+---`east_animation`, `south_animation`, and `west_animation` fields.
+---
+---### Remarks
+---Internally delegates to `make_4way_animation_from_spritesheet` to slice `visualisations.animation`,
+---so the same `vertically_oriented`, `run_mode`, and `frame_sequence` handling applies.
+---
+---`visualisations` is not modified.
+---
+---### Examples
+---```lua
+---local working_visualisations = _sprites.make_4way_working_visualisations_from_spritesheet({
+---    always_draw = true,
+---    animation = {
+---        filename = "__mod-name__/graphics/entity/prototype/prototype.png",
+---        priority = "extra-high",
+---        width = 660,
+---        height = 460,
+---        frame_count = 4,
+---        scale = 0.5,
+---    },
+---})
+---```
+---
+---### Parameters
+---@param visualisations WorkingVisualisation # The working visualisation object to create the 4-way working visualisation from. Must contain an `animation` field.
+---
+---### Returns
+---@return WorkingVisualisation # A copy of `visualisations` with `animation` replaced by the direction-based animation fields.
+---@nodiscard
+function _sprites.make_4way_working_visualisations_from_spritesheet(visualisations)
+	-- stylua: ignore start
+	assert(visualisations ~= nil, "Invalid parameter: visualisations must not be nil.")
+	assert(type(visualisations) == "table", "Invalid parameter: visualisations must be a table, but was " .. type(visualisations) .. ".")
+	assert(visualisations.animation ~= nil, "Invalid parameter: visualisations must contain an 'animation' field.")
+	-- stylua: ignore end
+
+	local animation = _sprites.make_4way_animation_from_spritesheet(visualisations.animation)
+
+	local copy = util.copy(visualisations)
+	copy.animation = nil
+
+	copy.north_animation = animation.north
+	copy.east_animation = animation.east
+	copy.south_animation = animation.south
+	copy.west_animation = animation.west
+
+	return copy
+end
+
+---
 ---Creates a `RotatedAnimationVariations` object from the given `sheet`, slicing the sprite sheet
 ---into `variation_count` individual `RotatedAnimation` objects by computing the Y offset for each.
 ---
