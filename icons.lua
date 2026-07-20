@@ -430,10 +430,10 @@ end
 ---@return IconData[]|nil # A copy of the dark-background icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined dark-background icon.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `prototype` has no defined field `icon` or `icons`.<br/>
+---*@throws* `string` — Thrown when an `icon` field is invalid on the resolved `dark_background` icon.
 ---@nodiscard
 function _icons.get_dark_background_icon_from_prototype(item_prototype)
-	if not item_prototype then
+	if not (item_prototype and (item_prototype.dark_background_icons or item_prototype.dark_background_icon)) then
 		return
 	end
 
@@ -449,6 +449,7 @@ function _icons.get_dark_background_icon_from_prototype(item_prototype)
 			icons[n].icon_size = icons[n].icon_size or item_prototype.icon_size or defines.constant.default_icon_size--[[@as SpriteSizeType]]
 		end
 	else
+		---@cast item_prototype.dark_background_icon -?
 		---@type IconData[]
 		icons = {
 			{
@@ -483,6 +484,7 @@ end
 ---### Exceptions
 ---*@throws* `string` — Thrown when `name` is `nil` or an empty string.\
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.\
+---*@throws* `string` — Thrown when an `icon` field is invalid on the resolved `dark_background` icon.
 ---@nodiscard
 function _icons.get_dark_background_icon_from_named_prototype(name, type_name)
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
@@ -508,9 +510,14 @@ end
 ---
 ---### Returns
 ---@return IconData[]|nil # A copy of the starmap icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined starmap.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when an `icon` field is invalid on the resolved `starmap` icon.
 ---@nodiscard
 function _icons.get_starmap_icon_from_prototype(space_location_prototype)
-	if not space_location_prototype then
+	if
+		not (space_location_prototype and (space_location_prototype.starmap_icons or space_location_prototype.starmap_icon))
+	then
 		return
 	end
 
@@ -529,6 +536,7 @@ function _icons.get_starmap_icon_from_prototype(space_location_prototype)
 				or default_icon_sizes["space-location"]
 		end
 	else
+		---@cast space_location_prototype.starmap_icon -?
 		---@type IconData[]
 		icons = {
 			{
@@ -562,6 +570,7 @@ end
 ---### Exceptions
 ---*@throws* `string` — Thrown when `name` is `nil` or an empty string.\
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.\
+---*@throws* `string` — Thrown when an `icon` field is invalid on the resolved `starmap` icon.
 ---@nodiscard
 function _icons.get_starmap_icon_from_named_prototype(name, type_name)
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
