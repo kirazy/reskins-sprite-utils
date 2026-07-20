@@ -3,15 +3,16 @@ Version: 0.2.1
 Date: ????
   Changes:
     - Improved types of `prototype` parameters to `icons.clear_icon_from_prototype` and `icons.add_icons_from_prototype_to_icons` to include all prototypes that may have an icon
-    - `icons.assign_icons_to_prototype_and_related_prototypes` now assigns icons to related recipes of the same name that produce only the same item; where possible, if icon inheritance is permitted, the recipe icon will be cleared.
+    - `icons.assign_icons_to_prototype_and_related_prototypes` now assigns icons to related recipes of the same name that produce only the same item; where possible, if icon inheritance is permitted, the recipe icon will be cleared
     - The following methods now throw when the prototype (directly as a parameter or indirectly by name and type) is nil:
       - `icons.add_icons_from_prototype_to_icon`
       - `icons.add_icons_from_prototype_to_icons`
       - `icons.add_icons_from_prototype_to_icon_by_name`
       - `icons.add_icons_from_prototype_to_icons_by_name`
       - `icons.get_icon_from_named_prototype`
+    - Revised `icons.transform_icon` to handle the single-icon case, and added `icons.transform_icons` for the layered icon case
   Bugfixes:
-    - Fixed that `icons.get_dark_background_icon_from_prototype` and `icons.get_starmap_icon_from_prototype` could return an invalid icon if the target icon was not available; the methods both now return nil in that case.
+    - Fixed that `icons.get_dark_background_icon_from_prototype` and `icons.get_starmap_icon_from_prototype` could return an invalid icon if the target icon was not available; the methods both now return nil in that case
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2026-06-26

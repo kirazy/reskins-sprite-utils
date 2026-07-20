@@ -1138,16 +1138,13 @@ end
 ---Transforms the given `icon_data` array by applying the given `scale`, `shift` and `tint` to each
 ---element of the array.
 ---
----### Returns
----@return data.IconData[] # A copy of `icon_data` with the transformations applied.
----
 ---### Remarks
 ---- Missing icon fields are set to default values as appropriate.
 ---- `icon_data` is not modified.
 ---
 ---### Examples
 ---```lua
-------@type data.IconData[]
+------@type IconData[]
 ---local icon_data = {
 ---    {
 ---        icon = "__base__/graphics/icons/iron-plate.png",
@@ -1168,35 +1165,92 @@ end
 ---```
 ---
 ---### Parameters
----@param icon_data data.IconData[] # An array of `IconData` objects to be transformed.
+---@param icon_datum IconData # An array of `IconData` objects to be transformed.
 ---@param scale? double # The scale to apply to the sourced icon. Default `nil`.
----@param shift? data.Vector # The shift to apply to the sourced icon. Default `nil`.
----@param tint? data.Color # The tint to apply to the sourced icon. Default `nil`.
+---@param shift? Vector # The shift to apply to the sourced icon. Default `nil`.
+---@param tint? Color # The tint to apply to the sourced icon. Default `nil`.
 ---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
+---### Returns
+---@return IconData # A copy of `icon_datum` with the transformations applied.
+---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_data` is `nil`.<br/>
----*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.<br/>
----*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.<br/>
+---*@throws* `string` — Thrown when `icon_datum` is `nil`.\
+---*@throws* `string` — Thrown when `icon_datum.icon` is not an absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when `icon_datum.icon_size` is not a positive integer.
 ---@nodiscard
-function _icons.transform_icon(icon_data, scale, shift, tint, defaults_type)
-	local icon_data_copy = _icons.add_missing_icons_defaults(icon_data, defaults_type)
+function _icons.transform_icon(icon_datum, scale, shift, tint, defaults_type)
+	local copy = _icons.add_missing_icon_defaults(icon_datum, defaults_type)
 	if not scale and not shift and not tint then
-		return icon_data_copy
+		return copy
+	end
+
+	---@type IconData
+	local transformed = {
+		icon = copy.icon,
+		icon_size = copy.icon_size,
+		scale = copy.scale * (scale or 1),
+		shift = shift and util.add_shift(util.mul_shift(copy.shift or { 0, 0 }, scale or 1)--[[@cast -?]], shift) or copy.shift,
+		tint = tint or copy.tint,
+		draw_background = copy.draw_background,
+		floating = copy.floating,
+	}
+
+	return transformed
+end
+
+---Transforms the given `icon_data` array by applying the given `scale`, `shift` and `tint` to each
+---element of the array.
+---
+---### Remarks
+---- Missing icon fields are set to default values as appropriate.
+---- `icon_data` is not modified.
+---
+---### Examples
+---```lua
+------@type IconData[]
+---local icon_data = {
+---    {
+---        icon = "__base__/graphics/icons/iron-plate.png",
+---        icon_size = 64,
+---        scale = 0.5,
+---    },
+---    {
+---        icon = "__base__/graphics/icons/copper-wire.png",
+---        icon_size = 64,
+---        scale = 0.25,
+---        shift = { -16, 16 }
+---    },
+---}
+---
+----- Transform the icon by scaling it to 1.5 times its original size
+----- and shifting it by 16 pixels to the right.
+---local transformed_icon_data = _icons.transform_icon(icon_data, 1.5, { 16, 0 })
+---```
+---
+---### Parameters
+---@param icon_data IconData[] # An array of `IconData` objects to be transformed.
+---@param scale? double # The scale to apply to the sourced icon. Default `nil`.
+---@param shift? Vector # The shift to apply to the sourced icon. Default `nil`.
+---@param tint? Color # The tint to apply to the sourced icon. Default `nil`.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.constant.default_icon_size`.
+---
+---### Returns
+---@return IconData[] # A copy of `icon_data` with the transformations applied.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_data` is `nil`.\
+---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.
+---@nodiscard
+function _icons.transform_icons(icon_data, scale, shift, tint, defaults_type)
+	if not scale and not shift and not tint then
+		return _icons.add_missing_icons_defaults(icon_data, defaults_type)
 	end
 
 	local transformed_icon_data = {}
-	for _, layer in pairs(icon_data_copy) do
-		---@type data.IconData
-		local icon_datum = {
-			icon = layer.icon,
-			icon_size = layer.icon_size,
-			scale = layer.scale * (scale or 1),
-			shift = shift and util.add_shift(util.mul_shift(layer.shift or { 0, 0 }, scale or 1), shift) or layer.shift,
-			tint = tint or layer.tint,
-		}
-
-		table.insert(transformed_icon_data, icon_datum)
+	for _, layer in pairs(icon_data) do
+		table.insert(transformed_icon_data, _icons.transform_icon(layer, scale, shift, tint, defaults_type))
 	end
 
 	return transformed_icon_data
@@ -1298,7 +1352,7 @@ function _icons.add_icons_from_sources_to_icons(icon_data, sources, defaults_typ
 		local icon, is_blank_icon = get_icons_from_source(source, defaults_type)
 		has_blank_layers = has_blank_layers or is_blank_icon
 
-		local transformed_icon = _icons.transform_icon(
+		local transformed_icon = _icons.transform_icons(
 			icon,
 			source.scale,
 			source.shift,
