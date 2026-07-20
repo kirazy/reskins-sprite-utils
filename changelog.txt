@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.1
-Date: ????
+Date: 2026-07-19
   Features:
     - Added `utils` module, with `utils.array_concat` to concatenate any number of array inputs of the same type into a single array
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`
