@@ -36,10 +36,6 @@ end
 ---
 ---Visual Studio Code will remove them anyways on interacting with the color picker.
 ---
----### Parameters
----@param hex string # An 8-character ARGB color hex code.
----@return Color
----
 ---### Examples
 ---Import the colors module and then use it to create a tint. If working with the Factorio Modding Tool Kit and Visual
 ---Studio Code, once the Lua workspace has loaded the color picker will be interactive and render correctly in game.
@@ -50,10 +46,15 @@ end
 ---```
 ---Use anywhere you would use a tint.
 ---
+---### Parameters
+---@param hex string # An 8-character ARGB color hex code.
+---@return Color
+---
 ---### Exceptions
 ---*@throws* - `string` When `hex` is not a string.</br>
 ---*@throws* - `string` When `hex` is not 8 characters.
----@deprecated EmmyLua color picker correctly maintains RGBA syntax; prefer util.color("#RRGGBBAA") if using EmmyLua as opposed to Sumneko Lua
+---@nodiscard
+---@deprecated Use util.color("RRGGBBAA") with latest versions of FTMK/EmmyLua, as the color picker now correctly maintains RGBA syntax.
 function _colors.from_argb(hex)
 	if type(hex) ~= "string" then
 		error("Invalid type: 'hex' must be a string.")
@@ -71,9 +72,6 @@ end
 ---
 ---`tint` is not required to be normalized beforehand.
 ---
----### Returns
----@return HsvColor # An HSVA color with `h` in degrees (0–360) and `s`, `v`, `a` between 0 and 1.
----
 ---### Examples
 ---```lua
 ---local hsva = _colors.rgba_to_hsva({ r = 0, g = 0.753, b = 0.871, a = 1 })
@@ -81,6 +79,10 @@ end
 ---
 ---### Parameters
 ---@param tint Color # The RGBA color to convert.
+---
+---### Returns
+---@return HsvColor # An HSVA color with `h` in degrees (0–360) and `s`, `v`, `a` between 0 and 1.
+---@nodiscard
 function _colors.rgba_to_hsva(tint)
 	local n = _colors.normalize(tint)
 	local r, g, b, a = n.r, n.g, n.b, n.a
@@ -120,9 +122,6 @@ end
 ---
 ---`tint` is not required to be normalized beforehand.
 ---
----### Returns
----@return HslColor # An HSLA color with `h` in degrees (0–360) and `s`, `l`, `a` between 0 and 1.
----
 ---### Examples
 ---```lua
 ---local hsla = _colors.rgba_to_hsla({ r = 0, g = 0.753, b = 0.871, a = 1 })
@@ -130,6 +129,10 @@ end
 ---
 ---### Parameters
 ---@param tint Color # The RGBA color to convert.
+---
+---### Returns
+---@return HslColor # An HSLA color with `h` in degrees (0–360) and `s`, `l`, `a` between 0 and 1.
+---@nodiscard
 function _colors.rgba_to_hsla(tint)
 	local n = _colors.normalize(tint)
 	local r, g, b, a = n.r, n.g, n.b, n.a
@@ -171,9 +174,6 @@ end
 ---
 ---Converts the provided `tint` from HSVA to RGBA color space.
 ---
----### Returns
----@return Color # An RGBA color with channel values clamped between 0 and 1.
----
 ---### Examples
 ---```lua
 ---local rgba = _colors.hsva_to_rgba({ h = 191, s = 1, v = 0.871, a = 1 })
@@ -181,6 +181,10 @@ end
 ---
 ---### Parameters
 ---@param tint HsvColor # The HSVA color to convert, with `h` in degrees (0–360) and `s`, `v`, `a` between 0 and 1.
+---
+---### Returns
+---@return Color # An RGBA color with channel values clamped between 0 and 1.
+---@nodiscard
 function _colors.hsva_to_rgba(tint)
 	local h, s, v, a = tint.h, tint.s, tint.v, tint.a
 
@@ -199,9 +203,6 @@ end
 ---
 ---Converts the provided `tint` from HSLA to RGBA color space.
 ---
----### Returns
----@return Color # An RGBA color with channel values clamped between 0 and 1.
----
 ---### Examples
 ---```lua
 ---local rgba = _colors.hsla_to_rgba({ h = 191, s = 1, l = 0.435, a = 1 })
@@ -209,6 +210,10 @@ end
 ---
 ---### Parameters
 ---@param tint HslColor # The HSLA color to convert, with `h` in degrees (0–360) and `s`, `l`, `a` between 0 and 1.
+---
+---### Returns
+---@return Color # An RGBA color with channel values clamped between 0 and 1.
+---@nodiscard
 function _colors.hsla_to_rgba(tint)
 	local h, s, l, a = tint.h, tint.s, tint.l, tint.a
 
@@ -233,9 +238,6 @@ end
 ---`tint` may use either named fields (`r`, `g`, `b`, `a`) or positional fields (`[1]`, `[2]`, `[3]`, `[4]`).
 ---If any channel value exceeds 1, all channels are divided by 255.
 ---
----### Returns
----@return Color # A copy of `tint` with all channels normalized and defined.
----
 ---### Examples
 ---```lua
 ---local normalized = _colors.normalize({ r = 128, g = 191, b = 222, a = 255 })
@@ -244,6 +246,10 @@ end
 ---
 ---### Parameters
 ---@param tint Color # The color to normalize.
+---
+---### Returns
+---@return Color # A copy of `tint` with all channels normalized and defined.
+---@nodiscard
 function _colors.normalize(tint)
 	local n = {
 		r = math.max(tint.r or tint[1] or 0, 0),
@@ -283,9 +289,6 @@ end
 ---
 ---`base` and `overlay` are not required to be normalized beforehand.
 ---
----### Returns
----@return Color # The composited RGBA color, with channel values clamped between 0 and 1.
----
 ---### Examples
 ---```lua
 ---local result = _colors.overlay(
@@ -297,6 +300,10 @@ end
 ---### Parameters
 ---@param base Color # The base color to composite over.
 ---@param overlay Color # The overlay color to composite on top.
+---
+---### Returns
+---@return Color # The composited RGBA color, with channel values clamped between 0 and 1.
+---@nodiscard
 function _colors.overlay(base, overlay)
 	local b = _colors.normalize(base)
 	local o = _colors.normalize(overlay)
@@ -352,9 +359,6 @@ end
 ---
 ---`c1` and `c2` are not required to be normalized beforehand.
 ---
----### Returns
----@return Color # The blended RGBA color, with channel values clamped between 0 and 1.
----
 ---### Examples
 ---```lua
 ---local blended = _colors.blend(
@@ -368,6 +372,10 @@ end
 ---@param c1 Color # The first color.
 ---@param c2 Color # The second color.
 ---@param weight? float # A fractional weight between 0 and 1 that determines the proportional color mix. When `0`, `c1` is returned, when `1`, `c2` is returned. Default `0.5`.
+---
+---### Returns
+---@return Color # The blended RGBA color, with channel values clamped between 0 and 1.
+---@nodiscard
 function _colors.blend(c1, c2, weight)
 	if weight == 0 then
 		return _colors.normalize(c1)
