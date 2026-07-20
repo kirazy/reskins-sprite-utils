@@ -959,6 +959,7 @@ end
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `icon_data` is `nil`.
+---*@throws* `string` — Thrown when `prototype` is `nil`.
 ---
 ---### See Also
 ---@see Icons.add_missing_icons_defaults
@@ -966,15 +967,9 @@ end
 ---@nodiscard
 function _icons.add_icons_from_prototype_to_icons(icon_data, prototype, scale, shift, tint)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
-
-	if not prototype then
-		return util.copy(icon_data)
-	end
+	assert(prototype, "Invalid parameter: 'prototype' must not be nil.")
 
 	local icon_data_copy = _icons.add_missing_icons_defaults(icon_data, prototype.type)
-
-	-- Ensure working with a copy of the prototype.
-	-- This method sets default values for missing fields, so scale is present.
 	local sourced_icon_data = _icons.get_icon_from_prototype(prototype)
 	if not sourced_icon_data then
 		return icon_data_copy
@@ -1024,14 +1019,14 @@ end
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `icon_datum` is `nil`.\
----*@throws* `string` — Thrown when `icon_datum` is not an IconData object with a defined `icon` field.
+---*@throws* `string` — Thrown when `icon_datum.icon` is `nil`.
 ---
 ---### See Also
 ---@see Icons.add_icons_from_prototype_to_icons
 ---@nodiscard
 function _icons.add_icons_from_prototype_to_icon(icon_datum, prototype, scale, shift, tint)
 	assert(icon_datum, "Invalid parameter: 'icon_datum' must not be nil.")
-	assert(icon_datum.icon, "Invalid parameter: 'icon_datum' must be an IconData object with a defined 'icon' field.")
+	assert(icon_datum.icon, "Invalid parameter: 'icon_datum.icon' must not be nil.")
 
 	return _icons.add_icons_from_prototype_to_icons({ icon_datum }, prototype, scale, shift, tint)
 end
@@ -1062,6 +1057,7 @@ end
 ---*@throws* `string` — Thrown when `icon_data` is `nil`.\
 ---*@throws* `string` — Thrown when `name` is `nil` or an empty string.\
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.
+---*@throws* `string` — Thrown when a prototype with the given `name` and `type_name` does not exist.\
 ---
 ---### See Also
 ---@see Icons.add_icons_from_prototype_to_icons
@@ -1070,6 +1066,11 @@ function _icons.add_icons_from_prototype_to_icons_by_name(icon_data, name, type_
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
+	assert(
+		data.raw[type_name] and data.raw[type_name][name],
+		"Invalid operation: a prototype with the given name and type_name does not exist."
+			.. serpent.block({ name = name, type_name = type_name })
+	)
 
 	return _icons.add_icons_from_prototype_to_icons(icon_data, data.raw[type_name][name], scale, shift, tint)
 end
@@ -1111,18 +1112,24 @@ end
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `icon_datum` is `nil`.\
----*@throws* `string` — Thrown when `icon_datum` is not an IconData object with a defined `icon` field.\
+---*@throws* `string` — Thrown when `icon_datum.nil` is `nil`.\
 ---*@throws* `string` — Thrown when `name` is `nil` or an empty string.\
----*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.
+---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.\
+---*@throws* `string` — Thrown when a prototype with the given `name` and `type_name` does not exist.
 ---
 ---### See Also
 ---@see Icons.add_icons_from_prototype_to_icons
 ---@nodiscard
 function _icons.add_icons_from_prototype_to_icon_by_name(icon_datum, name, type_name, scale, shift, tint)
 	assert(icon_datum, "Invalid parameter: 'icon_datum' must not be nil.")
-	assert(icon_datum.icon, "Invalid parameter: 'icon_datum' must be an IconData object with a defined 'icon' field.")
+	assert(icon_datum.icon, "Invalid parameter: 'icon_datum.icon' must not be nil.")
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 	assert(type_name and type_name ~= "", "Invalid parameter: 'type_name' must not be nil or an empty string.")
+	assert(
+		data.raw[type_name] and data.raw[type_name][name],
+		"Invalid operation: a prototype with the given name and type_name does not exist."
+			.. serpent.block({ name = name, type_name = type_name })
+	)
 
 	return _icons.add_icons_from_prototype_to_icons({ icon_datum }, data.raw[type_name][name], scale, shift, tint)
 end
