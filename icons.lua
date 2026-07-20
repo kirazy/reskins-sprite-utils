@@ -905,16 +905,16 @@ function _icons.compose_icons(defaults_type, ...)
 	local combined_icon_data = {}
 
 	for _, input_icon in pairs({ ... }) do
-		if input_icon and input_icon.icon then
-			-- It's an IconData object.
-			table.insert(combined_icon_data, _icons.add_missing_icon_defaults(input_icon, defaults_type))
-		elseif input_icon[1] and input_icon[1].icon then
-			-- It's an array of IconData objects.
-			for _, icon_datum in pairs(input_icon) do
-				table.insert(combined_icon_data, _icons.add_missing_icon_defaults(icon_datum, defaults_type))
+		if input_icon then
+			if input_icon.icon then
+				-- It's an IconData object.
+				table.insert(combined_icon_data, _icons.add_missing_icon_defaults(input_icon, defaults_type))
+			elseif input_icon[1] and input_icon[1].icon then
+				-- It's an array of IconData objects.
+				for _, icon_datum in pairs(input_icon) do
+					table.insert(combined_icon_data, _icons.add_missing_icon_defaults(icon_datum, defaults_type))
+				end
 			end
-		else
-			-- Skip.
 		end
 	end
 
