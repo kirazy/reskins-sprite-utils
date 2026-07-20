@@ -1,3 +1,5 @@
+---@using data
+
 ---@namespace Reskins.SpriteUtils
 
 --- Provides color tools for use with Artisanal Reskins: Sprite Utils.
@@ -36,7 +38,7 @@ end
 ---
 ---### Parameters
 ---@param hex string # An 8-character ARGB color hex code.
----@return data.Color
+---@return Color
 ---
 ---### Examples
 ---Import the colors module and then use it to create a tint. If working with the Factorio Modding Tool Kit and Visual
@@ -78,7 +80,7 @@ end
 ---```
 ---
 ---### Parameters
----@param tint data.Color # The RGBA color to convert.
+---@param tint Color # The RGBA color to convert.
 function _colors.rgba_to_hsva(tint)
 	local n = _colors.normalize(tint)
 	local r, g, b, a = n.r, n.g, n.b, n.a
@@ -127,7 +129,7 @@ end
 ---```
 ---
 ---### Parameters
----@param tint data.Color # The RGBA color to convert.
+---@param tint Color # The RGBA color to convert.
 function _colors.rgba_to_hsla(tint)
 	local n = _colors.normalize(tint)
 	local r, g, b, a = n.r, n.g, n.b, n.a
@@ -170,7 +172,7 @@ end
 ---Converts the provided `tint` from HSVA to RGBA color space.
 ---
 ---### Returns
----@return data.Color # An RGBA color with channel values clamped between 0 and 1.
+---@return Color # An RGBA color with channel values clamped between 0 and 1.
 ---
 ---### Examples
 ---```lua
@@ -198,7 +200,7 @@ end
 ---Converts the provided `tint` from HSLA to RGBA color space.
 ---
 ---### Returns
----@return data.Color # An RGBA color with channel values clamped between 0 and 1.
+---@return Color # An RGBA color with channel values clamped between 0 and 1.
 ---
 ---### Examples
 ---```lua
@@ -232,7 +234,7 @@ end
 ---If any channel value exceeds 1, all channels are divided by 255.
 ---
 ---### Returns
----@return data.Color # A copy of `tint` with all channels normalized and defined.
+---@return Color # A copy of `tint` with all channels normalized and defined.
 ---
 ---### Examples
 ---```lua
@@ -241,7 +243,7 @@ end
 ---```
 ---
 ---### Parameters
----@param tint data.Color # The color to normalize.
+---@param tint Color # The color to normalize.
 function _colors.normalize(tint)
 	local n = {
 		r = math.max(tint.r or tint[1] or 0, 0),
@@ -282,7 +284,7 @@ end
 ---`base` and `overlay` are not required to be normalized beforehand.
 ---
 ---### Returns
----@return data.Color # The composited RGBA color, with channel values clamped between 0 and 1.
+---@return Color # The composited RGBA color, with channel values clamped between 0 and 1.
 ---
 ---### Examples
 ---```lua
@@ -293,8 +295,8 @@ end
 ---```
 ---
 ---### Parameters
----@param base data.Color # The base color to composite over.
----@param overlay data.Color # The overlay color to composite on top.
+---@param base Color # The base color to composite over.
+---@param overlay Color # The overlay color to composite on top.
 function _colors.overlay(base, overlay)
 	local b = _colors.normalize(base)
 	local o = _colors.normalize(overlay)
@@ -351,7 +353,7 @@ end
 ---`c1` and `c2` are not required to be normalized beforehand.
 ---
 ---### Returns
----@return data.Color # The blended RGBA color, with channel values clamped between 0 and 1.
+---@return Color # The blended RGBA color, with channel values clamped between 0 and 1.
 ---
 ---### Examples
 ---```lua
@@ -363,8 +365,8 @@ end
 ---```
 ---
 ---### Parameters
----@param c1 data.Color # The first color.
----@param c2 data.Color # The second color.
+---@param c1 Color # The first color.
+---@param c2 Color # The second color.
 ---@param weight? float # A fractional weight between 0 and 1 that determines the proportional color mix. When `0`, `c1` is returned, when `1`, `c2` is returned. Default `0.5`.
 function _colors.blend(c1, c2, weight)
 	if weight == 0 then

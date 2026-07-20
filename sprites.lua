@@ -1,3 +1,7 @@
+---cspell: words premul
+
+---@using data
+
 ---@namespace Reskins.SpriteUtils
 
 --- Provides methods for manipulating sprites.
@@ -11,9 +15,9 @@ local _sprites = {}
 
 local _icons = require("icons")
 
----@param icon_layer data.IconData # An icon layer.
+---@param icon_layer IconData # An icon layer.
 ---@param scale? double # The scale to apply to the sprite.
----@return data.Sprite # A layer of sprite data.
+---@return Sprite # A layer of sprite
 local function convert_icon_layer_to_sprite_layer(icon_layer, scale)
 	local icon_copy = _icons.add_missing_icon_defaults(icon_layer)
 	local scale_to_apply = scale and scale * icon_copy.scale or icon_copy.scale or 32 / icon_copy.icon_size
@@ -21,7 +25,7 @@ local function convert_icon_layer_to_sprite_layer(icon_layer, scale)
 	-- Icon shift is in pixels, so we need to scale it down to 32 pixels per tile.
 	local converted_shift = icon_copy.shift and util.mul_shift(icon_copy.shift, scale_to_apply * 1 / 32) or nil
 
-	---@type data.Sprite
+	---@type Sprite
 	local sprite_layer = {
 		flags = { "icon" },
 		filename = icon_copy.icon,
@@ -44,7 +48,7 @@ end
 ---
 ---### Examples
 ---```lua
-------@type data.IconData[]
+------@type IconData[]
 ---local icon_data = {
 ---    {
 ---        icon = "__base__/graphics/icons/iron-plate.png",
@@ -63,15 +67,16 @@ end
 ---```
 ---
 ---### Parameters
----@param icon_data data.IconData[] # An array of `IconData` objects.
+---@param icon_data IconData[] # An array of `IconData` objects.
 ---@param scale? double # The scale to apply to the sprite.
+---
 ---### Returns
----@return data.Sprite # A `Sprite` object created from `icon_data`.
+---@return Sprite # A `Sprite` object created from `icon_data`.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_data` is `nil`.<br/>
----*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.<br/>
----*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.<br/>
+---*@throws* `string` — Thrown when `icon_data` is `nil`.\
+---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.
 ---@nodiscard
 function _sprites.create_sprite_from_icons(icon_data, scale)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
@@ -100,7 +105,7 @@ end
 ---
 ---### Examples
 ---```lua
-------@type data.IconData
+------@type IconData
 ---local icon_datum = {
 ---    icon = "__base__/graphics/icons/iron-plate.png",
 ---    icon_size = 64,
@@ -111,16 +116,17 @@ end
 ---```
 ---
 ---### Parameters
----@param icon_datum data.IconData  # An `IconData` object.
+---@param icon_datum IconData  # An `IconData` object.
 ---@param scale? double # The scale to apply to the sprite.
+---
 ---### Returns
----@return data.Sprite # A `Sprite` object created from `icon_datum`.
+---@return Sprite # A `Sprite` object created from `icon_datum`.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_datum` is `nil`.<br/>
----*@throws* `string` — Thrown when `icon_datum` is not an IconData object.<br/>
----*@throws* `string` — Thrown when `icon_datum.icon` is not an absolute file path with a valid extension.<br/>
----*@throws* `string` — Thrown when `icon_datum.icon_size` is not a positive integer.<br/>
+---*@throws* `string` — Thrown when `icon_datum` is `nil`.\
+---*@throws* `string` — Thrown when `icon_datum` is not an IconData object.\
+---*@throws* `string` — Thrown when `icon_datum.icon` is not an absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when `icon_datum.icon_size` is not a positive integer.
 ---@nodiscard
 function _sprites.create_sprite_from_icon(icon_datum, scale)
 	assert(icon_datum, "Invalid parameter: 'icon_datum' must not be nil.")
@@ -131,9 +137,6 @@ end
 ---
 ---Creates an `Animation4Way` object using the given `animation`, parsing the `line_length`
 ---and `frame_count` fields to slice a sprite sheet into direction-based `Animation` objects.
----
----### Returns
----@return data.Animation4Way|data.Sprite4Way # The 4-way animation object created from `animation`.
 ---
 ---### Remarks
 ---Extends the functionality of `make_rotated_animation_variations_from_sheet` to include handling
@@ -159,7 +162,10 @@ end
 ---Angel's Mods.
 ---
 ---### Parameters
----@param animation VerticallyOrientableAnimation|data.Animation # The animation object to create the 4-way animation from.
+---@param animation VerticallyOrientableAnimation|Animation # The animation object to create the 4-way animation from.
+---
+---### Returns
+---@return Animation4Way|Sprite4Way # The 4-way animation object created from `animation`.
 ---@nodiscard
 function _sprites.make_4way_animation_from_spritesheet(animation)
 	local animation_copy = util.copy(animation)
@@ -173,11 +179,11 @@ function _sprites.make_4way_animation_from_spritesheet(animation)
 	}
 
 	---
-	---Creates the `data.Animation` object for the given `direction` using the given
+	---Creates the `Animation` object for the given `direction` using the given
 	---`source_animation`.
 	---
 	---### Returns
-	---@return data.Animation # The new animation for the given `direction`.
+	---@return Animation # The new animation for the given `direction`.
 	---
 	---### Parameters
 	---@param direction DirectionDefines # The direction to create the animation for.
@@ -201,7 +207,7 @@ function _sprites.make_4way_animation_from_spritesheet(animation)
 			end
 		end
 
-		---@type data.Animation
+		---@type Animation
 		local animation_for_direction = {
 			filename = source_animation.filename,
 			priority = source_animation.priority or "high",
@@ -235,28 +241,23 @@ function _sprites.make_4way_animation_from_spritesheet(animation)
 	end
 
 	---
-	---Creates the `data.Animation` object for the given `direction` using the given
-	---`source_animation`.
-	---
-	---### Returns
-	---@return data.Animation # The new animation for the given `direction`.
-	---
-	---### Parameters
+	---Creates the `Animation` object for the given `direction` using the given `source_animation`.
 	---@param direction DirectionDefines # The direction to create the animation for.
+	---@return Animation # The new animation for the given `direction`.
+	---@nodiscard
 	local function make_animation_for_direction(direction)
 		if animation_copy.layers then
-			---@type data.Animation
 			local new_animation = { layers = {} }
 			for _, v in ipairs(animation_copy.layers) do
 				table.insert(new_animation.layers, make_animation_layer_for_direction(direction, v))
 			end
-			return new_animation
+			return new_animation --[[@as Animation]]
 		else
 			return make_animation_layer_for_direction(direction, animation_copy)
 		end
 	end
 
-	---@type data.Animation4Way
+	---@type Animation4Way
 	local animation_4way = {
 		north = make_animation_for_direction(defines.north),
 		east = make_animation_for_direction(defines.east),
@@ -275,7 +276,7 @@ end
 ---`frame_count`, `line_length`, and `direction_count` on the source animation layer.
 ---
 ---### Returns
----@return data.RotatedAnimationVariations # An array of `RotatedAnimation` objects, one per variation.
+---@return RotatedAnimationVariations # An array of `RotatedAnimation` objects, one per variation.
 ---
 ---### Examples
 ---```lua
@@ -291,12 +292,12 @@ end
 ---
 ---### Parameters
 ---@param variation_count integer # The number of variations to slice from `sheet`.
----@param sheet data.RotatedAnimation # The source animation referencing a sprite sheet with all variations stacked vertically.
+---@param sheet RotatedAnimation # The source animation referencing a sprite sheet with all variations stacked vertically.
 function _sprites.make_rotated_animation_variations_from_spritesheet(variation_count, sheet)
-	---@type data.RotatedAnimationVariations
+	---@type RotatedAnimationVariations
 	local result = {}
 
-	---@param variation data.RotatedAnimation
+	---@param variation RotatedAnimation
 	---@param i integer
 	local function set_y_offset(variation, i)
 		local frame_count = variation.frame_count or 1
@@ -310,7 +311,7 @@ function _sprites.make_rotated_animation_variations_from_spritesheet(variation_c
 	end
 
 	for i = 1, variation_count do
-		local variation = util.copy(sheet) --[[@as data.RotatedAnimation]]
+		local variation = util.copy(sheet) --[[@as RotatedAnimation]]
 
 		if variation.layers then
 			for _, layer in pairs(variation.layers) do
@@ -480,13 +481,12 @@ end
 ---```
 ---
 ---### Parameters
----@param prototype data.EntityWithHealthPrototype # The entity with the remnants to rescale.
+---@param prototype EntityWithHealthPrototype # The entity with the remnants to rescale.
 ---@param scalar double # The scale factor to resize the prototype by.
 ---
 ---### See Also
 ---@see Sprites.rescale_prototype
 function _sprites.rescale_remnants_of_prototype(prototype, scalar)
-	-- Check the entity exists
 	if not prototype then
 		return
 	end

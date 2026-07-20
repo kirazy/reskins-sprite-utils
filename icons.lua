@@ -1,3 +1,5 @@
+---@using data
+
 ---@namespace Reskins.SpriteUtils
 
 --- Provides methods for manipulating icons.
@@ -18,26 +20,17 @@ local default_icon_sizes = {
 	["shortcut-small"] = 24,
 }
 
----
 ---Gets an empty icon.
----
----### Returns
----```lua
----local icon_data = {
----    icon = "__core__/graphics/empty.png",
----    icon_size = 1,
----    scale = 32,
----}
----```
 ---
 ---### Examples
 ---```lua
 ---local icon_data = _icons.empty_icon()
 ---```
----@return data.IconData
 ---
 ---### Parameters
----@param icon_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.constant.default_icon_size`.
+---@param icon_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData.scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
+---@return IconData
+---@nodiscard
 function _icons.empty_icon(icon_type)
 	local expected_icon_size
 	if icon_type and type(icon_type) == "string" then
@@ -56,12 +49,9 @@ end
 ---
 ---Scales the given `icon_data` by the given `scalar`.
 ---
----### Returns
----@return data.IconData[] # A copy of `icon_data` rescaled by the given `scalar`.
----
 ---### Examples
 ---```lua
-------@type data.IconData[]
+------@type IconData[]
 ---local icon_data = {
 ---    {
 ---        icon = "__base__/graphics/icons/iron-plate.png",
@@ -81,9 +71,13 @@ end
 ---```
 ---
 ---### Parameters
----@param icon_data data.IconData[] # An array of `IconData` objects to scale.
+---@param icon_data IconData[] # An array of `IconData` objects to scale.
 ---@param scalar double # The scalar to rescale the icon by.
 ---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.constant.default_icon_size`.
+---
+---### Returns
+---@return IconData[] # A copy of `icon_data` rescaled by the given `scalar`.
+---@nodiscard
 function _icons.scale_icon(icon_data, scalar, defaults_type)
 	local icon_data_copy = _icons.add_missing_icons_defaults(icon_data, defaults_type)
 
@@ -102,7 +96,7 @@ end
 ---Be sure to set a new icon after calling this function.
 ---
 ---### Examples
----```
+---```lua
 ---_icons.clear_icon_from_prototype(data.raw.item["iron-plate"])
 ---```
 ---
@@ -123,7 +117,7 @@ end
 ---Be sure to set a new icon after calling this function.
 ---
 ---### Examples
----```
+---```lua
 ---_icons.clear_icon_from_named_prototype("iron-plate", "item")
 ---```
 ---
@@ -135,18 +129,15 @@ function _icons.clear_icon_from_named_prototype(name, type_name)
 end
 
 ---
----Adds default values to missing fields from the given `icon_datum`.<br>
+---Adds default values to missing fields from the given `icon_datum`.\
 ---`icon_data` is not modified.
 ---
 ---Note: this method does not set `IconData.draw_background` or `IconData.floating`.
 ---These represent an advanced use case and should be handled directly.
 ---
----### Returns
----@return data.IconData # A copy of `icon_datum` with missing fields set to default values.
----
 ---### Examples
 ---```lua
-------@type data.IconData
+------@type IconData
 ---local icon_datum = {
 ---    icon = "__base__/graphics/icons/iron-plate.png",
 ---    icon_size = 64,
@@ -157,13 +148,16 @@ end
 ---```
 ---
 ---### Parameters
----@param icon_datum data.IconData # An `IconData` object.
+---@param icon_datum IconData # An `IconData` object.
 ---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
+---### Returns
+---@return IconData # A copy of `icon_datum` with missing fields set to default values.
+---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_dataum` is `nil`<br/>
----*@throws* `string` — Thrown when `icon_dataum.icon` is not a mod-prefixed absolute file path with a valid extension.<br/>
----*@throws* `string` — Thrown when `icon_dataum.icon_size` is not a positive integer.<br/>
+---*@throws* `string` — Thrown when `icon_dataum` is `nil`\
+---*@throws* `string` — Thrown when `icon_dataum.icon` is not a mod-prefixed absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when `icon_dataum.icon_size` is not a positive integer.
 ---@nodiscard
 function _icons.add_missing_icon_defaults(icon_datum, defaults_type)
 	-- stylua: ignore start
@@ -196,18 +190,15 @@ function _icons.add_missing_icon_defaults(icon_datum, defaults_type)
 end
 
 ---
----Adds default values to missing fields from each element of the given `icon_data` array.<br>
+---Adds default values to missing fields from each element of the given `icon_data` array.\
 ---`icon_data` is not modified.
 ---
 ---Note: this method does not set `IconData.draw_background` or `IconData.floating`.
 ---These represent an advanced use case and should be handled directly.
 ---
----### Returns
----@return data.IconData[] # A copy of `icon_data` with missing fields on each element set to default values.
----
 ---### Examples
----```
-------@type data.IconData[]
+---```lua
+------@type IconData[]
 ---local icon_data = {
 ---    {
 ---        icon = "__base__/graphics/icons/iron-plate.png",
@@ -226,13 +217,16 @@ end
 ---```
 ---
 ---### Parameters
----@param icon_data data.IconData[] # An icon represented by an array of `IconData` objects.
+---@param icon_data IconData[] # An icon represented by an array of `IconData` objects.
 ---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
+---### Returns
+---@return IconData[] # A copy of `icon_data` with missing fields on each element set to default values.
+---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_data` is `nil`.<br/>
----*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.<br/>
----*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.<br/>
+---*@throws* `string` — Thrown when `icon_data` is `nil`.\
+---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.
 ---@nodiscard
 function _icons.add_missing_icons_defaults(icon_data, defaults_type)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
@@ -245,28 +239,15 @@ function _icons.add_missing_icons_defaults(icon_data, defaults_type)
 	return new_icon_data
 end
 
----
----Packs the given parameters into an `IconData` object.
----
----No validation or setting of default values is performed.
----
----### Returns
----@return data.IconData # An `IconData` object representing the packed icon data.
----
----### Examples
----```
----local icon_datum = pack_as_icon_data("__base__/graphics/icons/iron-plate.png", 64, 4, 0.5)
----```
----
----### Parameters
----@param icon data.FileName # The file name of the icon to use.
----@param icon_size data.SpriteSizeType # The size of the icon.
+---@param icon FileName # The file name of the icon to use.
+---@param icon_size SpriteSizeType # The size of the icon.
 ---@param scale? double # The scale of the icon.
----@param shift? data.Vector # The shift of the icon.
----@param tint? data.Color # The tint of the icon.
+---@param shift? Vector # The shift of the icon.
+---@param tint? Color # The tint of the icon.
+---@return IconData # An `IconData` object representing the packed icon
 ---@nodiscard
 local function pack_as_icon_datum(icon, icon_size, scale, shift, tint)
-	---@type data.IconData
+	---@type IconData
 	local icon_datum = {
 		icon = icon,
 		icon_size = icon_size,
@@ -281,24 +262,24 @@ end
 ---
 ---Creates an entity, item or recipe `IconData` object with the specified parameters.
 ---
----### Returns
----@return data.IconData # An `IconData` object representing the created icon.
----
 ---### Examples
----```
+---```lua
 ---local icon_data = _icons.create_icon("__base__/graphics/icons/iron-plate.png", 64, 4, 0.5)
 ---```
 ---
 ---### Parameters
----@param icon data.FileName # The file name of the icon to use.
----@param icon_size data.SpriteSizeType # The size of the icon.
+---@param icon FileName # The file name of the icon to use.
+---@param icon_size SpriteSizeType # The size of the icon.
 ---@param scale? double # The scale of the icon. Default `32 / icon_size`.
----@param shift? data.Vector # The shift of the icon. Default `nil`.
----@param tint? data.Color # The tint of the icon. Default `nil`.
+---@param shift? Vector # The shift of the icon. Default `nil`.
+---@param tint? Color # The tint of the icon. Default `nil`.
+---
+---### Returns
+---@return IconData # An `IconData` object representing the created icon.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon` is not a mod-prefixed absolute file path with a valid extension.<br/>
----*@throws* `string` — Thrown when `icon_size` is not a positive integer.<br/>
+---*@throws* `string` — Thrown when `icon` is not a mod-prefixed absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when `icon_size` is not a positive integer.
 ---@nodiscard
 function _icons.create_icon(icon, icon_size, scale, shift, tint)
 	return _icons.add_missing_icon_defaults(pack_as_icon_datum(icon, icon_size, scale, shift, tint))
@@ -307,25 +288,24 @@ end
 ---
 ---Creates a technology `IconData` object with the specified parameters.
 ---
----### Returns
----@return data.IconData # An `IconData` object representing the created technology icon.
----
 ---### Examples
----```
+---```lua
 ---local icon_data = _icons.create_technology_icon("__base__/graphics/technology/logistics-1.png", 256, 4)
 ---```
 ---
 ---### Parameters
----@param icon data.FileName # The file name of the icon to use.
----@param icon_size data.SpriteSizeType # The size of the icon.
+---@param icon FileName # The file name of the icon to use.
+---@param icon_size SpriteSizeType # The size of the icon.
 ---@param scale? double # The scale of the icon. Default `256 / icon_size`.
----@param shift? data.Vector # The shift of the icon. Default `nil`.
----@param tint? data.Color # The tint of the icon. Default `nil`.
----@nodiscard
+---@param shift? Vector # The shift of the icon. Default `nil`.
+---@param tint? Color # The tint of the icon. Default `nil`.
+---
+---### Returns
+---@return IconData # An `IconData` object representing the created technology icon.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon` is not a mod-prefixed absolute file path with a valid extension.<br/>
----*@throws* `string` — Thrown when `icon_size` is not a positive integer.<br/>
+---*@throws* `string` — Thrown when `icon` is not a mod-prefixed absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when `icon_size` is not a positive integer.
 ---@nodiscard
 function _icons.create_technology_icon(icon, icon_size, scale, shift, tint)
 	return _icons.add_missing_icon_defaults(pack_as_icon_datum(icon, icon_size, scale, shift, tint), "technology")
@@ -340,20 +320,20 @@ end
 ---- Missing icon fields are set to default values as appropriate.
 ---- `prototype` is not modified.
 ---
----### Returns
----@return data.IconData[] # A copy of the icon retrieved from the prototype.
----
 ---### Examples
----```
+---```lua
 ---local icon_data = _icons.get_icon_from_prototype(data.raw.item["iron-plate"])
 ---```
 ---
 ---### Parameters
 ---@param prototype PrototypeWithIcons # The prototype to get the icon from.
 ---
+---### Returns
+---@return IconData[] # A copy of the icon retrieved from the prototype.
+---
 ---### Exceptions
----*@throws* `string` — Thrown when `prototype` is `nil`.<br/>
----*@throws* `string` — Thrown when `prototype` has no defined field `icon` or `icons`.<br/>
+---*@throws* `string` — Thrown when `prototype` is `nil`.\
+---*@throws* `string` — Thrown when `prototype` has no defined field `icon` or `icons`.
 ---@nodiscard
 function _icons.get_icon_from_prototype(prototype)
 	assert(prototype, "Invalid parameter: 'prototype' must not be nil.")
@@ -368,13 +348,13 @@ function _icons.get_icon_from_prototype(prototype)
 	assert(prototype.icons or prototype.icon, "Invalid parameter: 'prototype' must have a defined 'icon' or 'icons' field.")
 	-- stylua: ignore end
 
-	---@type data.IconData[]
+	---@type IconData[]
 	local icons
 
 	-- Give precedence to an existing icons field.
-	local default_icon_size = default_icon_sizes[prototype.type] or defines.constant.default_icon_size
+	local default_icon_size = default_icon_sizes[prototype.type] or defines.constant.default_icon_size--[[@as SpriteSizeType]]
 	if prototype.icons then
-		---@type data.IconData[]
+		---@type IconData[]
 		icons = util.copy(prototype.icons)
 
 		-- Ensure icon_size is set for all elements before adding defaults.
@@ -382,29 +362,29 @@ function _icons.get_icon_from_prototype(prototype)
 			icons[n].icon_size = icons[n].icon_size or prototype.icon_size or default_icon_size
 		end
 	else
-		---@type data.IconData[]
-		icons = { {
-			icon = prototype.icon,
-			icon_size = prototype.icon_size or default_icon_size,
-		} }
+		---@cast prototype.icon -?
+		---@type IconData[]
+		icons = {
+			{
+				icon = prototype.icon,
+				icon_size = prototype.icon_size or default_icon_size,
+			},
+		}
 	end
 
 	return _icons.add_missing_icons_defaults(icons, prototype.type)
 end
 
 ---
----Gets the icon as an array of `IconData` objects from the prototype with the given `name` and `type_name`.<br>
+---Gets the icon as an array of `IconData` objects from the prototype with the given `name` and `type_name`.\
 ---
 ---### Remarks
 ---- If `type_name` is `"recipe"`, the `icon` or `icons` field on the `RecipePrototype` object must be defined.
 ---- Missing icon fields are set to default values as appropriate.
 ---- The prototype is not modified.
 ---
----### Returns
----@return data.IconData[] # A copy of the icon retrieved from the prototype.
----
 ---### Examples
----```
+---```lua
 ---local icon_data = _icons.get_icon_from_named_prototype("iron-plate", "item")
 ---```
 ---
@@ -412,12 +392,15 @@ end
 ---@param name string # The name of the prototype.
 ---@param type_name string # The type name of the prototype.
 ---
+---### Returns
+---@return IconData[] # A copy of the icon retrieved from the prototype.
+---
 ---### Exceptions
----*@throws* `string` — Thrown when `name` is not a non-empty string.<br/>
----*@throws* `string` — Thrown when `type_name` is not a non-empty string.<br/>
----*@throws* `string` — Thrown when `type_name` is not a known prototype type.<br/>
----*@throws* `string` — Thrown when the prototype does not exist.<br/>
----*@throws* `string` — Thrown when the prototype has no defined field `icon` or `icons`.<br/>
+---*@throws* `string` — Thrown when `name` is not a non-empty string.\
+---*@throws* `string` — Thrown when `type_name` is not a non-empty string.\
+---*@throws* `string` — Thrown when `type_name` is not a known prototype type.\
+---*@throws* `string` — Thrown when the prototype does not exist.\
+---*@throws* `string` — Thrown when the prototype has no defined field `icon` or `icons`.
 ---@nodiscard
 function _icons.get_icon_from_named_prototype(name, type_name)
 	assert(type(name) == "string" and name ~= "", "Invalid parameter: 'name' must be a non-empty string.")
@@ -434,17 +417,17 @@ end
 ---Missing icon fields are set to default values as appropriate.
 ---The `prototype` is not modified.
 ---
----### Returns
----@return data.IconData[]|nil # A copy of the dark-background icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined dark-background icon.
----
 ---### Examples
----```
+---```lua
 ---local item = data.raw.item["coal"]
 ---local dark_background_icon_data = _icons.get_dark_background_icon_from_prototype(item)
 ---```
 ---
 ---### Parameters
----@param item_prototype data.ItemPrototype # The item prototype to get the icon from.
+---@param item_prototype ItemPrototype # The item prototype to get the icon from.
+---
+---### Returns
+---@return IconData[]|nil # A copy of the dark-background icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined dark-background icon.
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `prototype` has no defined field `icon` or `icons`.<br/>
@@ -454,24 +437,23 @@ function _icons.get_dark_background_icon_from_prototype(item_prototype)
 		return
 	end
 
-	---@type data.IconData[]
+	---@type IconData[]
 	local icons
 
 	-- Give precedence to an existing icons field.
 	if item_prototype.dark_background_icons then
-		---@type data.IconData[]
 		icons = util.copy(item_prototype.dark_background_icons)
 
 		-- Ensure icon_size is set for all elements before adding defaults.
 		for n = 1, #icons do
-			icons[n].icon_size = icons[n].icon_size or item_prototype.icon_size or defines.constant.default_icon_size
+			icons[n].icon_size = icons[n].icon_size or item_prototype.icon_size or defines.constant.default_icon_size--[[@as SpriteSizeType]]
 		end
 	else
-		---@type data.IconData[]
+		---@type IconData[]
 		icons = {
 			{
 				icon = item_prototype.dark_background_icon,
-				icon_size = item_prototype.dark_background_icon_size or defines.constant.default_icon_size,
+				icon_size = item_prototype.dark_background_icon_size or defines.constant.default_icon_size --[[@as SpriteSizeType]],
 			},
 		}
 	end
@@ -486,11 +468,8 @@ end
 ---Missing icon fields are set to default values as appropriate.
 ---The prototype is not modified.
 ---
----### Returns
----@return data.IconData[]|nil # A copy of the dark-background icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined dark-background icon.
----
 ---### Examples
----```
+---```lua
 ---local dark_background_icon_data = _icons.get_dark_background_icon_from_named_prototype("coal", "item")
 ---```
 ---
@@ -498,9 +477,12 @@ end
 ---@param name string # The name of the item prototype.
 ---@param type_name string # The type name of the item prototype.
 ---
+---### Returns
+---@return IconData[]|nil # A copy of the dark-background icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined dark-background icon.
+---
 ---### Exceptions
----*@throws* `string` — Thrown when `name` is `nil` or an empty string.<br/>
----*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.<br/>
+---*@throws* `string` — Thrown when `name` is `nil` or an empty string.\
+---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.\
 ---@nodiscard
 function _icons.get_dark_background_icon_from_named_prototype(name, type_name)
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
@@ -515,29 +497,29 @@ end
 ---Missing icon fields are set to default values as appropriate.
 ---The `prototype` is not modified.
 ---
----### Returns
----@return data.IconData[]|nil # A copy of the starmap icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined starmap.
----
 ---### Examples
----```
+---```lua
 ---local planet = data.raw["starmap-location"]["shattered-planet"]
 ---local planet_starmap_icon_data = _icons.get_starmap_icon_from_prototype(planet)
 ---```
 ---
 ---### Parameters
----@param space_location_prototype data.SpaceLocationPrototype # The space location prototype to get the icon from.
+---@param space_location_prototype SpaceLocationPrototype # The space location prototype to get the icon from.
+---
+---### Returns
+---@return IconData[]|nil # A copy of the starmap icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined starmap.
 ---@nodiscard
 function _icons.get_starmap_icon_from_prototype(space_location_prototype)
 	if not space_location_prototype then
 		return
 	end
 
-	---@type data.IconData[]
+	---@type IconData[]
 	local icons
 
 	-- Give precedence to an existing icons field.
 	if space_location_prototype.starmap_icons then
-		---@type data.IconData[]
+		---@type IconData[]
 		icons = util.copy(space_location_prototype.starmap_icons)
 
 		-- Ensure icon_size is set for all elements before adding defaults.
@@ -547,7 +529,7 @@ function _icons.get_starmap_icon_from_prototype(space_location_prototype)
 				or default_icon_sizes["space-location"]
 		end
 	else
-		---@type data.IconData[]
+		---@type IconData[]
 		icons = {
 			{
 				icon = space_location_prototype.starmap_icon,
@@ -565,11 +547,8 @@ end
 ---Missing icon fields are set to default values as appropriate.
 ---The prototype is not modified.
 ---
----### Returns
----@return data.IconData[]|nil # A copy of the starmap icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined starmap.
----
 ---### Examples
----```
+---```lua
 ---local starmap_icon_data = _icons.get_starmap_icon_from_named_prototype("shattered-planet", "space-location")
 ---```
 ---
@@ -577,9 +556,12 @@ end
 ---@param name string # The name of the prototype with a starmap.
 ---@param type_name string # The type name of the prototype with a starmap.
 ---
+---### Returns
+---@return IconData[]|nil # A copy of the starmap icon retrieved from the prototype, or `nil` if the prototype does not exist or does not have a defined starmap.
+---
 ---### Exceptions
----*@throws* `string` — Thrown when `name` is `nil` or an empty string.<br/>
----*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.<br/>
+---*@throws* `string` — Thrown when `name` is `nil` or an empty string.\
+---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.\
 ---@nodiscard
 function _icons.get_starmap_icon_from_named_prototype(name, type_name)
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
@@ -603,8 +585,8 @@ local related_prototypes = {
 ---Optionally sets the `pictures` field as appropriate with the given `pictures`.
 ---
 ---### Examples
----```
-------@type data.IconData
+---```lua
+------@type IconData
 ---local icon_datum = {
 ---    icon = "__base__/graphics/icons/assembling-machine-1.png",
 ---    icon_size = 64,
@@ -624,14 +606,14 @@ local related_prototypes = {
 ---### Parameters
 ---@param name string # The name of the prototype.
 ---@param type_name? string # The type name of the prototype.
----@param icon_data data.IconData[] # An icon represented by an array of `IconData` objects.
----@param pictures? data.SpriteVariations # A `SpriteVariations` object. Typical use is when `icon_data` has tier labels and the in-world sprite should not.
+---@param icon_data IconData[] # An icon represented by an array of `IconData` objects.
+---@param pictures? SpriteVariations # A `SpriteVariations` object to use as the in-world sprite. Typical use is when `icon_data` has e.g., tier labels, and the in-world sprite should not.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `name` is `nil` or an empty string.<br/>
----*@throws* `string` — Thrown when `icon_data` is `nil`.<br/>
----*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.<br/>
----*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.<br/>
+---*@throws* `string` — Thrown when `name` is `nil` or an empty string.\
+---*@throws* `string` — Thrown when `icon_data` is `nil`.\
+---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.
 function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name, icon_data, pictures)
 	assert(name and name ~= "", "Invalid parameter: 'name' must not be nil or an empty string.")
 
@@ -752,11 +734,11 @@ end
 ---@param deferrable_icon DeferrableIconData|DeferrableIconDatum # An icon configured for deferrable assignment to a prototype.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when a deferred icon's `name` field is `nil` or an empty string.<br/>
----*@throws* `string` — Thrown when a deferred icon's `type_name` field is `nil` or an empty string.<br/>
----*@throws* `string` — Thrown when a deferred icon's `icon_data` field is `nil`<br/>
----*@throws* `string` — Thrown when a deferred icon's `icon_data[n].icon` field is not an absolute file path with a valid extension.<br/>
----*@throws* `string` — Thrown when a deferred icon's `icon_data[n].icon_size` field is not a positive integer.<br/>
+---*@throws* `string` — Thrown when a deferred icon's `name` field is `nil` or an empty string.\
+---*@throws* `string` — Thrown when a deferred icon's `type_name` field is `nil` or an empty string.\
+---*@throws* `string` — Thrown when a deferred icon's `icon_data` field is `nil`\
+---*@throws* `string` — Thrown when a deferred icon's `icon_data[n].icon` field is not an absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when a deferred icon's `icon_data[n].icon_size` field is not a positive integer.
 ---
 ---### See Also
 ---@see Icons.assign_icons_to_prototype_and_related_prototypes
@@ -817,11 +799,11 @@ end
 ---@param deferrable_icon DeferrableIconData|DeferrableIconDatum # The icon data to store for deferred assignment.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `deferred_icon_store` is `nil`.<br/>
----*@throws* `string` — Thrown when `stage` is `nil` <br/>
----*@throws* `string` — Thrown when `deferrable_icon` is `nil`.<br/>
----*@throws* `string` — Thrown when `deferrable_icon.name` is `nil` or an empty string.<br/>
----*@throws* `string` — Thrown when `deferrable_icon.type_name` is `nil` or an empty string.<br/>
+---*@throws* `string` — Thrown when `deferred_icon_store` is `nil`.\
+---*@throws* `string` — Thrown when `stage` is `nil` \
+---*@throws* `string` — Thrown when `deferrable_icon` is `nil`.\
+---*@throws* `string` — Thrown when `deferrable_icon.name` is `nil` or an empty string.\
+---*@throws* `string` — Thrown when `deferrable_icon.type_name` is `nil` or an empty string.\
 ---*@throws* `string` — Thrown when both `deferrable_icon.icon_data` and `deferrable_icon.icon_datum` is `nil`, or `deferrable_icon.icon_data` is not an array of `IconData` objects, or the `IconData` objects are invalid.
 ---
 ---### See Also
@@ -853,7 +835,7 @@ end
 ---Assigns the deferrable icons in `deferred_icon_store[stage]` to the associated prototypes.
 ---
 ---### Examples
----```
+---```lua
 ----- Using the variable created earlier to store deferrable icons.
 ---reskins._internal.assign_icons_deferred_to_stage(globals.deferred_icon_store, reskins.defines.stage.data_updates)
 ---```
@@ -863,11 +845,11 @@ end
 ---@param stage Stage # The index of the data stage to source deferrable icons from.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when a deferred icon's `name` field is `nil` or an empty string.<br/>
----*@throws* `string` — Thrown when a deferred icon's `type_name` field is `nil` or an empty string.<br/>
----*@throws* `string` — Thrown when a deferred icon's `icon_data` field is `nil`<br/>
----*@throws* `string` — Thrown when a deferred icon's `icon_data[n].icon` field is not an absolute file path with a valid extension.<br/>
----*@throws* `string` — Thrown when a deferred icon's `icon_data[n].icon_size` field is not a positive integer.<br/>
+---*@throws* `string` — Thrown when a deferred icon's `name` field is `nil` or an empty string.\
+---*@throws* `string` — Thrown when a deferred icon's `type_name` field is `nil` or an empty string.\
+---*@throws* `string` — Thrown when a deferred icon's `icon_data` field is `nil`\
+---*@throws* `string` — Thrown when a deferred icon's `icon_data[n].icon` field is not an absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when a deferred icon's `icon_data[n].icon_size` field is not a positive integer.
 ---
 ---### See Also
 ---@see Icons.store_icon_for_deferred_assignment_in_stage
@@ -886,22 +868,22 @@ end
 ---Composes the given set of icons defined by `IconData` objects or arrays of `IconData` objects
 ---into a single icon, with the first icon at the base of the stack and the last icon at the top.
 ---
----### Returns
----@return data.IconData[] # A single icon built from combining the input icons.
----
 ---### Remarks
 ---- Missing icon fields are set to default values as appropriate.
 ---- Inputs are not modified.
 ---
 ---### Parameters
 ---@param defaults_type IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.constant.default_icon_size`.
----@param ... data.IconData|data.IconData[]|nil # An variable set of `IconData` or `IconData` arrays to combine.
+---@param ... IconData|IconData[]|nil # A variable set of `IconData` or `IconData` arrays to combine.
+---
+---### Returns
+---@return IconData[] # A single icon built from combining the input icons.
 ---
 ---### See Also
 ---@see Icons.add_missing_icon_defaults
 ---@nodiscard
 function _icons.compose_icons(defaults_type, ...)
-	---@type data.IconData[]
+	---@type IconData[]
 	local combined_icon_data = {}
 
 	for _, input_icon in pairs({ ... }) do
@@ -925,18 +907,15 @@ end
 ---Adds the icon from the given `prototype` to a copy the given `icon_data` array, and applies any
 ---of the optional transformations given by `scale`, `shift` or `tint`.
 ---
----### Returns
----@return data.IconData[] # A copy of `icon_data` with the icon data from `prototype`, if it exists; otherwise, a straight, unmodified copy of `icon_data`.
----
 ---### Remarks
----- This method assumes that `icon_data` is for a technology icon for purposes of setting
----  missing defaults if `prototype.type == "technology"`.
+---- This method assumes that `icon_data` is for a prototype of the same type as `prototype`, for purposes of setting
+---  a missing icon_size to its default value.
 ---- Missing icon fields are set to default values as appropriate.
 ---- `icon_data` and `prototype` are not modified.
 ---
 ---### Examples
----```
-------@type data.IconData[]
+---```lua
+------@type IconData[]
 ---local icon_data = {
 ---    {
 ---        icon = "__base__/graphics/icons/iron-plate.png",
@@ -951,11 +930,14 @@ end
 ---```
 ---
 ---### Parameters
----@param icon_data data.IconData[] # An array of `IconData` objects to receive the icon from `prototype`.
+---@param icon_data IconData[] # An array of `IconData` objects to receive the icon from `prototype`.
 ---@param prototype PrototypeWithIcons # The prototype to source the icon from.
 ---@param scale? double # The scale to apply to the sourced icon. Default `nil`.
----@param shift? data.Vector # The shift to apply to the sourced icon. Default `nil`.
----@param tint? data.Color # The tint to apply to the sourced icon. Default `nil`.
+---@param shift? Vector # The shift to apply to the sourced icon. Default `nil`.
+---@param tint? Color # The tint to apply to the sourced icon. Default `nil`.
+---
+---### Returns
+---@return IconData[] # A copy of `icon_data` composed with the transformed icon data from `prototype`.
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `icon_data` is `nil`.
@@ -992,9 +974,6 @@ end
 ---as the base layer, and applies any of the optional transformations given by `scale`, `shift` or
 ---`tint`.
 ---
----### Returns
----@return data.IconData[] # An array of `IconData` with a copy of `icon_datum` as the base layer, and the added icon data from `prototype`, if it exists; otherwise, `icon_datum` reformatted as an array of `IconData`.
----
 ---### Remarks
 ---- This method assumes that `icon_datum` is for a technology icon for purposes of setting
 ---  missing defaults if `prototype.type == "technology"`.
@@ -1002,8 +981,8 @@ end
 ---- `icon_datum` and `prototype` are not modified.
 ---
 ---### Examples
----```
-------@type data.IconData
+---```lua
+------@type IconData
 ---local icon_datum = {
 ---    icon = "__base__/graphics/icons/iron-plate.png",
 ---    icon_size = 64,
@@ -1016,14 +995,17 @@ end
 ---```
 ---
 ---### Parameters
----@param icon_datum data.IconData # An `IconData` object to be combined with the icon from `prototype`.
----@param prototype data.EntityPrototype|data.ItemPrototype|data.FluidPrototype|data.RecipePrototype|data.TechnologyPrototype # The prototype to source the icon from.
+---@param icon_datum IconData # An `IconData` object to be combined with the icon from `prototype`.
+---@param prototype PrototypeWithIcons # The prototype to source the icon from.
 ---@param scale? double # The scale to apply to the sourced icon. Default `nil`.
----@param shift? data.Vector # The shift to apply to the sourced icon. Default `nil`.
----@param tint? data.Color # The tint to apply to the sourced icon. Default `nil`.
+---@param shift? Vector # The shift to apply to the sourced icon. Default `nil`.
+---@param tint? Color # The tint to apply to the sourced icon. Default `nil`.
+---
+---### Returns
+---@return IconData[] # An array of `IconData` with a copy of `icon_datum` as the base layer, and the added icon data from `prototype`.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_datum` is `nil`.<br/>
+---*@throws* `string` — Thrown when `icon_datum` is `nil`.\
 ---*@throws* `string` — Thrown when `icon_datum` is not an IconData object with a defined `icon` field.
 ---
 ---### See Also
@@ -1035,13 +1017,11 @@ function _icons.add_icons_from_prototype_to_icon(icon_datum, prototype, scale, s
 
 	return _icons.add_icons_from_prototype_to_icons({ icon_datum }, prototype, scale, shift, tint)
 end
+
 ---
 ---Adds the icon from the prototype with the given `name` and `type_name` a copy the given
 ---`icon_data` array, and applies any of the optional transformations given by `scale`, `shift` or
 ---`tint`.
----
----### Returns
----@return data.IconData[] # A copy of `icon_data` with the icon data from `prototype`, if it exists; otherwise, a straight, unmodified copy of `icon_data`.
 ---
 ---### Remarks
 ---- This method assumes that `icon_data` is for a technology icon for purposes of setting
@@ -1050,16 +1030,19 @@ end
 ---- `icon_data` and the prototype are not modified.
 ---
 ---### Parameters
----@param icon_data data.IconData[] # An array of `IconData` objects to receive the icon from `prototype`.
+---@param icon_data IconData[] # An array of `IconData` objects to receive the icon from `prototype`.
 ---@param name string # The name of the prototype to source the icon from.
 ---@param type_name string # The type name of the prototype to source the icon from.
 ---@param scale? double # The scale to apply to the sourced icon. Default `nil`.
----@param shift? data.Vector # The shift to apply to the sourced icon. Default `nil`.
----@param tint? data.Color # The tint to apply to the sourced icon. Default `nil`.
+---@param shift? Vector # The shift to apply to the sourced icon. Default `nil`.
+---@param tint? Color # The tint to apply to the sourced icon. Default `nil`.
+---
+---### Returns
+---@return IconData[] # An icon with a copy of `icon_datum` as the base layer, composed with the transformed icon from the prototype.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_data` is `nil`.<br/>
----*@throws* `string` — Thrown when `name` is `nil` or an empty string.<br/>
+---*@throws* `string` — Thrown when `icon_data` is `nil`.\
+---*@throws* `string` — Thrown when `name` is `nil` or an empty string.\
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.
 ---
 ---### See Also
@@ -1078,9 +1061,6 @@ end
 ---array with the given `icon_datum` as the base layer, and applies any of the optional
 ---transformations given by `scale`, `shift` or `tint`.
 ---
----### Returns
----@return data.IconData[] # An array of `IconData` with a copy of `icon_datum` as the base layer, and the added icon data from the prototype, if it exists; otherwise, `icon_datum` reformatted as an array of `IconData`.
----
 ---### Remarks
 ---- This method assumes that `icon_datum` is for a technology icon for purposes of setting
 ---  missing defaults if the prototype has `type == "technology"`.
@@ -1088,8 +1068,8 @@ end
 ---- `icon_datum` and the prototype are not modified.
 ---
 ---### Examples
----```
-------@type data.IconData
+---```lua
+------@type IconData
 ---local icon_datum = {
 ---    icon = "__base__/graphics/icons/iron-plate.png",
 ---    icon_size = 64,
@@ -1101,17 +1081,20 @@ end
 ---```
 ---
 --- ### Parameters
----@param icon_datum data.IconData # An `IconData` object to be combined with the icon from `prototype`.
+---@param icon_datum IconData # An `IconData` object to be combined with the icon from `prototype`.
 ---@param name string # The name of the prototype to source the icon from.
 ---@param type_name string # The type name of the prototype to source the icon from.
 ---@param scale? double # The scale to apply to the sourced icon. Default `nil`.
----@param shift? data.Vector # The shift to apply to the sourced icon. Default `nil`.
----@param tint? data.Color # The tint to apply to the sourced icon. Default `nil`.
+---@param shift? Vector # The shift to apply to the sourced icon. Default `nil`.
+---@param tint? Color # The tint to apply to the sourced icon. Default `nil`.
+---
+---### Returns
+---@return IconData[] # An icon with a copy of `icon_datum` as the base layer, composed with the transformed icon from the prototype.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_datum` is `nil`.<br/>
----*@throws* `string` — Thrown when `icon_datum` is not an IconData object with a defined `icon` field.<br/>
----*@throws* `string` — Thrown when `name` is `nil` or an empty string.<br/>
+---*@throws* `string` — Thrown when `icon_datum` is `nil`.\
+---*@throws* `string` — Thrown when `icon_datum` is not an IconData object with a defined `icon` field.\
+---*@throws* `string` — Thrown when `name` is `nil` or an empty string.\
 ---*@throws* `string` — Thrown when `type_name` is `nil` or an empty string.
 ---
 ---### See Also
@@ -1197,9 +1180,6 @@ end
 ---
 ---Gets an `IconData` object from the given `source`.
 ---
----### Returns
----@return data.IconData[], boolean # A copy of the icon data from `source`, if it exists; otherwise, a blank icon. When the second return value is `true`, a blank icon was created.
----
 ---### Remarks
 ---- Any layer of the icon using a `PrototypeIconSource` for a prototype that does not exist
 ---  will be replaced with a blank icon.
@@ -1215,16 +1195,20 @@ end
 ---}
 ---
 ----- Get the icon data from the source.
-------@type data.IconData[]
+------@type IconData[]
 ---local icon_data = _icons.get_icon_from_source(icon_datum_source)
 ---```
 ---
 ---### Parameters
 ---@param source? IconSource # A source of `icon_data`.
 ---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.constant.default_icon_size`.
+---
+---### Returns
+---@return IconData[] # A copy of the icon data from `source`, if it exists; otherwise, a blank icon.
+---@return boolean # When `true`, a blank icon was created.
 ---@nodiscard
 local function get_icons_from_source(source, defaults_type)
-	---@type data.IconData[]
+	---@type IconData[]
 	local icon_data
 
 	if source and source.icon_data then
@@ -1253,9 +1237,6 @@ end
 ---Adds the icons from the given `sources` to a copy of the given `icon_data` array, and applies any
 ---of the optional transformations.
 ---
----### Returns
----@return data.IconData[], boolean # A copy of `icon_data` with the sourced icons from `sources` transformed and layered on top, if any exist; otherwise, a straight, unmodified copy of `icon_data`. When the second return value is `true`, a blank icon layer was created.
----
 ---### Remarks
 ---- Any layer of the icon using a `PrototypeIconSource` for a prototype that does not exist
 ---  will be replaced with a blank icon.
@@ -1263,12 +1244,15 @@ end
 ---- `icon_data` and `sources` are not modified.
 ---
 ---### Parameters
----@param icon_data data.IconData[] # An `IconData` object to be combined with the sourced icons from `sources`.
+---@param icon_data IconData[] # An `IconData` object to be combined with the sourced icons from `sources`.
 ---@param sources IconSources # An array of `IconData` sources to layer on `icon_data`.
 ---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.constant.default_icon_size`. Individual source types take precedence over this value.
 ---
+---### Returns
+---@return IconData[], boolean # A copy of `icon_data` with the sourced icons from `sources` transformed and layered on top, if any exist; otherwise, a straight, unmodified copy of `icon_data`. When the second return value is `true`, a blank icon layer was created.
+---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_data` is `nil`.<br/>
+---*@throws* `string` — Thrown when `icon_data` is `nil`.\
 ---*@throws* `string` — Thrown when `sources` is `nil`.
 ---
 ---### See Also
@@ -1280,7 +1264,7 @@ function _icons.add_icons_from_sources_to_icons(icon_data, sources, defaults_typ
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 	assert(sources, "Invalid parameter: 'sources' must not be nil.")
 
-	---@type data.IconData[]
+	---@type IconData[]
 	local combined_icon = _icons.add_missing_icons_defaults(icon_data, defaults_type)
 
 	local has_blank_layers = false
@@ -1309,9 +1293,6 @@ end
 ---Creates an icon from the given `source`, with the first element providing the base icon layer,
 ---and the remaining elements layered on top sequentially. Optional transformations are applied to
 ---each source, though only `tint` is applied to the base icon.
----
----### Returns
----@return data.IconData[], boolean # A new icon created from the sources, with the base icon from the first source, and icons from the remaining sources layered on top. When the second return value is `true`, a blank icon layer was created.
 ---
 ---### Remarks
 ---- Any layer of the icon using a `PrototypeIconSource` for a prototype that does not exist
@@ -1345,8 +1326,12 @@ end
 ---### Parameters
 ---@param sources IconSources # An array of `IconData` sources to layer on `icon_data`.
 ---
+---### Returns
+---@return IconData[] icon A new icon created from the sources, with the base icon from the first source, and icons from the remaining sources layered on top.
+---@return boolean has_blank_layers When `true`, a blank icon layer was created.
+---
 ---### Exceptions
----*@throws* `string` — Thrown when `sources` is `nil`.<br/>
+---*@throws* `string` — Thrown when `sources` is `nil`.
 ---@nodiscard
 function _icons.create_icons_from_sources(sources)
 	assert(sources, "Invalid parameter: 'sources' must not be nil.")
