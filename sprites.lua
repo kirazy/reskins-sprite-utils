@@ -81,15 +81,13 @@ end
 function _sprites.create_sprite_from_icons(icon_data, scale)
 	assert(icon_data, "Invalid parameter: 'icon_data' must not be nil.")
 
-	---@type data.Sprite
-	local sprite
 	if #icon_data == 1 then
-		sprite = convert_icon_layer_to_sprite_layer(icon_data[1], scale)
-	else
-		sprite = { layers = {} }
-		for n = 1, #icon_data do
-			sprite.layers[n] = convert_icon_layer_to_sprite_layer(icon_data[n], scale)
-		end
+		return convert_icon_layer_to_sprite_layer(icon_data[1], scale)
+	end
+
+	local sprite = { layers = {} }
+	for n = 1, #icon_data do
+		sprite.layers[n] = convert_icon_layer_to_sprite_layer(icon_data[n], scale)
 	end
 
 	return sprite
