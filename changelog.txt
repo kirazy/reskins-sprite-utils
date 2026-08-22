@@ -2,6 +2,16 @@
 Version: 0.1.2
 Date: ????
   Features:
+    - Added `validation` module for building reusable validators once and applying them wherever they are needed, in place of restating rules at every call site
+      - Primitives (`string`, `number`, `integer`, `boolean`, `table`, `any`), collections (`array`, `map`, `shape`, `tuple`), and combinators (`any_of`, `all_of`, `one_of`, `literal`, `custom`, `lazy`)
+      - `validator:parse` returns the value typed as what the validator validates; `validator:assert` throws and returns nothing, so it reads as a statement guard
+      - `validator:validate` returns every failure with a path such as `icon_data[3].icon_size`, and `validator:is_valid` answers without raising
+      - Failures are reported against the line that called the validated function, rather than the guard inside it, whether thrown or logged
+      - Validators are generic, so `parse` yields a typed value and `is_valid` narrows in a condition: `if Common.icon_datum:is_valid(source) then` treats `source` as `IconData` for the rest of the branch
+      - `validation.signature` checks a whole argument list in one call, reporting every bad argument at once
+      - Builder methods never mutate, so a shared validator can be narrowed by any caller without affecting the original
+    - Added `validation.common`, a catalog of ready-made validators for icons, colors, vectors, mod-relative file paths, sprite sizes, and prototype references
+    - Added the hidden `reskins-sprite-utils-validation-behavior` startup setting, selecting whether an invalid argument throws, is logged, or is ignored
     - Added `utils` module, with `utils.array_concat` to concatenate any number of array inputs of the same type into a single array
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`
   Changes:
