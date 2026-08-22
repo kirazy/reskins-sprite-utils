@@ -23,10 +23,16 @@
 ---| VirtualSignalPrototype
 
 ---Type names/aliases that map to icon_size defaults as per https://lua-api.factorio.com/latest/types/IconData.html#scale
+---
+---Every name here other than `"default"` and `"starmap"` is also a prototype
+---type name whose expected icon size matches, which is what lets a
+---`prototype.type` be passed straight through. `"starmap"` is deliberately not
+---`"space-location"`: a space location's regular `icon` takes the default size,
+---and only its `starmap_icon` expects 512.
 ---@alias IconDefaultsType
 ---| "default"
 ---| "technology"
----| "space-location"
+---| "starmap"
 ---| "shortcut"
 ---| "shortcut-small"
 ---| "achievement"
@@ -53,13 +59,61 @@
 ---The icon data to store for deferred assignment.
 ---@field icon_datum IconData
 
----@class TransformableIconBase
----The scale to apply to the sourced icon. Ignored when `transform` is defined. Default `nil`.
+---The transformations to apply to an icon being composed onto another.
+---@class IconTransform
+---The scale to apply to the sourced icon. Default `nil`.
+---
+---Multiplies whatever scale the sourced icon already had rather than replacing
+---it. An ordinary 64px icon defaults to `0.5`, so a scale of `0.5` here leaves
+---it at `0.25`.
 ---@field scale? double
----The shift to apply to the sourced icon. Ignored when `transform` is defined. Default `nil`.
+---The shift to apply to the sourced icon. Default `nil`.
+---
+---Measured as [IconData.shift](https://lua-api.factorio.com/latest/types/IconData.html#shift)
+---is, where the whole icon is `expected_icon_size / 2` across. That is 32 for an
+---ordinary prototype, so `{ 8, -8 }` places the source in the upper-right
+---quadrant.
+---@field shift? Vector
+---The tint to apply to the sourced icon. Default `nil`.
+---@field tint? Color
+---When `true`, the sourced icon is not considered for calculating bounds of the icon, so it can go
+---out of bounds of rectangle into which the composed icon is drawn in GUI.
+---
+---When the sourced icon is comprised of multiple layers, this property will be applied to all
+---layers. Icon layers where this field is already `true` will retain their value.
+---
+---[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html%23floating#floating)
+---@field floating? boolean
+---When `true`, an outline is drawn using signed distance field generated on load. One icon image
+---will have only one SDF generated. That means if the image is used in multiple icons with different
+---scales, the outline width won't match the desired width in all the scales except the largest one.
+---
+---When the sourced icon is comprised of multiple layers, this property will be applied to the first
+---layer only. Icon layers where this field is already `true` will retain their value.
+---
+---[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html%23draw_background#draw_background)
+---@field draw_background? boolean
+
+---The transformation fields shared by every form of icon source.
+---@class TransformableIconBase
+---The scale to apply to the sourced icon. Default `nil`.
+---
+---Multiplies whatever scale the sourced icon already had rather than replacing
+---it. An ordinary 64px icon defaults to `0.5`, so a scale of `0.5` here leaves
+---it at `0.25`. Ignored when `transform` is defined.
+---@field scale? double
+---The shift to apply to the sourced icon. Default `nil`.
+---
+---Measured as [IconData.shift](https://lua-api.factorio.com/latest/types/IconData.html#shift)
+---is, where the whole icon is `expected_icon_size / 2` across. That is 32 for an
+---ordinary prototype, so `{ 8, -8 }` places the source in the upper-right
+---quadrant. Ignored when `transform` is defined.
 ---@field shift? Vector
 ---The tint to apply to the sourced icon. Ignored when `transform` is defined. Default `nil`.
 ---@field tint? Color
+---The transformations to apply to the sourced icon; used preferentially when defined over `scale`,
+---`shift`, and `tint`. Default `nil`.
+---@field transform? IconTransform
 
 ---Provides the icon and optional transformations to a sourced `IconData` object.
 ---@class IconDatumSource : TransformableIconBase

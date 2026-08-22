@@ -8,10 +8,14 @@ Date: ????
       - `validator:validate` returns every failure with a path such as `icon_data[3].icon_size`, and `validator:is_valid` answers without raising
       - Failures are reported against the line that called the validated function, rather than the guard inside it, whether thrown or logged
       - Validators are generic, so `parse` yields a typed value and `is_valid` narrows in a condition: `if Common.icon_datum:is_valid(source) then` treats `source` as `IconData` for the rest of the branch
-      - `validation.signature` checks a whole argument list in one call, reporting every bad argument at once
+      - `validation.signature` checks a whole argument list in one call, reporting every bad argument at once, and takes rules spanning several arguments for a constraint one argument places on another
       - Builder methods never mutate, so a shared validator can be narrowed by any caller without affecting the original
     - Added `validation.common`, a catalog of ready-made validators for icons, colors, vectors, mod-relative file paths, sprite sizes, and prototype references
     - Added the hidden `reskins-sprite-utils-validation-behavior` startup setting, selecting whether an invalid argument throws, is logged, or is ignored
+    - Added `IconTransform`, giving the scale, shift, tint, and layer flags to apply to an icon composed onto another, and taken from the `transform` field of an icon source
+      - `defines.icon_transforms` provides presets: `corners` places a source in one of the four corners at half scale, `compass` in one of eight positions at 0.4375 scale
+      - Where `transform` is given it is the whole statement; a `scale`, `shift`, or `tint` written beside it is ignored
+      - `floating` applies to every layer of the sourced icon and `draw_background` to its first layer only; a layer already setting either retains its value
     - Added `utils` module, with `utils.array_concat` to concatenate any number of array inputs of the same type into a single array
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`
   Changes:
@@ -26,9 +30,22 @@ Date: ????
     - Revised `icons.transform_icon` to handle the single-icon case, and added `icons.transform_icons` for the layered icon case
     - `sprites.rescale_remnants_of_prototype` now works with the array form of `prototype.corpse` for entities with many corpse references
     - `sprites.make_rotated_animation_variations_from_spritesheet` and `sprites.make_4way_animation_from_spritesheet` now handle `size` as the means to specify width/height
+    - Icon methods now validate their arguments through the `validation` module; a failure names the function, the parameter, and the path within it, as in `add_missing_icon_defaults(): parameter 'icon_datum.icon_size': must be between 1 and 8192 inclusive, got 0`
+    - `icons.compose_icons` now rejects an argument that is neither an `IconData` object nor an array of them, rather than leaving it out of the composition without comment
+    - `icons.add_missing_icons_defaults` now rejects an empty array; an icon must carry at least one layer
+    - `icons.clear_icon_from_prototype` now clears the dark-background icon fields alongside the main ones, which would otherwise keep showing the replaced artwork on dark backgrounds
+    - `IconDefaultsType` now offers `"starmap"` in place of `"space-location"` for the 512px starmap icon size
+    - `icons.clear_icon_from_named_prototype`, `icons.get_dark_background_icon_from_named_prototype`, and `icons.get_starmap_icon_from_named_prototype` now report an unregistered type name rather than raising an index error
   Bugfixes:
     - Fixed that `icons.get_dark_background_icon_from_prototype` and `icons.get_starmap_icon_from_prototype` could return an invalid icon if the target icon was not available; the methods both now return nil in that case
     - Icon methods now correctly pass-through the `draw_background` and `floating` properties on icons
+    - Fixed that `icons.assign_icons_to_prototype_and_related_prototypes` read the whole `dying_explosion` table as an explosion name rather than its `name` field, and did not handle the bare `EntityID` form, so an explicitly named dying explosion never received the icon
+    - Fixed that `icons.get_icon_from_prototype` sized the regular icon of a `space-location` prototype against the 512px starmap size rather than the default
+    - Fixed that an empty `icons`, `starmap_icons`, or `dark_background_icons` array masked a defined `icon`, `starmap_icon`, or `dark_background_icon`
+    - Fixed that `icons.get_starmap_icon_from_prototype` fell back to the prototype's regular `icon_size` for layers omitting one, rather than to `starmap_icon_size`
+    - Fixed that `icons.create_icons_from_sources` spliced the caller's tint table into the icon it returned, and raised an index error rather than a message when given no sources
+    - Fixed that `icons.add_missing_icon_defaults` returned `shift` and `tint` by reference, leaving every icon built from one source holding the same mutable tables
+    - Fixed that `icons.assign_deferrable_icon` preferred `icon_datum` over `icon_data` when both were set, against the engine's preference for `icons` over `icon`, and dropped `pictures` in that case
   Deprecated:
     - `colors.from_argb` is deprecated with the introduction of EmmyLua (and removal of sumneko) by the Factorio Modding Tool Kit, which correctly handles RGBA color strings
 ---------------------------------------------------------------------------------------------------
