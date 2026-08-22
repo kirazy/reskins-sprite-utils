@@ -1,10 +1,6 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.2.2
+Version: 0.1.2
 Date: ????
-  Changes:
----------------------------------------------------------------------------------------------------
-Version: 0.2.1
-Date: 2026-07-19
   Features:
     - Added `utils` module, with `utils.array_concat` to concatenate any number of array inputs of the same type into a single array
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`
@@ -22,15 +18,9 @@ Date: 2026-07-19
     - `sprites.make_rotated_animation_variations_from_spritesheet` and `sprites.make_4way_animation_from_spritesheet` now handle `size` as the means to specify width/height
   Bugfixes:
     - Fixed that `icons.get_dark_background_icon_from_prototype` and `icons.get_starmap_icon_from_prototype` could return an invalid icon if the target icon was not available; the methods both now return nil in that case
+    - Icon methods now correctly pass-through the `draw_background` and `floating` properties on icons
   Deprecated:
     - `colors.from_argb` is deprecated with the introduction of EmmyLua (and removal of sumneko) by the Factorio Modding Tool Kit, which correctly handles RGBA color strings
----------------------------------------------------------------------------------------------------
-Version: 0.2.0
-Date: 2026-06-26
-  Features:
-    - Updated for Factorio 2.1
-  Bugfixes:
-    - Icon methods now correctly pass-through the `draw_background` and `floating` properties on icons
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
 Date: 2026-06-07
