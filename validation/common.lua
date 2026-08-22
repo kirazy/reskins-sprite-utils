@@ -269,7 +269,10 @@ end
 ---@type ShapeValidator<PrototypeWithIcons>
 _common.prototypes.prototype_with_icons = V.shape({})
 	:where(function(value)
-		return value.icon ~= nil or value.icons ~= nil
+		-- `icons` first, because that is the one the engine takes when both are
+		-- set. An empty array is truthy but defines nothing, so it does not
+		-- count as the field being present.
+		return (value.icons ~= nil and value.icons[1] ~= nil) or value.icon ~= nil
 	end, "must define an icon through either the 'icon' or the 'icons' field")
 	:describe_as("a prototype defining an icon")
 
