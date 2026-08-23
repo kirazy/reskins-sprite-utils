@@ -13,18 +13,29 @@
 ---@class Colors
 local _colors = {}
 
----Table of hue, saturation, vibrance and alpha values between 0 and 1.
+local V = require("validation")
+local Common = require("validation.common")
+
+---A color in the HSVA color space.
 ---@class HsvColor
+---The hue, in degrees. Cyclic, so `400` names the same hue as `40`.
 ---@field h float
+---The saturation, between 0 and 1.
 ---@field s float
+---The value, between 0 and 1.
 ---@field v float
+---The alpha (opacity), between 0 and 1.
 ---@field a float
 
----Table of hue, saturation, luminance and alpha values between 0 and 1.
+---A color in the HSLA color space.
 ---@class HslColor
+---The hue, in degrees. Cyclic, so `400` names the same hue as `40`.
 ---@field h float
+---The saturation, between 0 and 1.
 ---@field s float
+---The luminance, between 0 and 1.
 ---@field l float
+---The alpha (opacity), between 0 and 1.
 ---@field a float
 
 local function clamp(v)
@@ -54,6 +65,34 @@ end
 ---[View Documentation](https://lua-api.factorio.com/latest/types/Color.html%23r#r)
 ---@field r float
 
+---Normalizes a color that has already been validated.
+---
+---Taken separately so that a color reaching this module through one of the
+---conversions is checked once, against the parameter it was passed as, rather
+---than again here as `tint`.
+---@param tint Color # The color to normalize.
+---@return NormalizedColor # A copy of `tint` with all channels normalized and defined.
+---@nodiscard
+local function normalize_color(tint)
+	local n = {
+		r = math.max(tint.r or tint[1] or 0, 0),
+		g = math.max(tint.g or tint[2] or 0, 0),
+		b = math.max(tint.b or tint[3] or 0, 0),
+		a = math.max(tint.a or tint[4] or 1, 0),
+	}
+
+	if math.max(n.r, n.g, n.b, n.a) > 1 then
+		for key, value in pairs(n) do
+			n[key] = clamp(value / 255)
+		end
+	end
+	return n
+end
+
+local check_normalize = V.signature("normalize", {
+	{ "tint", Common.color },
+})
+
 ---
 ---Normalizes the values in the provided `tint` to between 0 and 1, and ensures
 ---`r`, `g`, `b`, and `a` are all defined.
@@ -72,22 +111,29 @@ end
 ---
 ---### Returns
 ---@return NormalizedColor # A copy of `tint` with all channels normalized and defined.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `tint` is `nil`.\
+---*@throws* `string` — Thrown when `tint` is not a `Color`.
 ---@nodiscard
 function _colors.normalize(tint)
-	local n = {
-		r = math.max(tint.r or tint[1] or 0, 0),
-		g = math.max(tint.g or tint[2] or 0, 0),
-		b = math.max(tint.b or tint[3] or 0, 0),
-		a = math.max(tint.a or tint[4] or 1, 0),
-	}
+	check_normalize(tint)
 
-	if math.max(n.r, n.g, n.b, n.a) > 1 then
-		for key, value in pairs(n) do
-			n[key] = clamp(value / 255)
-		end
-	end
-	return n
+	return normalize_color(tint)
 end
+
+---An 8-character ARGB hex code, such as `"FF00C1DF"`.
+---
+---The count and the alphabet are one requirement rather than two, so a code
+---that is the wrong length and a code carrying a character that is not a hex
+---digit both read as the same thing being asked for.
+local argb_hex = V.string()
+	:matches("^%x%x%x%x%x%x%x%x$", "eight hexadecimal digits, in the order alpha, red, green, and blue")
+	:describe_as("an ARGB hex code")
+
+local check_from_argb = V.signature("from_argb", {
+	{ "hex", argb_hex },
+})
 
 ---Converts an ARGB hex code to an RGBA color vector compatible with Factorio prototypes.
 ---
@@ -108,24 +154,27 @@ end
 ---
 ---### Parameters
 ---@param hex string # An 8-character ARGB color hex code.
----@return Color
+---
+---### Returns
+---@return Color # The color the hex code names.
 ---
 ---### Exceptions
----*@throws* - `string` When `hex` is not a string.</br>
----*@throws* - `string` When `hex` is not 8 characters.
+---*@throws* `string` — Thrown when `hex` is `nil`.\
+---*@throws* `string` — Thrown when `hex` is not eight hexadecimal digits.
 ---@nodiscard
 ---@deprecated Use util.color("RRGGBBAA") with latest versions of FTMK/EmmyLua, as the color picker now correctly maintains RGBA syntax.
 function _colors.from_argb(hex)
-	if type(hex) ~= "string" then
-		error("Invalid type: 'hex' must be a string.")
-	elseif #hex ~= 8 then
-		error("Invalid format: 'hex' must have 8 characters.")
-	end
+	check_from_argb(hex)
+
 	return util.color(hex:sub(3, 8) .. hex:sub(1, 2)) --[[@as Color]]
 end
 
 -- The following functions are adapted from work done by Maxreader, and implement the formulas for HSV/HSL to RGB and
 -- vice versa from https://en.wikipedia.org/wiki/HSL_and_HSV
+
+local check_rgba_to_hsva = V.signature("rgba_to_hsva", {
+	{ "tint", Common.color },
+})
 
 ---
 ---Converts the provided `tint` from RGBA to HSVA color space.
@@ -142,16 +191,22 @@ end
 ---
 ---### Returns
 ---@return HsvColor # An HSVA color with `h` in degrees (0–360) and `s`, `v`, `a` between 0 and 1.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `tint` is `nil`.\
+---*@throws* `string` — Thrown when `tint` is not a `Color`.
 ---@nodiscard
 function _colors.rgba_to_hsva(tint)
-	local n = _colors.normalize(tint)
+	check_rgba_to_hsva(tint)
+
+	local n = normalize_color(tint)
 	local r, g, b, a = n.r, n.g, n.b, n.a
 
 	local max = math.max(r, g, b)
 	local min = math.min(r, g, b)
 	local range = max - min
 
-	local h
+	local h = 0.0
 	if range == 0 then
 		h = 0
 	elseif max == r then
@@ -177,6 +232,10 @@ function _colors.rgba_to_hsva(tint)
 	}
 end
 
+local check_rgba_to_hsla = V.signature("rgba_to_hsla", {
+	{ "tint", Common.color },
+})
+
 ---
 ---Converts the provided `tint` from RGBA to HSLA color space.
 ---
@@ -192,16 +251,22 @@ end
 ---
 ---### Returns
 ---@return HslColor # An HSLA color with `h` in degrees (0–360) and `s`, `l`, `a` between 0 and 1.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `tint` is `nil`.\
+---*@throws* `string` — Thrown when `tint` is not a `Color`.
 ---@nodiscard
 function _colors.rgba_to_hsla(tint)
-	local n = _colors.normalize(tint)
+	check_rgba_to_hsla(tint)
+
+	local n = normalize_color(tint)
 	local r, g, b, a = n.r, n.g, n.b, n.a
 
 	local max = math.max(r, g, b)
 	local min = math.min(r, g, b)
 	local range = max - min
 
-	local h
+	local h = 0.0
 	if max == min then
 		h = 0
 	elseif max == r then
@@ -217,7 +282,7 @@ function _colors.rgba_to_hsla(tint)
 	end
 
 	local l = (min + max) / 2
-	local s = 0
+	local s = 0.0
 
 	if not (min == 1 or max == 0) then
 		s = (max - l) / math.min(l, 1 - l)
@@ -231,6 +296,10 @@ function _colors.rgba_to_hsla(tint)
 	}
 end
 
+local check_hsva_to_rgba = V.signature("hsva_to_rgba", {
+	{ "tint", Common.hsv_color },
+})
+
 ---
 ---Converts the provided `tint` from HSVA to RGBA color space.
 ---
@@ -243,9 +312,16 @@ end
 ---@param tint HsvColor # The HSVA color to convert, with `h` in degrees (0–360) and `s`, `v`, `a` between 0 and 1.
 ---
 ---### Returns
----@return Color # An RGBA color with channel values clamped between 0 and 1.
+---@return NormalizedColor # An RGBA color with channel values clamped between 0 and 1.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `tint` is `nil`.\
+---*@throws* `string` — Thrown when `tint` is not an `HsvColor`.\
+---*@throws* `string` — Thrown when `tint.s`, `tint.v`, or `tint.a` is not between 0 and 1.
 ---@nodiscard
 function _colors.hsva_to_rgba(tint)
+	check_hsva_to_rgba(tint)
+
 	local h, s, v, a = tint.h, tint.s, tint.v, tint.a
 
 	local function f(n)
@@ -260,6 +336,10 @@ function _colors.hsva_to_rgba(tint)
 	}
 end
 
+local check_hsla_to_rgba = V.signature("hsla_to_rgba", {
+	{ "tint", Common.hsl_color },
+})
+
 ---
 ---Converts the provided `tint` from HSLA to RGBA color space.
 ---
@@ -272,9 +352,16 @@ end
 ---@param tint HslColor # The HSLA color to convert, with `h` in degrees (0–360) and `s`, `l`, `a` between 0 and 1.
 ---
 ---### Returns
----@return Color # An RGBA color with channel values clamped between 0 and 1.
+---@return NormalizedColor # An RGBA color with channel values clamped between 0 and 1.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `tint` is `nil`.\
+---*@throws* `string` — Thrown when `tint` is not an `HslColor`.\
+---*@throws* `string` — Thrown when `tint.s`, `tint.l`, or `tint.a` is not between 0 and 1.
 ---@nodiscard
 function _colors.hsla_to_rgba(tint)
+	check_hsla_to_rgba(tint)
+
 	local h, s, l, a = tint.h, tint.s, tint.l, tint.a
 
 	local function f(n)
@@ -308,6 +395,11 @@ local function linear_to_srgb(channel)
 	end
 end
 
+local check_overlay = V.signature("overlay", {
+	{ "base", Common.color },
+	{ "overlay", Common.color },
+})
+
 ---
 ---Simulates placing a semi-transparent `overlay` color on top of a `base` color using
 ---alpha compositing in linear light (sRGB gamma).
@@ -327,11 +419,17 @@ end
 ---@param overlay Color # The overlay color to composite on top.
 ---
 ---### Returns
----@return Color # The composited RGBA color, with channel values clamped between 0 and 1.
+---@return NormalizedColor # The composited RGBA color, with channel values clamped between 0 and 1.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `base` or `overlay` is `nil`.\
+---*@throws* `string` — Thrown when `base` or `overlay` is not a `Color`.
 ---@nodiscard
 function _colors.overlay(base, overlay)
-	local b = _colors.normalize(base)
-	local o = _colors.normalize(overlay)
+	check_overlay(base, overlay)
+
+	local b = normalize_color(base)
+	local o = normalize_color(overlay)
 
 	local result = {}
 	for _, c in pairs({ "r", "g", "b" }) do
@@ -341,10 +439,9 @@ function _colors.overlay(base, overlay)
 		result[c] = clamp(linear_to_srgb(o_lin * o.a + b_lin * (1 - o.a)))
 	end
 	result.a = clamp(o.a + b.a * (1 - o.a))
-	return result
+	return result --[[@as NormalizedColor]]
 end
 
----comment
 ---@param r float
 ---@param g float
 ---@param b float
@@ -361,7 +458,6 @@ local function linear_rgb_to_oklab(r, g, b)
 		0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
 end
 
----comment
 ---@param L float
 ---@param a float
 ---@param b float
@@ -377,6 +473,12 @@ local function oklab_to_linear_rgb(L, a, b)
 		-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
 		-0.0041960863 * l - 0.7034186147 * m + 1.6076099658 * s
 end
+
+local check_blend = V.signature("blend", {
+	{ "c1", Common.color },
+	{ "c2", Common.color },
+	{ "weight", Common.unit_interval:optional() },
+})
 
 ---
 ---Blends the provided colors `c1` and `c2` uniformly in perceptual color space
@@ -400,17 +502,24 @@ end
 ---
 ---### Returns
 ---@return NormalizedColor # The blended RGBA color, with channel values clamped between 0 and 1.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `c1` or `c2` is `nil`.\
+---*@throws* `string` — Thrown when `c1` or `c2` is not a `Color`.\
+---*@throws* `string` — Thrown when `weight` is not between 0 and 1.
 ---@nodiscard
 function _colors.blend(c1, c2, weight)
+	check_blend(c1, c2, weight)
+
 	if weight == 0 then
-		return _colors.normalize(c1)
+		return normalize_color(c1)
 	elseif weight == 1 then
-		return _colors.normalize(c2)
+		return normalize_color(c2)
 	end
 
 	weight = weight or 0.5
-	local nc1 = _colors.normalize(c1)
-	local nc2 = _colors.normalize(c2)
+	local nc1 = normalize_color(c1)
+	local nc2 = normalize_color(c2)
 
 	local r1, g1, b1 = srgb_to_linear(nc1.r), srgb_to_linear(nc1.g), srgb_to_linear(nc1.b)
 	local r2, g2, b2 = srgb_to_linear(nc2.r), srgb_to_linear(nc2.g), srgb_to_linear(nc2.b)

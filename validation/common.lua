@@ -107,6 +107,42 @@ _common.color = V.any_of(
 	V.array(color_component):min_length(3):max_length(4):describe_as("an array of three or four numbers")
 ):describe_as("a Color")
 
+---A hue, in degrees.
+---
+---Deliberately unbounded: hue is cyclic, and the conversions read it modulo a
+---full turn, so `400` and `-320` name the same color as `40` and are all
+---equally usable.
+local hue = V.number():finite():describe_as("a hue in degrees")
+
+---An `HsvColor`, with `h` in degrees and `s`, `v`, and `a` between zero and one.
+---
+---Strict, because this is a shape the library produces itself rather than one
+---read off a prototype. An `HslColor` handed to an HSV conversion is caught by
+---the missing `v` alone, but a channel named for the wrong space is not, and
+---silently converting the wrong color is worse than being told.
+---@type ShapeValidator<HsvColor>
+_common.hsv_color = V.shape({
+	h = hue,
+	s = _common.unit_interval,
+	v = _common.unit_interval,
+	a = _common.unit_interval,
+})
+	:strict()
+	:describe_as("an HsvColor")
+
+---An `HslColor`, with `h` in degrees and `s`, `l`, and `a` between zero and one.
+---
+---Strict, for the same reason as `Common.hsv_color`.
+---@type ShapeValidator<HslColor>
+_common.hsl_color = V.shape({
+	h = hue,
+	s = _common.unit_interval,
+	l = _common.unit_interval,
+	a = _common.unit_interval,
+})
+	:strict()
+	:describe_as("an HslColor")
+
 ---A [Vector](https://lua-api.factorio.com/latest/types/Vector.html), as either a
 ---two-element array or a table of `x` and `y`.
 ---@type Validator<Vector>
