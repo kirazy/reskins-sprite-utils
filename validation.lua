@@ -23,11 +23,11 @@ local _signature = require("validation.signature")
 ---```lua
 ---local V = require("__reskins-sprite-utils__.validation")
 ---
------- Defined once, at load:
+----- Defined once, at load:
 ---local PipeMaterial = V.one_of(_defines.pipe_material)
 ---local AntennaVariant = V.integer():in_range(0, 4)
 ---
------- Reused at every call site:
+----- Reused at every call site:
 ---function M.get_roboport(pipe_material, antenna_variant)
 ---    PipeMaterial:assert(pipe_material, "pipe_material")
 ---    AntennaVariant:assert(antenna_variant, "antenna_variant")
