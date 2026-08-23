@@ -222,7 +222,13 @@ function _colors.rgba_to_hsva(tint)
 	end
 
 	local v = max
-	local s = range / max
+
+	-- Black has no value for its saturation to be measured against, and
+	-- dividing by it yields a NaN rather than the zero the color has.
+	local s = 0.0
+	if max > 0 then
+		s = range / max
+	end
 
 	return {
 		h = h,
