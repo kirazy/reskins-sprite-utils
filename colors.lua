@@ -1,3 +1,5 @@
+---cspell: words FTMK RRGGBBAA
+
 ---@using data
 
 ---@namespace Reskins.SpriteUtils
@@ -27,6 +29,64 @@ local _colors = {}
 
 local function clamp(v)
 	return math.max(0, math.min(v, 1))
+end
+
+---Table of red, green, blue, and alpha float values between 0 and 1 as explicit key-value pairs.
+---
+---The game usually expects colors to be in pre-multiplied form (color channels are pre-multiplied by alpha).
+---
+---[View Documentation](https://lua-api.factorio.com/latest/types/Color.html)
+---@class (exact) NormalizedColor
+---alpha value (opacity)
+---
+---[View Documentation](https://lua-api.factorio.com/latest/types/Color.html%23a#a)
+---@field a float
+---
+---blue value
+---[View Documentation](https://lua-api.factorio.com/latest/types/Color.html%23b#b)
+---@field b float
+---green value
+---
+---[View Documentation](https://lua-api.factorio.com/latest/types/Color.html%23g#g)
+---@field g float
+---red value
+---
+---[View Documentation](https://lua-api.factorio.com/latest/types/Color.html%23r#r)
+---@field r float
+
+---
+---Normalizes the values in the provided `tint` to between 0 and 1, and ensures
+---`r`, `g`, `b`, and `a` are all defined.
+---
+---`tint` may use either named fields (`r`, `g`, `b`, `a`) or positional fields (`[1]`, `[2]`, `[3]`, `[4]`).
+---If any channel value exceeds 1, all channels are divided by 255.
+---
+---### Examples
+---```lua
+---local normalized = _colors.normalize({ r = 128, g = 191, b = 222, a = 255 })
+----- Returns { r ≈ 0.502, g ≈ 0.749, b ≈ 0.871, a = 1.0 }
+---```
+---
+---### Parameters
+---@param tint Color # The color to normalize.
+---
+---### Returns
+---@return NormalizedColor # A copy of `tint` with all channels normalized and defined.
+---@nodiscard
+function _colors.normalize(tint)
+	local n = {
+		r = math.max(tint.r or tint[1] or 0, 0),
+		g = math.max(tint.g or tint[2] or 0, 0),
+		b = math.max(tint.b or tint[3] or 0, 0),
+		a = math.max(tint.a or tint[4] or 1, 0),
+	}
+
+	if math.max(n.r, n.g, n.b, n.a) > 1 then
+		for key, value in pairs(n) do
+			n[key] = clamp(value / 255)
+		end
+	end
+	return n
 end
 
 ---Converts an ARGB hex code to an RGBA color vector compatible with Factorio prototypes.
@@ -61,7 +121,7 @@ function _colors.from_argb(hex)
 	elseif #hex ~= 8 then
 		error("Invalid format: 'hex' must have 8 characters.")
 	end
-	return util.color(hex:sub(3, 8) .. hex:sub(1, 2))
+	return util.color(hex:sub(3, 8) .. hex:sub(1, 2)) --[[@as Color]]
 end
 
 -- The following functions are adapted from work done by Maxreader, and implement the formulas for HSV/HSL to RGB and
@@ -231,41 +291,6 @@ function _colors.hsla_to_rgba(tint)
 	}
 end
 
----
----Normalizes the values in the provided `tint` to between 0 and 1, and ensures
----`r`, `g`, `b`, and `a` are all defined.
----
----`tint` may use either named fields (`r`, `g`, `b`, `a`) or positional fields (`[1]`, `[2]`, `[3]`, `[4]`).
----If any channel value exceeds 1, all channels are divided by 255.
----
----### Examples
----```lua
----local normalized = _colors.normalize({ r = 128, g = 191, b = 222, a = 255 })
------ Returns { r ≈ 0.502, g ≈ 0.749, b ≈ 0.871, a = 1.0 }
----```
----
----### Parameters
----@param tint Color # The color to normalize.
----
----### Returns
----@return Color # A copy of `tint` with all channels normalized and defined.
----@nodiscard
-function _colors.normalize(tint)
-	local n = {
-		r = math.max(tint.r or tint[1] or 0, 0),
-		g = math.max(tint.g or tint[2] or 0, 0),
-		b = math.max(tint.b or tint[3] or 0, 0),
-		a = math.max(tint.a or tint[4] or 1, 0),
-	}
-
-	if math.max(n.r, n.g, n.b, n.a) > 1 then
-		for key, value in pairs(n) do
-			n[key] = clamp(value / 255)
-		end
-	end
-	return n
-end
-
 local function srgb_to_linear(channel)
 	if channel <= 0.04045 then
 		return channel / 12.92
@@ -374,7 +399,7 @@ end
 ---@param weight? float # A fractional weight between 0 and 1 that determines the proportional color mix. When `0`, `c1` is returned, when `1`, `c2` is returned. Default `0.5`.
 ---
 ---### Returns
----@return Color # The blended RGBA color, with channel values clamped between 0 and 1.
+---@return NormalizedColor # The blended RGBA color, with channel values clamped between 0 and 1.
 ---@nodiscard
 function _colors.blend(c1, c2, weight)
 	if weight == 0 then
@@ -384,11 +409,11 @@ function _colors.blend(c1, c2, weight)
 	end
 
 	weight = weight or 0.5
-	c1 = _colors.normalize(c1)
-	c2 = _colors.normalize(c2)
+	local nc1 = _colors.normalize(c1)
+	local nc2 = _colors.normalize(c2)
 
-	local r1, g1, b1 = srgb_to_linear(c1.r), srgb_to_linear(c1.g), srgb_to_linear(c1.b)
-	local r2, g2, b2 = srgb_to_linear(c2.r), srgb_to_linear(c2.g), srgb_to_linear(c2.b)
+	local r1, g1, b1 = srgb_to_linear(nc1.r), srgb_to_linear(nc1.g), srgb_to_linear(nc1.b)
+	local r2, g2, b2 = srgb_to_linear(nc2.r), srgb_to_linear(nc2.g), srgb_to_linear(nc2.b)
 	local L1, a1, b1_ = linear_rgb_to_oklab(r1, g1, b1)
 	local L2, a2, b2_ = linear_rgb_to_oklab(r2, g2, b2)
 	local Lm = L1 + (L2 - L1) * weight
@@ -399,7 +424,7 @@ function _colors.blend(c1, c2, weight)
 		r = clamp(linear_to_srgb(r)),
 		g = clamp(linear_to_srgb(g)),
 		b = clamp(linear_to_srgb(b)),
-		a = clamp(c1.a + (c2.a - c1.a) * weight),
+		a = clamp(nc1.a + (nc2.a - nc1.a) * weight),
 	}
 end
 
