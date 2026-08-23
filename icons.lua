@@ -52,16 +52,6 @@ local names_an_existing_prototype = {
 	{ parameter = "name", arguments = { "name", "type_name" }, check = name_exists_under_type },
 }
 
----A single `IconData` object, rejecting an array of them by name.
----
----Passing `icon_data` where `icon_datum` was wanted is the easy mistake to make
----here, and the shape check alone reports it as a missing `icon` field, which
----does not point at what went wrong.
-local IconDatum = Common.icon_datum:where(function(value)
-	---@diagnostic disable-next-line: undefined-field
-	return value[1] == nil
-end, "must be a single IconData object, not an array of them")
-
 ---The expected icon size for `SpaceLocationPrototype::starmap_icon`.
 ---
 ---Keyed as `"starmap"` rather than `"space-location"`: the latter is a real
@@ -355,7 +345,7 @@ function _icons.clear_icon_from_named_prototype(name, type_name)
 end
 
 local check_add_missing_icon_defaults = V.signature("add_missing_icon_defaults", {
-	{ "icon_datum", IconDatum },
+	{ "icon_datum", Common.icon_datum },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
@@ -1168,7 +1158,7 @@ local check_compose_icons = V.signature("compose_icons", {
 ---for an `icon` field on the first element leaves anything else — an empty
 ---table, a typo'd field, an array of something other than icons — dropped from
 ---the composition with nothing said about it.
-local composable_icon = V.any_of(IconDatum, Common.icon_data)
+local composable_icon = V.any_of(Common.icon_datum, Common.icon_data)
 	:describe_as("an IconData object or an array of IconData objects")
 
 ---
@@ -1300,7 +1290,7 @@ function _icons.add_icons_from_prototype_to_icons(icon_data, prototype, scale, s
 end
 
 local check_add_icons_from_prototype_to_icon = V.signature("add_icons_from_prototype_to_icon", {
-	{ "icon_datum", IconDatum },
+	{ "icon_datum", Common.icon_datum },
 	{ "prototype", Common.prototypes.prototype_with_icons },
 	{ "scale", Common.positive_number:optional() },
 	{ "shift", Common.vector:optional() },
@@ -1402,7 +1392,7 @@ function _icons.add_icons_from_prototype_to_icons_by_name(icon_data, name, type_
 end
 
 local check_add_icons_from_prototype_to_icon_by_name = V.signature("add_icons_from_prototype_to_icon_by_name", {
-	{ "icon_datum", IconDatum },
+	{ "icon_datum", Common.icon_datum },
 	{ "name", Common.prototype_name },
 	{ "type_name", Common.prototypes.is_registered_type },
 	{ "scale", Common.positive_number:optional() },
@@ -1462,7 +1452,7 @@ function _icons.add_icons_from_prototype_to_icon_by_name(icon_datum, name, type_
 end
 
 local check_transform_icon = V.signature("transform_icon", {
-	{ "icon_datum", IconDatum },
+	{ "icon_datum", Common.icon_datum },
 	{ "scale", Common.positive_number:optional() },
 	{ "shift", Common.vector:optional() },
 	{ "tint", Common.color:optional() },

@@ -135,7 +135,15 @@ _common.icon_datum = V.shape({
 	tint = _common.color:optional(),
 	draw_background = V.boolean():optional(),
 	floating = V.boolean():optional(),
-}):describe_as("an IconData object")
+})
+	:where(function(value)
+		-- Passing an array where one object was wanted is the easy mistake to
+		-- make, and the field check alone reports it as a missing `icon`, which
+		-- does not point at what went wrong.
+		---@diagnostic disable-next-line: undefined-field
+		return value[1] == nil
+	end, "must be a single IconData object, not an array of them")
+	:describe_as("an IconData object")
 
 ---An icon expressed as an array of `IconData` objects.
 _common.icon_data = V.array(_common.icon_datum):not_empty():describe_as("an array of IconData objects")
