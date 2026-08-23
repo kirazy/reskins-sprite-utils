@@ -217,6 +217,49 @@ _common.deferrable_icon_datum = V.shape({
 	icon_datum = _common.icon_datum,
 }):describe_as("a DeferrableIconDatum")
 
+-- Sprite sheets
+
+---A sprite sheet that an animation is cut from.
+---
+---Recursive, since a layer of an animation is an animation: the same
+---requirement applies at every depth, so a layer that names no artwork of its
+---own is reported at the index it sits in.
+---
+---Checks only that the artwork is named, and where it is named by `filename`,
+---that the path is one Factorio can resolve. Everything else an `Animation`
+---carries is left open, this being a description of a sheet rather than a model
+---of the prototype format.
+---@type ShapeValidator<Animation>
+local animation_spritesheet
+
+animation_spritesheet = V.shape({
+	filename = _common.mod_file_path:optional(),
+	layers = V.array(V.lazy(function()
+		return animation_spritesheet
+	end))
+		:not_empty()
+		:optional(),
+})
+	:where(function(value)
+		---@cast value Animation
+		return value.filename ~= nil
+			or value.filenames ~= nil
+			or value.stripes ~= nil
+			or (value.layers ~= nil and value.layers[1] ~= nil)
+	end, "must name its artwork through 'filename', 'filenames', 'stripes', or 'layers'")
+	:describe_as("a sprite sheet")
+
+_common.animation_spritesheet = animation_spritesheet
+
+---A `WorkingVisualisation` whose animation is cut from a single sprite sheet.
+---
+---The `animation` field is what the 4-way slicing works from, so it is required
+---here even though a `WorkingVisualisation` may carry direction-specific
+---animations instead.
+_common.working_visualisation = V.shape({
+	animation = _common.animation_spritesheet,
+}):describe_as("a WorkingVisualisation carrying an animation")
+
 -- Prototypes
 
 ---Validators that consult the prototypes defined so far.

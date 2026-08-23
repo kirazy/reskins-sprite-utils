@@ -18,6 +18,7 @@ Date: ????
       - `floating` applies to every layer of the sourced icon and `draw_background` to its first layer only; a layer already setting either retains its value
     - Added `utils` module, with `utils.array_concat` to concatenate any number of array inputs of the same type into a single array
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`
+    - Added `icons.get_expected_icon_size`
   Changes:
     - Improved types of `prototype` parameters to `icons.clear_icon_from_prototype` and `icons.add_icons_from_prototype_to_icons` to include all prototypes that may have an icon
     - `icons.assign_icons_to_prototype_and_related_prototypes` now assigns icons to related recipes of the same name that produce only the same item; where possible, if icon inheritance is permitted, the recipe icon will be cleared
@@ -36,6 +37,7 @@ Date: ????
     - `icons.clear_icon_from_prototype` now clears the dark-background icon fields alongside the main ones, which would otherwise keep showing the replaced artwork on dark backgrounds
     - `IconDefaultsType` now offers `"starmap"` in place of `"space-location"` for the 512px starmap icon size
     - `icons.clear_icon_from_named_prototype`, `icons.get_dark_background_icon_from_named_prototype`, and `icons.get_starmap_icon_from_named_prototype` now report an unregistered type name rather than raising an index error
+    - `icons.create_icons_from_sources`, `icons.add_icons_from_sources_to_icons`, `sprites.create_sprite_from_icon`, `sprites.create_sprite_from_icons` added optional parameter `defaults_type` to control how missing icon fields with defaults are resolved
   Bugfixes:
     - Fixed that `icons.get_dark_background_icon_from_prototype` and `icons.get_starmap_icon_from_prototype` could return an invalid icon if the target icon was not available; the methods both now return nil in that case
     - Icon methods now correctly pass-through the `draw_background` and `floating` properties on icons

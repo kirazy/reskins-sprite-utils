@@ -68,6 +68,15 @@ local default_icon_sizes = {
 	["starmap"] = STARMAP_ICON_SIZE,
 }
 
+---The `icon_size` an icon assigned to a prototype of the given type is expected to have, when `icon_size` is not
+---explicitly provided.
+---@param defaults_type? IconDefaultsType # The type-specific defaults to resolve.
+---@return SpriteSizeType # The expected icon size, in pixels.
+---@nodiscard
+local function resolve_expected_icon_size(defaults_type)
+	return default_icon_sizes[defaults_type or ""] or defines.default_icon_size
+end
+
 ---One layer of an icon, with icon_size and scale explicitly set. Icon layering follows the following rules:
 ---
 ---* The rendering order of the individual icon layers follows the array order: Later added icon layers (higher index) are drawn on top of previously added icon layers (lower index).
@@ -122,7 +131,7 @@ local default_icon_sizes = {
 local function apply_icon_defaults(icon_datum, defaults_type)
 	-- Every size this can resolve to is one of this module's own constants or
 	-- an already-validated icon_size, so the result needs no further checking.
-	local expected_icon_size = default_icon_sizes[defaults_type or ""] or defines.default_icon_size
+	local expected_icon_size = resolve_expected_icon_size(defaults_type)
 	local icon_size = icon_datum.icon_size or expected_icon_size
 
 	return {
@@ -205,8 +214,39 @@ local function apply_icons_transform(icon_data, scale, shift, tint, defaults_typ
 	return transformed_icon_data
 end
 
+local check_get_expected_icon_size = V.signature("get_expected_icon_size", {
+	{ "defaults_type", Common.icon_defaults_type:optional() },
+})
+
+---Gets the `icon_size` an icon assigned to a prototype of the given type is expected to have, when `icon_size` is not
+---explicitly provided.
+---
+---This is the assumed size of an icon that does not define the `icon_size` field. As a result, this
+---also governs both `scale` and `shift`, where shift is described relative to `expected_icon_size /
+---2`.
+---
+---### Examples
+---```lua
+---local expected_icon_size = _icons.get_expected_icon_size("technology") -- 256
+---
+----- The span a shift is measured against.
+---local shift_span = expected_icon_size / 2 -- 128
+---```
+---
+---### Parameters
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
+---
+---### Returns
+---@return SpriteSizeType # The expected icon size, in pixels.
+---@nodiscard
+function _icons.get_expected_icon_size(defaults_type)
+	check_get_expected_icon_size(defaults_type)
+
+	return resolve_expected_icon_size(defaults_type)
+end
+
 local check_empty_icon = V.signature("empty_icon", {
-	{ "icon_type", Common.icon_defaults_type:optional() },
+	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
 ---Gets an empty icon.
@@ -217,13 +257,13 @@ local check_empty_icon = V.signature("empty_icon", {
 ---```
 ---
 ---### Parameters
----@param icon_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---@return SafeIconData
 ---@nodiscard
-function _icons.empty_icon(icon_type)
-	check_empty_icon(icon_type)
+function _icons.empty_icon(defaults_type)
+	check_empty_icon(defaults_type)
 
-	local expected_icon_size = default_icon_sizes[icon_type or ""] or defines.default_icon_size
+	local expected_icon_size = resolve_expected_icon_size(defaults_type)
 
 	return {
 		icon = "__core__/graphics/empty.png",
@@ -1630,37 +1670,17 @@ local check_add_icons_from_sources_to_icons = V.signature("add_icons_from_source
 	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
+---Layers the icons named by `sources` on top of `icon_data`.
 ---
----Adds the icons from the given `sources` to a copy of the given `icon_data` array, and applies any
----of the optional transformations.
----
----### Remarks
----- Any layer of the icon using a `PrototypeIconSource` for a prototype that does not exist
----  will be replaced with a blank icon.
----- Missing icon fields are set to default values as appropriate.
----- `icon_data` and `sources` are not modified.
----
----### Parameters
----@param icon_data IconData[] # An `IconData` object to be combined with the sourced icons from `sources`.
----@param sources IconSources # An array of `IconData` sources to layer on `icon_data`.
----@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`. Individual source types take precedence over this value.
----
----### Returns
----@return SafeIconData[] combined_icon A copy of `icon_data` with the sourced icons from `sources` transformed and layered on top, if any exist.
----@return boolean has_blank_layers  When the second return value is `true`, a blank icon layer was created.
----
----### Exceptions
----*@throws* `string` — Thrown when `icon_data` is `nil`.\
----*@throws* `string` — Thrown when `sources` is `nil`.
----
----### See Also
----@see Icons.add_missing_icons_defaults
----@see Icons.add_missing_icon_defaults
----@see Icons.get_icon_from_named_prototype
+---The working half of `add_icons_from_sources_to_icons`, without the
+---validation.
+---@param icon_data IconData[] # A valid array of `IconData` objects to layer onto.
+---@param sources IconSources # Valid sources to layer on top.
+---@param defaults_type? IconDefaultsType # The type-specific defaults to apply.
+---@return SafeIconData[] # A copy of `icon_data` with the sourced icons on top.
+---@return boolean # Whether a blank layer stood in for a source that did not resolve.
 ---@nodiscard
-function _icons.add_icons_from_sources_to_icons(icon_data, sources, defaults_type)
-	check_add_icons_from_sources_to_icons(icon_data, sources, defaults_type)
-
+local function apply_icons_from_sources(icon_data, sources, defaults_type)
 	---@type IconData[]
 	local combined_icon = apply_icons_defaults(icon_data, defaults_type)
 
@@ -1699,8 +1719,43 @@ function _icons.add_icons_from_sources_to_icons(icon_data, sources, defaults_typ
 	return combined_icon, has_blank_layers
 end
 
+---
+---Adds the icons from the given `sources` to a copy of the given `icon_data` array, and applies any
+---of the optional transformations.
+---
+---### Remarks
+---- Any layer of the icon using a `PrototypeIconSource` for a prototype that does not exist
+---  will be replaced with a blank icon.
+---- Missing icon fields are set to default values as appropriate.
+---- `icon_data` and `sources` are not modified.
+---
+---### Parameters
+---@param icon_data IconData[] # An `IconData` object to be combined with the sourced icons from `sources`.
+---@param sources IconSources # An array of `IconData` sources to layer on `icon_data`.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`. Individual source types take precedence over this value.
+---
+---### Returns
+---@return SafeIconData[] combined_icon A copy of `icon_data` with the sourced icons from `sources` transformed and layered on top, if any exist.
+---@return boolean has_blank_layers  When the second return value is `true`, a blank icon layer was created.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_data` is `nil`.\
+---*@throws* `string` — Thrown when `sources` is `nil`.
+---
+---### See Also
+---@see Icons.add_missing_icons_defaults
+---@see Icons.add_missing_icon_defaults
+---@see Icons.get_icon_from_named_prototype
+---@nodiscard
+function _icons.add_icons_from_sources_to_icons(icon_data, sources, defaults_type)
+	check_add_icons_from_sources_to_icons(icon_data, sources, defaults_type)
+
+	return apply_icons_from_sources(icon_data, sources, defaults_type)
+end
+
 local check_create_icons_from_sources = V.signature("create_icons_from_sources", {
 	{ "sources", V.array(Common.icon_source):not_empty() },
+	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
 ---
@@ -1739,6 +1794,7 @@ local check_create_icons_from_sources = V.signature("create_icons_from_sources",
 ---
 ---### Parameters
 ---@param sources IconSources # An array of `IconData` sources to layer on `icon_data`.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`. Individual source types take precedence over this value.
 ---
 ---### Returns
 ---@return SafeIconData[] icon A new icon created from the sources, with the base icon from the first source, and icons from the remaining sources layered on top.
@@ -1748,8 +1804,8 @@ local check_create_icons_from_sources = V.signature("create_icons_from_sources",
 ---*@throws* `string` — Thrown when `sources` is `nil`.\
 ---*@throws* `string` — Thrown when `sources` is empty.
 ---@nodiscard
-function _icons.create_icons_from_sources(sources)
-	check_create_icons_from_sources(sources)
+function _icons.create_icons_from_sources(sources, defaults_type)
+	check_create_icons_from_sources(sources, defaults_type)
 
 	---@type IconSources
 	local sources_copy = util.copy(sources)
@@ -1758,7 +1814,7 @@ function _icons.create_icons_from_sources(sources)
 
 	-- Get the base icon from the first source,
 	local base_source = table.remove(sources_copy, 1)
-	local base_icon_data, is_blank_icon = get_icons_from_source(base_source)
+	local base_icon_data, is_blank_icon = get_icons_from_source(base_source, defaults_type)
 
 	has_blank_layers = (has_blank_layers or is_blank_icon)
 
@@ -1772,7 +1828,7 @@ function _icons.create_icons_from_sources(sources)
 		icon_datum.tint = base_transform.tint or icon_datum.tint
 	end
 
-	local icon_data, added_blank_layers = _icons.add_icons_from_sources_to_icons(base_icon_data, sources_copy)
+	local icon_data, added_blank_layers = apply_icons_from_sources(base_icon_data, sources_copy, defaults_type)
 	has_blank_layers = (has_blank_layers or added_blank_layers)
 
 	return icon_data, has_blank_layers
