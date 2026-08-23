@@ -151,7 +151,7 @@ end
 ---@return ArrayValidator<T>
 ---@nodiscard
 function ArrayValidator.not_empty(self)
-	return ArrayValidator.extend(self, {
+	return self:extend({
 		id = "array.not_empty",
 		describe = "not empty",
 		check = function(value)
