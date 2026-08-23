@@ -177,12 +177,13 @@ local function apply_icon_transform(icon_datum, scale, shift, tint, defaults_typ
 		return copy
 	end
 
+	local scaled_shift = copy.shift and util.mul_shift(copy.shift, scale or 1) or nil
 	---@type SafeIconData
 	local transformed = {
 		icon = copy.icon,
 		icon_size = copy.icon_size,
 		scale = copy.scale * (scale or 1),
-		shift = shift and util.add_shift(util.mul_shift(copy.shift or { 0, 0 }, scale or 1)--[[@cast -?]], shift) or copy.shift,
+		shift = shift and util.add_shift(scaled_shift or { 0, 0 }, shift) or scaled_shift,
 		tint = tint or copy.tint,
 		draw_background = copy.draw_background,
 		floating = copy.floating,
@@ -234,7 +235,7 @@ local check_get_expected_icon_size = V.signature("get_expected_icon_size", {
 ---```
 ---
 ---### Parameters
----@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---### Returns
 ---@return SpriteSizeType # The expected icon size, in pixels.
@@ -1794,7 +1795,7 @@ local check_create_icons_from_sources = V.signature("create_icons_from_sources",
 ---
 ---### Parameters
 ---@param sources IconSources # An array of `IconData` sources to layer on `icon_data`.
----@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`. Individual source types take precedence over this value.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`. Individual source types take precedence over this value.
 ---
 ---### Returns
 ---@return SafeIconData[] icon A new icon created from the sources, with the base icon from the first source, and icons from the remaining sources layered on top.

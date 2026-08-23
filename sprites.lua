@@ -17,6 +17,9 @@ local _icons = require("icons")
 local V = require("validation")
 local Common = require("validation.common")
 
+---Source pixels a sprite draws to one tile at a scale of one.
+local TILE_SIZE = 32
+
 ---Converts one defaulted icon layer into a sprite layer.
 ---
 ---Takes the layer already defaulted rather than defaulting it here, so an
@@ -24,17 +27,21 @@ local Common = require("validation.common")
 ---with no indication of which layer it was.
 ---@param icon_layer SafeIconData # A defaulted icon layer.
 ---@param scale? double # The scale to apply to the sprite.
----@param shift_span number # The shift units the icon spans, `expected_icon_size / 2`.
 ---@return Sprite # A layer of sprite
-local function convert_icon_layer_to_sprite_layer(icon_layer, scale, shift_span)
+local function convert_icon_layer_to_sprite_layer(icon_layer, scale)
 	local icon_copy = icon_layer
 	local scale_to_apply = scale and scale * icon_copy.scale or icon_copy.scale
 
-	-- An icon's shift is in pixels of a space the icon spans `shift_span` of,
-	-- while a sprite's is in tiles. Dividing by the span the icon was measured
-	-- against is what puts the two in the same units, and that span is a
-	-- property of the defaults type rather than a constant.
-	local converted_shift = icon_copy.shift and util.mul_shift(icon_copy.shift, 1 / shift_span) or nil
+	-- One unit of an icon's shift is one rendered pixel of it: an icon spans
+	-- `expected_icon_size / 2` units and renders `icon_size * scale` pixels
+	-- across, and its default scale is what makes those the same number. A
+	-- sprite draws one source pixel to a thirty-second of a tile, so the offset
+	-- and the artwork it offsets cross into tiles by the very same factor --
+	-- which is what keeps the layers where the icon put them.
+	--
+	-- A scale asked for here grows the whole composition, so it grows the
+	-- offsets within it too, exactly as `icons.scale_icon` does.
+	local converted_shift = icon_copy.shift and util.mul_shift(icon_copy.shift, (scale or 1) / TILE_SIZE) or nil
 
 	---@type Sprite
 	local sprite_layer = {
@@ -56,29 +63,18 @@ local check_create_sprite_from_icons = V.signature("create_sprite_from_icons", {
 	{ "icon_data", V.table() },
 	{ "scale", Common.positive_number:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
-	{ "shift_type", Common.icon_defaults_type:optional() },
 })
 
 ---
----Creates a `Sprite` object from the given `icon_data` array, at the given `scale`.
----
----`defaults_type` names the coordinate space assumed for the icon. It decides
----both what fills in the fields the icon does not state, and the units its
----`shift` is written in, since an icon spans `expected_icon_size / 2` of them.
----Omitted, the icon is read as an entity, item, or recipe icon.
----
----Those two roles coincide for an icon authored for the prototype it is being
----drawn from. `shift_type` separates them for an icon whose shift was written
----against one space while its missing fields belong to another.
+---Creates a `Sprite` object from the given `icon_data` array, resized by the `scale`.
 ---
 ---Missing icon fields are set to default values as appropriate.
 ---`icon_data` is not modified.
 ---
 ---### Parameters
 ---@param icon_data IconData[] # An array of `IconData` objects.
----@param scale? double # The scale to apply to the sprite.
----@param defaults_type? IconDefaultsType # The coordinate space assumed for the icons, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
----@param shift_type? IconDefaultsType # The coordinate space the icon's `shift` is written against, where that differs from the space its defaults come from. Defaults to `defaults_type`.
+---@param scale? double # The scale to apply to the sprite. Values other than 1 grow or shrink the composition, shifts included, uniformly across all layers.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---### Returns
 ---@return Sprite # A `Sprite` object created from `icon_data`.
@@ -108,19 +104,18 @@ local check_create_sprite_from_icons = V.signature("create_sprite_from_icons", {
 ---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.\
 ---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.
 ---@nodiscard
-function _sprites.create_sprite_from_icons(icon_data, scale, defaults_type, shift_type)
-	check_create_sprite_from_icons(icon_data, scale, defaults_type, shift_type)
+function _sprites.create_sprite_from_icons(icon_data, scale, defaults_type)
+	check_create_sprite_from_icons(icon_data, scale, defaults_type)
 
 	local defaulted = _icons.add_missing_icons_defaults(icon_data, defaults_type)
-	local shift_span = _icons.get_expected_icon_size(shift_type or defaults_type) / 2
 
 	if #defaulted == 1 then
-		return convert_icon_layer_to_sprite_layer(defaulted[1], scale, shift_span)
+		return convert_icon_layer_to_sprite_layer(defaulted[1], scale)
 	end
 
 	local sprite = { layers = {} }
 	for index = 1, #defaulted do
-		sprite.layers[index] = convert_icon_layer_to_sprite_layer(defaulted[index], scale, shift_span)
+		sprite.layers[index] = convert_icon_layer_to_sprite_layer(defaulted[index], scale)
 	end
 
 	return sprite
@@ -131,29 +126,18 @@ local check_create_sprite_from_icon = V.signature("create_sprite_from_icon", {
 	{ "icon_datum", V.table() },
 	{ "scale", Common.positive_number:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
-	{ "shift_type", Common.icon_defaults_type:optional() },
 })
 
 ---
----Creates a sprite from the given `icon_datum`, at the given `scale`.
----
----`defaults_type` names the coordinate space assumed for the icon. It decides
----both what fills in the fields the icon does not state, and the units its
----`shift` is written in, since an icon spans `expected_icon_size / 2` of them.
----Omitted, the icon is read as an entity, item, or recipe icon.
----
----Those two roles coincide for an icon authored for the prototype it is being
----drawn from. `shift_type` separates them for an icon whose shift was written
----against one space while its missing fields belong to another.
+---Creates a sprite from the given `icon_datum`, resized by the given `scale`.
 ---
 ---Missing icon fields are set to default values as appropriate.
 ---`icon_datum` is not modified.
 ---
 ---### Parameters
 ---@param icon_datum IconData  # An `IconData` object.
----@param scale? double # The scale to apply to the sprite.
----@param defaults_type? IconDefaultsType # The coordinate space assumed for the icon, as per https://lua-api.factorio.com/latest/types/IconData.html#scale. Unrecognized names resolve to `defines.default_icon_size`.
----@param shift_type? IconDefaultsType # The coordinate space the icon's `shift` is written against, where that differs from the space its defaults come from. Defaults to `defaults_type`.
+---@param scale? double # The scale to apply to the sprite. Values other than 1 grow or shrink the composition, shifts included, uniformly across all layers.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---### Returns
 ---@return Sprite # A `Sprite` object created from `icon_datum`.
@@ -176,14 +160,10 @@ local check_create_sprite_from_icon = V.signature("create_sprite_from_icon", {
 ---*@throws* `string` — Thrown when `icon_datum.icon` is not an absolute file path with a valid extension.\
 ---*@throws* `string` — Thrown when `icon_datum.icon_size` is not a positive integer.
 ---@nodiscard
-function _sprites.create_sprite_from_icon(icon_datum, scale, defaults_type, shift_type)
-	check_create_sprite_from_icon(icon_datum, scale, defaults_type, shift_type)
+function _sprites.create_sprite_from_icon(icon_datum, scale, defaults_type)
+	check_create_sprite_from_icon(icon_datum, scale, defaults_type)
 
-	return convert_icon_layer_to_sprite_layer(
-		_icons.add_missing_icon_defaults(icon_datum, defaults_type),
-		scale,
-		_icons.get_expected_icon_size(shift_type or defaults_type) / 2
-	)
+	return convert_icon_layer_to_sprite_layer(_icons.add_missing_icon_defaults(icon_datum, defaults_type), scale)
 end
 
 ---@param prototype? { height?: SpriteSizeType, size?: (SpriteSizeType)|([SpriteSizeType, SpriteSizeType]) }

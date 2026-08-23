@@ -22,10 +22,10 @@
 ---| TipsAndTricksItem
 ---| VirtualSignalPrototype
 
----Type names/aliases that map to icon_size defaults as per https://lua-api.factorio.com/latest/types/IconData.html#scale
+---Type names/aliases that map to icon_size defaults as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
 ---
----Every name here other than `"default"` and `"starmap"` is also a prototype
----type name whose expected icon size matches, which is what lets a
+---Every name here other than `"default"`, `"starmap"` and `"shortcut-small"` is also a
+---prototype type name whose expected icon size matches, which is what lets a
 ---`prototype.type` be passed straight through. `"starmap"` is deliberately not
 ---`"space-location"`: a space location's regular `icon` takes the default size,
 ---and only its `starmap_icon` expects 512.
@@ -69,7 +69,7 @@
 ---@field scale? double
 ---The shift to apply to the sourced icon. Default `nil`.
 ---
----Measured as [IconData.shift](https://lua-api.factorio.com/latest/types/IconData.html#shift)
+---Measured as [IconData::shift](https://lua-api.factorio.com/latest/types/IconData.html#shift)
 ---is, where the whole icon is `expected_icon_size / 2` across. That is 32 for an
 ---ordinary prototype, so `{ 8, -8 }` places the source in the upper-right
 ---quadrant.
@@ -104,7 +104,7 @@
 ---@field scale? double
 ---The shift to apply to the sourced icon. Default `nil`.
 ---
----Measured as [IconData.shift](https://lua-api.factorio.com/latest/types/IconData.html#shift)
+---Measured as [IconData::shift](https://lua-api.factorio.com/latest/types/IconData.html#shift)
 ---is, where the whole icon is `expected_icon_size / 2` across. That is 32 for an
 ---ordinary prototype, so `{ 8, -8 }` places the source in the upper-right
 ---quadrant. Ignored when `transform` is defined.
@@ -119,7 +119,7 @@
 ---@class IconDatumSource : TransformableIconBase
 ---The icon data to be used for the icon.
 ---@field icon_datum IconData
----The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/Iconhtml#scale.
+---The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
 ---Unrecognized names resolve to `defines.default_icon_size`.
 ---@field defaults_type? IconDefaultsType
 
@@ -127,7 +127,7 @@
 ---@class IconDataSource : TransformableIconBase
 ---The icon data to be used for the icon.
 ---@field icon_data IconData[]
----The name of the type-specific icon defaults to generate, as per https://lua-api.factorio.com/latest/types/IconData.html#scale.
+---The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
 ---Unrecognized names resolve to `defines.default_icon_size`.
 ---@field defaults_type? IconDefaultsType
 
