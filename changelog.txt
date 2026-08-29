@@ -54,6 +54,7 @@ Date: ????
     - Fixed that `colors.rgba_to_hsva` reported a saturation of `NaN` for black, which the HSVA conversions would then reject as a color they had themselves produced
     - Fixed that `sprites.create_sprite_from_icon` and `sprites.create_sprite_from_icons` scaled each layer's artwork by the given `scale` but not its shift, pulling a composed icon apart at any scale but one
     - Fixed that `icons.transform_icon` and `icons.transform_icons` left an existing shift unscaled when given a scale and no shift of their own
+    - Fixed that prototypes whose scale was determined by `tile_width` and `tile_height` were not correctly rescaled when using the rescale prototype methods.
   Deprecated:
     - `colors.from_argb` is deprecated with the introduction of EmmyLua (and removal of sumneko) by the Factorio Modding Tool Kit, which correctly handles RGBA color strings
 ---------------------------------------------------------------------------------------------------

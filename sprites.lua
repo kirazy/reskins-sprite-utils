@@ -485,6 +485,8 @@ local included_fields = {
 	["position"] = true,
 	["window_bounding_box"] = true,
 	["circuit_wire_connection_points"] = true,
+	["tile_width"] = true,
+	["tile_height"] = true,
 }
 
 local excluded_fields = {
