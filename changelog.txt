@@ -19,6 +19,7 @@ Date: ????
     - Added `utils` module, with `utils.array_concat` to concatenate any number of array inputs of the same type into a single array
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`
     - Added `icons.get_expected_icon_size`
+    - Added `options` (`IconAssignmentOptions`) field to `DeferrableIconData` and `DeferrableIconDatum`, to control how assignment to related prototypes fans out. This enables strict assignment, as well as only fanning out to e.g., only recipes.
   Changes:
     - Improved types of `prototype` parameters to `icons.clear_icon_from_prototype` and `icons.add_icons_from_prototype_to_icons` to include all prototypes that may have an icon
     - `icons.assign_icons_to_prototype_and_related_prototypes` now assigns icons to related recipes of the same name that produce only the same item; where possible, if icon inheritance is permitted, the recipe icon will be cleared

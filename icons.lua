@@ -862,6 +862,49 @@ local related_prototypes = {
 	["corpse"] = true,
 }
 
+---The default `IconAssignmentOptions`, applied when a caller passes no `options` at all.
+local default_icon_assignment_options = {
+	infer_item = true,
+	infer_recipe = true,
+	infer_explosion = true,
+	infer_corpse = true,
+	explosion_by_convention = true,
+	corpse_by_convention = true,
+}
+
+---Fills in the defaults for an `IconAssignmentOptions` table, applying `strict` if set.
+---
+---`strict` is applied here rather than left to the callers of the resolved table, so there is exactly
+---one place that decides what `strict` means.
+---@param options IconAssignmentOptions? # The options to resolve.
+---@return IconAssignmentOptions # A copy with every field set to `true` or `false`.
+---@nodiscard
+local function resolve_icon_assignment_options(options)
+	if not options then
+		return default_icon_assignment_options
+	end
+
+	if options.strict then
+		return {
+			infer_item = false,
+			infer_recipe = false,
+			infer_explosion = false,
+			infer_corpse = false,
+			explosion_by_convention = false,
+			corpse_by_convention = false,
+		}
+	end
+
+	return {
+		infer_item = options.infer_item ~= false,
+		infer_recipe = options.infer_recipe ~= false,
+		infer_explosion = options.infer_explosion ~= false,
+		infer_corpse = options.infer_corpse ~= false,
+		explosion_by_convention = options.explosion_by_convention ~= false,
+		corpse_by_convention = options.corpse_by_convention ~= false,
+	}
+end
+
 ---Gets the entity name carried by an `EntityID` or an `ExplosionDefinition`.
 ---
 ---### Parameters
@@ -886,6 +929,7 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 		{ "type_name", Common.prototypes.is_registered_type:optional() },
 		{ "icon_data", Common.icon_data },
 		{ "pictures", V.table():optional() },
+		{ "options", Common.icon_assignment_options:optional() },
 	})
 
 ---
@@ -899,9 +943,12 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 ---place would keep showing the artwork this call is replacing.
 ---
 ---### Remarks
----This method assumes that recipes with the same `name` as the target prototype, having a single result that is the
----target prototype, should use the same icon. If this behavior is undesirable, handle assignment of icons to related
----entities directly.
+---- This method assumes that recipes with the same `name` as the target prototype, having a single result that is
+---  the target prototype, should use the same icon. If this behavior is undesirable, pass `infer_recipe = false` in
+---  `options`, or handle assignment of icons to related entities directly.
+---- `options` never affects the named prototype itself: it is always assigned the icon. It only controls whether
+---  the item, recipe, explosion, and corpse cascades run, and whether the explosion/corpse cascades accept a match
+---  found only by naming convention.
 ---
 ---### Examples
 ---```lua
@@ -920,21 +967,31 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 ---
 -----Update the tier-1 assembly machine prototype and its related prototypes.
 ---_icons.assign_icons_to_prototype_and_related_prototypes("assembling-machine-1", "assembling-machine", labeled_icon, unlabeled_pictures)
+---
+-----A variant entity that shares its corpse and explosion with another prototype should not have this
+-----call push its own icon onto that shared corpse/explosion.
+---_icons.assign_icons_to_prototype_and_related_prototypes("assembling-machine-1-penalty", "assembling-machine", labeled_icon, nil, {
+---    infer_explosion = false,
+---    infer_corpse = false,
+---})
 ---```
 ---
 ---### Parameters
 ---@param name string # The name of the prototype.
 ---@param type_name? string # The type name of the prototype.
 ---@param icon_data IconData[] # An icon represented by an array of `IconData` objects.
----@param pictures? SpriteVariations # A `SpriteVariations` object to use as the in-world sprite, or `nil` to clear any existing one so the icon is used instead. Typical use is when `icon_data` has e.g., tier labels, and the in-world sprite should not.
+---@param pictures? SpriteVariations # A `SpriteVariations` object to use as the in-world sprite, or `nil` to clear any existing one so the icon is used instead. Typical use is when `icon_data` has e.g., tier labels, and the in-world sprite should not. Ignored when `infer_item` is `false`.
+---@param options? IconAssignmentOptions # Controls which related prototypes the icon cascades to. Defaults apply as per `IconAssignmentOptions`.
 ---
 ---### Exceptions
 ---*@throws* `string` — Thrown when `name` is `nil` or an empty string.\
 ---*@throws* `string` — Thrown when `icon_data` is `nil`.\
 ---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.\
 ---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.
-function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name, icon_data, pictures)
-	check_assign_icons_to_prototype_and_related_prototypes(name, type_name, icon_data, pictures)
+function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name, icon_data, pictures, options)
+	check_assign_icons_to_prototype_and_related_prototypes(name, type_name, icon_data, pictures, options)
+
+	local resolved_options = resolve_icon_assignment_options(options)
 
 	local icon_data_copy = apply_icons_defaults(icon_data, type_name)
 
@@ -942,34 +999,37 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 
 	-- Exclude technologies and recipes from related-prototype updates.
 	if type_name ~= "technology" and type_name ~= "recipe" then
-		local item = data.raw["item"][name]
-		if item ~= nil then
-			_icons.clear_icon_from_prototype(item)
-			item.icons = icon_data_copy
-			item.pictures = pictures
-		end
+		if resolved_options.infer_item then
+			local item = data.raw["item"][name]
+			if item ~= nil then
+				_icons.clear_icon_from_prototype(item)
+				item.icons = icon_data_copy
+				item.pictures = pictures
+			end
 
-		local item_with_entity_data = data.raw["item-with-entity-data"][name]
-		if item_with_entity_data ~= nil then
-			_icons.clear_icon_from_prototype(item_with_entity_data)
-			item_with_entity_data.icons = icon_data_copy
+			local item_with_entity_data = data.raw["item-with-entity-data"][name]
+			if item_with_entity_data ~= nil then
+				_icons.clear_icon_from_prototype(item_with_entity_data)
+				item_with_entity_data.icons = icon_data_copy
 
-			-- The pictures field is ignored as of 1.0, this has been left active
-			-- in the hopes the default behavior is adjusted.
-			item_with_entity_data.pictures = pictures
+				-- The pictures field is ignored as of 1.0, this has been left active
+				-- in the hopes the default behavior is adjusted.
+				item_with_entity_data.pictures = pictures
+			end
 		end
 
 		-- Clear out recipes of the same name so that the item icon is inherited properly.
 		-- Possibly a dangerous assumption that all recipes with the same name as the item
 		-- are intended to inherit the icon directly and do not use a custom icon.
+		if resolved_options.infer_recipe then
+			local recipe = data.raw["recipe"][name]
+			if recipe and recipe.results and #recipe.results == 1 and recipe.results[1].name == name then
+				_icons.clear_icon_from_prototype(recipe)
 
-		local recipe = data.raw["recipe"][name]
-		if recipe and recipe.results and #recipe.results == 1 and recipe.results[1].name == name then
-			_icons.clear_icon_from_prototype(recipe)
-
-			-- icon is required if the recipe does not have a main product.
-			if not recipe.main_product then
-				recipe.icons = icon_data_copy
+				-- icon is required if the recipe does not have a main product.
+				if not recipe.main_product then
+					recipe.icons = icon_data_copy
+				end
 			end
 		end
 	end
@@ -978,56 +1038,68 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 		_icons.clear_icon_from_prototype(prototype)
 		prototype.icons = icon_data_copy
 
-		-- Try to grab the explosion name from the prototype directly, to ensure it is picked up in the
-		-- event it does not follow the expected pattern.
-		--
-		-- `dying_explosion` is an `EntityID`, an `ExplosionDefinition`, or an
-		-- array of either. A bare `EntityID` is the common case in vanilla.
-		local dying_explosion = prototype.dying_explosion
-		local dying_explosion_name = get_explosion_name(dying_explosion)
-			or (type(dying_explosion) == "table" and get_explosion_name(dying_explosion[1]))
-			or nil
+		-- Technologies and recipes have no dying_explosion or corpse of their own; the naming-convention
+		-- lookups below are for entity-like prototypes only.
+		if type_name ~= "technology" and type_name ~= "recipe" then
+			if resolved_options.infer_explosion then
+				-- Try to grab the explosion name from the prototype directly, to ensure it is picked up in the
+				-- event it does not follow the expected pattern.
+				--
+				-- `dying_explosion` is an `EntityID`, an `ExplosionDefinition`, or an
+				-- array of either. A bare `EntityID` is the common case in vanilla.
+				local dying_explosion = prototype.dying_explosion
+				local dying_explosion_name = get_explosion_name(dying_explosion)
+					or (type(dying_explosion) == "table" and get_explosion_name(dying_explosion[1]))
+					or nil
 
-		local explosion_names = {
-			[name .. "-explosion"] = true,
-			["ar-" .. name .. "-explosion"] = true,
-		}
+				local explosion_names = {}
 
-		if dying_explosion_name then
-			explosion_names[dying_explosion_name] = true
-		end
+				if resolved_options.explosion_by_convention then
+					explosion_names[name .. "-explosion"] = true
+					explosion_names["ar-" .. name .. "-explosion"] = true
+				end
 
-		for explosion_name, _ in pairs(explosion_names) do
-			local explosion = data.raw["explosion"][explosion_name]
-			if explosion ~= nil then
-				_icons.clear_icon_from_prototype(explosion)
-				explosion.icons = icon_data_copy
+				if dying_explosion_name then
+					explosion_names[dying_explosion_name] = true
+				end
+
+				for explosion_name, _ in pairs(explosion_names) do
+					local explosion = data.raw["explosion"][explosion_name]
+					if explosion ~= nil then
+						_icons.clear_icon_from_prototype(explosion)
+						explosion.icons = icon_data_copy
+					end
+				end
 			end
-		end
 
-		-- Try to grab the corpse name from the prototype directly, to ensure it is picked up in the
-		-- event it does not follow the expected pattern.
-		local corpse_name
-		if type(prototype.corpse) == "string" then
-			corpse_name = prototype.corpse
-		elseif type(prototype.corpse) == "table" and type(prototype.corpse[1]) == "string" then
-			corpse_name = prototype.corpse[1]
-		end
+			if resolved_options.infer_corpse then
+				-- Try to grab the corpse name from the prototype directly, to ensure it is picked up in the
+				-- event it does not follow the expected pattern.
+				local corpse_name
+				if type(prototype.corpse) == "string" then
+					corpse_name = prototype.corpse
+				elseif type(prototype.corpse) == "table" and type(prototype.corpse[1]) == "string" then
+					corpse_name = prototype.corpse[1]
+				end
 
-		local remnants_names = {
-			[name .. "-remnants"] = true,
-			["ar-" .. name .. "-remnants"] = true,
-		}
+				local remnants_names = {}
 
-		if corpse_name then
-			remnants_names[corpse_name] = true
-		end
+				if resolved_options.corpse_by_convention then
+					remnants_names[name .. "-remnants"] = true
+					remnants_names["ar-" .. name .. "-remnants"] = true
+				end
 
-		for remnants_name, _ in pairs(remnants_names) do
-			local remnants = data.raw["corpse"][remnants_name]
-			if remnants ~= nil then
-				_icons.clear_icon_from_prototype(remnants)
-				remnants.icons = icon_data_copy
+				if corpse_name then
+					remnants_names[corpse_name] = true
+				end
+
+				for remnants_name, _ in pairs(remnants_names) do
+					local remnants = data.raw["corpse"][remnants_name]
+					if remnants ~= nil then
+						_icons.clear_icon_from_prototype(remnants)
+						remnants.icons = icon_data_copy
+					end
+				end
 			end
 		end
 	end
@@ -1073,13 +1145,16 @@ function _icons.assign_deferrable_icon(deferrable_icon)
 			deferrable_icon.name,
 			deferrable_icon.type_name,
 			deferrable_icon.icon_data,
-			deferrable_icon.pictures
+			deferrable_icon.pictures,
+			deferrable_icon.options
 		)
 	elseif deferrable_icon.icon_datum then
 		_icons.assign_icons_to_prototype_and_related_prototypes(
 			deferrable_icon.name,
 			deferrable_icon.type_name,
-			{ deferrable_icon.icon_datum }
+			{ deferrable_icon.icon_datum },
+			nil,
+			deferrable_icon.options
 		)
 	end
 end

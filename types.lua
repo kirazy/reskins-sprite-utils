@@ -39,6 +39,28 @@
 ---| "item-group"
 ---| string
 
+---Controls which related prototypes `Icons.assign_icons_to_prototype_and_related_prototypes` cascades
+---the icon to, beyond the named prototype itself.
+---@class (exact) IconAssignmentOptions
+---Whether to cascade to the `item` or `item-with-entity-data` of the same name, and set its `pictures`.
+---Default `true`.
+---@field infer_item? boolean
+---Whether to cascade to a `recipe` of the same name whose only result is the named prototype. Default `true`.
+---@field infer_recipe? boolean
+---Whether to cascade to the explosion named by `dying_explosion`, or by naming convention. Default `true`.
+---@field infer_explosion? boolean
+---Whether to cascade to the corpse named by `corpse`, or by naming convention. Default `true`.
+---@field infer_corpse? boolean
+---When `infer_explosion` is `true`, whether an explosion matched only by naming convention (and not
+---by the `dying_explosion` field) is included. Default `true`; set `false` to require the field.
+---@field explosion_by_convention? boolean
+---When `infer_corpse` is `true`, whether a corpse matched only by naming convention (and not by the
+---`corpse` field) is included. Default `true`; set `false` to require the field.
+---@field corpse_by_convention? boolean
+---When `true`, sets `infer_item`, `infer_recipe`, `infer_explosion`, and `infer_corpse` to `false`,
+---regardless of their own values. Only the named prototype itself is assigned the icon.
+---@field strict? boolean
+
 ---Represents an icon from an array of `IconData` objects that may be stored for deferred assignment.
 ---@class DeferrableIconData
 ---The name of the prototype to be assigned this icon.
@@ -49,6 +71,8 @@
 ---@field icon_data IconData[]
 ---The pictures data to store for deferred assignment.
 ---@field pictures? SpriteVariations
+---Controls which related prototypes the icon cascades to. Defaults apply as per `IconAssignmentOptions`.
+---@field options? IconAssignmentOptions
 
 ---Represents an icon from a single `IconData` object that may be stored for deferred assignment.
 ---@class DeferrableIconDatum
@@ -58,6 +82,8 @@
 ---@field type_name string
 ---The icon data to store for deferred assignment.
 ---@field icon_datum IconData
+---Controls which related prototypes the icon cascades to. Defaults apply as per `IconAssignmentOptions`.
+---@field options? IconAssignmentOptions
 
 ---The transformations to apply to an icon being composed onto another.
 ---@class IconTransform
@@ -149,7 +175,7 @@
 ---frames laid out in vertical stripes instead of the standard convention of horizontal stripes.
 ---@class VerticallyOrientableAnimation : Animation
 ---When `true`, indicates that the Animation sprites are laid out vertically and should be processed
----accordingly by `sprite_utils.make_4way_animation_from_spritesheet`.
+---accordingly by `SpriteUtils.make_4way_animation_from_spritesheet`.
 ---@field vertically_oriented? boolean
 ---
 ---If this property is present, all Animation definitions have to be placed as entries in the array,

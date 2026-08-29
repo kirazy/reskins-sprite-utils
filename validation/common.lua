@@ -236,6 +236,23 @@ _common.prototype_icon_source = V.shape(fields(transformable, {
 _common.icon_source = V.any_of(_common.icon_datum_source, _common.icon_data_source, _common.prototype_icon_source)
 	:describe_as("an IconSource")
 
+---Controls which related prototypes an icon assignment cascades to.
+---
+---Strict, since this is a small, fixed set of switches the library defines itself rather than a shape
+---read off a prototype: a misspelled field here should be caught, not silently ignored.
+---@type ShapeValidator<IconAssignmentOptions>
+_common.icon_assignment_options = V.shape({
+	infer_item = V.boolean():optional(),
+	infer_recipe = V.boolean():optional(),
+	infer_explosion = V.boolean():optional(),
+	infer_corpse = V.boolean():optional(),
+	explosion_by_convention = V.boolean():optional(),
+	corpse_by_convention = V.boolean():optional(),
+	strict = V.boolean():optional(),
+})
+	:strict()
+	:describe_as("an IconAssignmentOptions")
+
 ---An icon held for deferred assignment to a named prototype.
 ---@type ShapeValidator<DeferrableIconData>
 _common.deferrable_icon_data = V.shape({
@@ -243,6 +260,7 @@ _common.deferrable_icon_data = V.shape({
 	type_name = _common.prototype_type_name,
 	icon_data = _common.icon_data,
 	pictures = V.table():optional(),
+	options = _common.icon_assignment_options:optional(),
 }):describe_as("a DeferrableIconData")
 
 ---A single-object icon held for deferred assignment to a named prototype.
@@ -251,6 +269,7 @@ _common.deferrable_icon_datum = V.shape({
 	name = _common.prototype_name,
 	type_name = _common.prototype_type_name,
 	icon_datum = _common.icon_datum,
+	options = _common.icon_assignment_options:optional(),
 }):describe_as("a DeferrableIconDatum")
 
 -- Sprite sheets
