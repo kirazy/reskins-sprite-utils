@@ -49,10 +49,16 @@ local AnyOfValidator = Validator.subclass("any_of")
 ---```
 ---
 ---### Parameters
----@param ... Validator<any> # The branches to try, in order.
+---@generic T
+---@param ... Validator<T> # The branches to try, in order.
 ---
 ---### Returns
 ---@return Validator<any>
+---
+---@overload fun<A>(a: Validator<A>): Validator<A>
+---@overload fun<A, B>(a: Validator<A>, b: Validator<B>): Validator<A|B>
+---@overload fun<A, B, C>(a: Validator<A>, b: Validator<B>, c: Validator<C>): Validator<A|B|C>
+---@overload fun<A, B, C, D>(a: Validator<A>, b: Validator<B>, c: Validator<C>, d: Validator<D>): Validator<A|B|C|D>
 ---@nodiscard
 function _combinators.any_of(...)
 	local branches = pack_branches("V.any_of", ...)
@@ -113,8 +119,9 @@ end
 local AllOfValidator = Validator.subclass("all_of")
 
 ---Creates a validator accepting a value that satisfies every one of the given validators.
----@param ... Validator<any> # The validators to apply, in order.
----@return Validator<any>
+---@generic T
+---@param ... Validator<T> # The validators to apply, in order.
+---@return Validator<T>
 ---@nodiscard
 function _combinators.all_of(...)
 	local branches = pack_branches("V.all_of", ...)
@@ -168,10 +175,11 @@ local OneOfValidator = Validator.subclass("one_of")
 ---```
 ---
 ---### Parameters
----@param values any[] # The permitted values.
+---@generic K, const V
+---@param values table<K, V> # The permitted values.
 ---
 ---### Returns
----@return Validator<any>
+---@return Validator<V>
 ---@nodiscard
 function _combinators.one_of(values)
 	local described = _result.format_value(values)
@@ -199,8 +207,9 @@ end
 local LiteralValidator = Validator.subclass("literal")
 
 ---Creates a validator accepting exactly one value.
----@param expected any # The only permitted value.
----@return Validator<any>
+---@generic const T
+---@param expected T # The only permitted value.
+---@return Validator<T>
 ---@nodiscard
 function _combinators.literal(expected)
 	local described = _result.format_value(expected)
