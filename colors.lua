@@ -122,6 +122,66 @@ function _colors.normalize(tint)
 	return normalize_color(tint)
 end
 
+---The largest difference any one channel may have and still read as the same
+---color, in normalized channel units.
+---
+---Half an 8-bit step: colors that round to the same value on the 255-step scale
+---the game renders at compare equal.
+local default_tolerance = 0.5 / 255
+
+local check_are_equal = V.signature("are_equal", {
+	{ "c1", Common.color },
+	{ "c2", Common.color },
+	{ "tolerance", Common.unit_interval:optional() },
+})
+
+---
+---Compares the provided colors `c1` and `c2` channel by channel, treating them
+---as the same color when every channel, including alpha, agrees to within
+---`tolerance`.
+---
+---`c1` and `c2` are not required to be normalized beforehand, so a color written
+---on the 0–255 scale and the same color written on the 0–1 scale compare equal.
+---
+---### Examples
+---```lua
+---local same = _colors.are_equal({ r = 255, g = 0, b = 0, a = 255 }, { r = 1, g = 0, b = 0, a = 1 })
+----- Returns true
+---
+---local exact = _colors.are_equal({ r = 0.5, g = 0, b = 0, a = 1 }, { r = 0.5001, g = 0, b = 0, a = 1 }, 0)
+----- Returns false
+---```
+---
+---### Parameters
+---@param c1 Color # The first color.
+---@param c2 Color # The second color.
+---@param tolerance? float # The largest difference between 0 and 1 any one channel may have and still read as equal. When `0`, the channels must match exactly. Default `0.5 / 255`.
+---
+---### Returns
+---@return boolean # Whether every channel of `c1` is within `tolerance` of the matching channel of `c2`.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `c1` or `c2` is `nil`.\
+---*@throws* `string` — Thrown when `c1` or `c2` is not a `Color`.\
+---*@throws* `string` — Thrown when `tolerance` is not between 0 and 1.
+---@nodiscard
+function _colors.are_equal(c1, c2, tolerance)
+	check_are_equal(c1, c2, tolerance)
+
+	tolerance = tolerance or default_tolerance
+
+	local n1 = normalize_color(c1)
+	local n2 = normalize_color(c2)
+
+	for _, channel in pairs({ "r", "g", "b", "a" }) do
+		if math.abs(n1[channel] - n2[channel]) > tolerance then
+			return false
+		end
+	end
+
+	return true
+end
+
 ---An 8-character ARGB hex code, such as `"FF00C1DF"`.
 ---
 ---The count and the alphabet are one requirement rather than two, so a code

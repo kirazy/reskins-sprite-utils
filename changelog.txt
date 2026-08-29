@@ -16,6 +16,7 @@ Date: ????
       - `defines.icon_transforms` provides presets: `corners` places a source in one of the four corners at half scale, `compass` in one of eight positions at 0.4375 scale
       - Where `transform` is given it is the whole statement; a `scale`, `shift`, or `tint` written beside it is ignored
       - `floating` applies to every layer of the sourced icon and `draw_background` to its first layer only; a layer already setting either retains its value
+    - Added `colors.are_equal` for comparing two colors channel by channel, reading both on the same scale first and treating channels within a tolerance of each other as equal; by default the tolerance is half an 8-bit step
     - Added `utils` module, with `utils.array_concat` to concatenate any number of array inputs of the same type into a single array
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`
     - Added `icons.get_expected_icon_size`
