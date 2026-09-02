@@ -304,7 +304,7 @@ _common.icon_composition_group = V.shape({
 
 ---A projection of an icon composition: a name, whether its output is drawn in a slot, and how the
 ---composed layers are lowered to it.
----@type ShapeValidator<IconCompositionProjection<any>>
+---@type ShapeValidator<IconCompositionProjection<unknown>>
 _common.icon_composition_projection = V.shape({
 	name = _common.non_empty_string,
 	has_slot = V.boolean(),

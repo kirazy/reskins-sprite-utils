@@ -453,10 +453,11 @@ local ShapeValidator = Validator.subclass("shape")
 ---```
 ---
 ---### Parameters
----@param fields table<string, Validator<any>> # The validator for each named field.
+---@generic F : table<string, Validator<any>>
+---@param fields F # The validator for each named field.
 ---
 ---### Returns
----@return ShapeValidator<any>
+---@return ShapeValidator<{ [K in keyof F]: any }> # Typed over the given field names.
 ---@nodiscard
 function _collections.shape(fields)
 	local names = sorted_keys(fields)
@@ -487,13 +488,12 @@ function _collections.shape(fields)
 		fields = fields,
 		collect_all = true,
 		rules = { Validator.type_gate("table"), fields_rule },
-	}) --[[@as ShapeValidator<any>]]
+	}) --[[@as ShapeValidator<{ [K in keyof F]: any }>]]
 end
 
 ---Creates a copy of this validator that rejects keys it does not describe.
----@generic S : ShapeValidator<any>
----@param self S
----@return S
+---@param self ShapeValidator<TValidated>
+---@return ShapeValidator<TValidated>
 ---@nodiscard
 function ShapeValidator.strict(self)
 	local fields = self.fields
@@ -532,13 +532,12 @@ end
 ---```
 ---
 ---### Parameters
----@generic S : ShapeValidator<any>
----@param self S
+---@param self ShapeValidator<TValidated>
 ---@param predicate fun(value: TValidated): boolean # Returns `true` when the table is acceptable.
 ---@param message string # The complete failure message, phrased to follow the path.
 ---
 ---### Returns
----@return S
+---@return ShapeValidator<TValidated>
 ---@nodiscard
 function ShapeValidator.where(self, predicate, message)
 	return self:extend({
