@@ -55,6 +55,7 @@ Date: ????
     - `sprites.make_rotated_animation_variations_from_spritesheet` and `sprites.make_4way_animation_from_spritesheet` now handle `size` as the means to specify width/height
     - Icon, sprite, color, and utility methods now validate their arguments through the `validation` module; a failure names the function, the parameter, and the path within it, e.g. `add_missing_icon_defaults(): parameter 'icon_datum.icon_size': must be between 1 and 8192 inclusive, got 0`
     - `icons.compose_icons` now throws when an argument is neither an `IconData` object nor an array of them, rather than omitting it from the result
+    - `icons.compose_icons` no longer requires a non-nil `defaults_type` parameter, consistent with other methods taking a defaults_type parameter
     - `icons.add_missing_icons_defaults` now throws when given an empty array
     - `icons.clear_icon_from_prototype` now also clears the dark-background icon fields
     - `IconDefaultsType` now offers `"starmap"` in place of `"space-location"` for the 512px starmap icon size

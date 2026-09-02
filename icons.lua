@@ -1409,7 +1409,7 @@ function _icons.assign_icons_deferred_to_stage(deferred_icon_store, stage)
 end
 
 local check_compose_icons = V.signature("compose_icons", {
-	{ "defaults_type", Common.icon_defaults_type },
+	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
 ---One argument to `compose_icons`: a single icon, or an array of them.
@@ -1430,7 +1430,7 @@ local composable_icon = V.any_of(Common.icon_datum, Common.icon_data)
 ---- Inputs are not modified.
 ---
 ---### Parameters
----@param defaults_type IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type IconDefaultsType? # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---@param ... IconData|IconData[]|nil # A variable set of `IconData` or `IconData` arrays to combine.
 ---
 ---### Returns
