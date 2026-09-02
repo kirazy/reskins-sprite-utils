@@ -308,10 +308,8 @@ local function build_4way_animation(animation)
 	local function make_animation_for_direction(direction)
 		if animation_copy.layers then
 			local new_animation = { layers = {} }
-			-- Assigned by index rather than appended, so each layer keeps the
-			-- position it had; layer order is draw order.
-			for index, layer in pairs(animation_copy.layers) do
-				new_animation.layers[index] = make_animation_layer_for_direction(direction, layer)
+			for _, layer in pairs(animation_copy.layers) do
+				new_animation.layers[#new_animation.layers + 1] = make_animation_layer_for_direction(direction, layer)
 			end
 			return new_animation --[[@as Animation]]
 		else
