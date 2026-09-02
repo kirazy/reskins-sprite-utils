@@ -101,4 +101,16 @@ _defines.icon_transforms = {
 	},
 }
 
+---
+---The strata of an icon composition, from the bottom of the stack up.
+---
+---### Remarks
+---- Content in an earlier stratum is drawn beneath content in a later one, whatever order it was
+---  added in.
+---- `backdrop`, `canvas`, and `overlay` hold artwork, which placements and the composition's
+---  transform move and scale together. `annotation` holds marks authored against the slot the
+---  finished icon is drawn in, which are neither moved nor scaled.
+---@type IconCompositionStratum[]
+_defines.icon_composition_strata = { "backdrop", "canvas", "overlay", "annotation" }
+
 return _defines

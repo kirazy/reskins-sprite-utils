@@ -23,6 +23,17 @@ Date: ????
       - `icons.outline_icon(s)` set `draw_background` on the first layer that is not a spacer; `icons.remove_outline_from_icon(s)` set `draw_background = false` on every layer
       - `icons.set_icon(s)_tint` set the tint; `icons.blend_icon(s)_tint` blend a tint into each layer's existing tint (white when absent) using `colors.blend` at the given weight, or a caller-supplied blending function
       - Tint verbs do not modify a layer whose tint has an alpha of zero, which the game renders additively
+    - Added `compositions` module for assembling an icon from named groups of layers
+      - `compositions.from_icon`, `from_icons`, `from_source`, `from_prototype`, and `from_named_prototype` create a composition holding the given content in one group; `:add`, `:replace`, and `:remove` then manage content by group, and every method returns a new composition without modifying the original
+      - `compositions.from_classified_icons` creates a composition from an icon by assigning each layer to the group a classifier function returns for it; consecutive layers assigned to the same group become one piece of content
+      - Groups are assigned to one of four strata, `backdrop`, `canvas`, `overlay`, and `annotation`, drawn in that order; within a stratum, groups are ordered by `order`, then by name, then by insertion order
+      - The `backdrop`, `canvas`, and `overlay` strata accept a placement per content and are scaled and shifted together by `:transform`; `annotation` content is positioned in slot coordinates, is not transformed or floated, and is omitted when a composition is embedded in another
+      - `:set_tint`, `:blend_tint`, `:float`, `:remove_floating`, `:outline`, and `:remove_outline` are recorded and applied at build to all content, including content added after the call; groups with `tintable = false` are excluded from the tint verbs
+      - `:build` returns the icon; the `to` option recomputes `scale` and `shift` for the expected icon size of another icon defaults type
+      - `:project` lowers the composition through a projection; `compositions.projections.icon` and `compositions.projections.pictures` are provided. A group's `projections` entry excludes it from a projection (`false`) or supplies a `rewrite` function to the pictures projection
+      - Content may be an `IconData` object, an array of them, an `IconSource`, a prototype defining an icon, or another composition; content with a different icon defaults type has its `scale` and `shift` recomputed for the composition's
+    - Added `defines.icon_composition_strata`, the strata of an icon composition in drawing order
+    - Added `validation.common.icon_composition_group` and `validation.common.icon_composition_projection`
     - Added `colors.are_equal`, comparing two colors channel by channel after normalizing both; channels within a tolerance are treated as equal, default half an 8-bit step
     - Added `utils` module with `utils.array_concat`, concatenating any number of arrays into one
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`

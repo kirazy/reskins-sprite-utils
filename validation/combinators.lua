@@ -59,6 +59,8 @@ local AnyOfValidator = Validator.subclass("any_of")
 ---@overload fun<A, B>(a: Validator<A>, b: Validator<B>): Validator<A|B>
 ---@overload fun<A, B, C>(a: Validator<A>, b: Validator<B>, c: Validator<C>): Validator<A|B|C>
 ---@overload fun<A, B, C, D>(a: Validator<A>, b: Validator<B>, c: Validator<C>, d: Validator<D>): Validator<A|B|C|D>
+---@overload fun<A, B, C, D, E>(a: Validator<A>, b: Validator<B>, c: Validator<C>, d: Validator<D>, e: Validator<E>): Validator<A|B|C|D|E>
+---@overload fun(...): Validator<any>
 ---@nodiscard
 function _combinators.any_of(...)
 	local branches = pack_branches("V.any_of", ...)

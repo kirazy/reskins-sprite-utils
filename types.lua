@@ -161,6 +161,83 @@
 ---An array of icon data sources, whether a mix of explicit icons or a instructions on where to retrieve icons.
 ---@alias IconSources (IconDatumSource|IconDataSource|PrototypeIconSource)[]
 
+---A stratum of an icon composition: the band of the stack a group's content sits in, and with it
+---the space the content is authored in.
+---
+---`backdrop`, `canvas`, and `overlay` hold artwork, drawn in that order from the bottom up, which a
+---placement and the composition's transform move and scale together. `annotation` holds marks
+---authored against the slot the finished icon is drawn in: they are drawn last, are never placed,
+---transformed, or floated, and are left out when the composition is embedded in another.
+---@alias IconCompositionStratum
+---| "backdrop" # Artwork beneath the subject, such as a plate or a box.
+---| "canvas" # The subject of the icon.
+---| "overlay" # Artwork over the subject, such as a symbol or a sourced icon.
+---| "annotation" # Marks against the slot, such as tier labels.
+
+---A named group of content in an icon composition.
+---
+---A plain table, defined once and shared: a composition adopts a group the first time content is
+---added to it, and a later definition under the same name must say the same things.
+---@class IconCompositionGroup
+---The name the group is known by within a composition.
+---@field name string
+---Which band of the stack the group's content sits in.
+---@field stratum IconCompositionStratum
+---Where the group sits among the groups of its stratum, lowest first. Default `0`. Groups of the
+---same order stack by name, and content within a group in the order it was added.
+---@field order? number
+---Whether the composition's `set_tint` and `blend_tint` reach the group's content. Default `true`.
+---@field tintable? boolean
+---Whether the group holds one piece of content at a time, so adding to it replaces what it held.
+---Default `false`.
+---@field unique? boolean
+---What the group says about each projection, by projection name: `false` keeps the group out of
+---that projection; a table is handed to the projection to read as it sees fit.
+---@field projections? table<string, table|false>
+
+---One group's content as a projection receives it: placed, transformed, and with the recorded
+---verbs applied.
+---@class IconCompositionProjectedContribution
+---The group the content belongs to.
+---@field group IconCompositionGroup
+---The content, as icon layers in the frame the composition was projected to.
+---@field layers SafeIconData[]
+---The group's entry for the projection, when it made one.
+---@field entry? table
+
+---What a projection is told about the composition it lowers.
+---@class IconCompositionProjectionContext
+---The name of the type-specific icon defaults the layers are scaled for.
+---@field defaults_type? IconDefaultsType
+---The composition being projected.
+---@field composition IconComposition
+
+---A way of lowering an icon composition to an output, such as an icon or a sprite.
+---@class IconCompositionProjection<T>
+---The name groups refer to the projection by in their `projections` entries.
+---@field name string
+---Whether the output is drawn in a slot. When it is not, `annotation` content is left out unless
+---its group makes an entry for the projection.
+---@field has_slot boolean
+---Lowers the contributions, in stacking order, to the output.
+---@field lower fun(contributions: IconCompositionProjectedContribution[], context: IconCompositionProjectionContext): T
+
+---What a group may say to the `pictures` projection.
+---@class IconCompositionPicturesEntry
+---Rewrites the group's lowered sprite layers. Returns the layers to keep in the group's place, and
+---optionally layers to emit after every group.
+---@field rewrite? fun(layers: Sprite[], contribution: IconCompositionProjectedContribution): Sprite[], Sprite[]?
+
+---Options for building or projecting an icon composition.
+---@class IconCompositionBuildOptions
+---The name of the type-specific icon defaults to size the output for, when it differs from the
+---composition's own. Every stratum has its scale and shift recomputed, annotations included.
+---@field to? IconDefaultsType
+
+---What may be added to an icon composition: an icon, an icon source, a prototype defining an
+---icon, or another composition.
+---@alias IconCompositionContent IconData|IconData[]|IconSource|PrototypeWithIcons|IconComposition
+
 ---Provides additional fields for the `Animation` object when using a sprite sheet with
 ---frames laid out in vertical stripes instead of the standard convention of horizontal stripes.
 ---@class VerticallyOrientableAnimation : Animation

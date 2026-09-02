@@ -7,6 +7,7 @@ manipulating icons, sprites, and prototypes with full type safety and extensive 
 ## Features
 
 - **Icon Manipulation**: Create, scale, transform, and extract icons from prototypes
+- **Icon Composition**: Assemble an icon from named groups of layers in fixed strata, and project it as an icon or as in-world pictures
 - **Sprite Utilities**: Convert icons to sprites, create 4-way animations from sprite sheets
 - **Prototype Scaling**: Rescale entity prototypes and their associated remnants
 - **Type Safety**: Full LuaLS type annotations and comprehensive error handling for improved

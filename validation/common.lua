@@ -4,6 +4,7 @@
 ---@namespace Reskins.SpriteUtils.Validation
 
 local V = require("validation")
+local _defines = require("defines")
 
 ---A catalog of ready-made validators for the values this library works with.
 ---
@@ -271,6 +272,46 @@ _common.deferrable_icon_datum = V.shape({
 	icon_datum = _common.icon_datum,
 	options = _common.icon_assignment_options:optional(),
 }):describe_as("a DeferrableIconDatum")
+
+-- Icon compositions
+
+---A stratum of an icon composition.
+---@type Validator<IconCompositionStratum>
+_common.icon_composition_stratum = V.one_of(_defines.icon_composition_strata):describe_as("an icon composition stratum")
+
+---What a group says about one projection: `false` to stay out of it, or a table for the
+---projection to read.
+---
+---Open, since what the table holds is the projection's business.
+local group_projection_entry = V.any_of(V.literal(false), V.table())
+	:describe_as("false or a table of settings for the projection")
+
+---A group definition for an icon composition.
+---
+---Strict, since this is a small, fixed set of fields the library defines itself: a misspelled
+---`unique` should be caught rather than silently read as its default.
+---@type ShapeValidator<IconCompositionGroup>
+_common.icon_composition_group = V.shape({
+	name = _common.non_empty_string,
+	stratum = _common.icon_composition_stratum,
+	order = V.number():finite():optional(),
+	tintable = V.boolean():optional(),
+	unique = V.boolean():optional(),
+	projections = V.map(_common.non_empty_string, group_projection_entry):optional(),
+})
+	:strict()
+	:describe_as("an IconCompositionGroup")
+
+---A projection of an icon composition: a name, whether its output is drawn in a slot, and how the
+---composed layers are lowered to it.
+---@type ShapeValidator<IconCompositionProjection<any>>
+_common.icon_composition_projection = V.shape({
+	name = _common.non_empty_string,
+	has_slot = V.boolean(),
+	lower = V.func(),
+})
+	:strict()
+	:describe_as("an IconCompositionProjection")
 
 -- Sprite sheets
 
