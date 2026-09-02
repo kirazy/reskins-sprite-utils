@@ -2,28 +2,36 @@
 Version: 0.1.2
 Date: ????
   Features:
-    - Added `validation` module for building reusable validators once and applying them wherever they are needed, in place of restating rules at every call site
-      - Primitives (`string`, `number`, `integer`, `boolean`, `table`, `any`), collections (`array`, `map`, `shape`, `tuple`), and combinators (`any_of`, `all_of`, `one_of`, `literal`, `custom`, `lazy`)
-      - `validator:parse` returns the value typed as what the validator validates; `validator:assert` throws and returns nothing, so it reads as a statement guard
-      - `validator:validate` returns every failure with a path such as `icon_data[3].icon_size`, and `validator:is_valid` answers without raising
-      - Failures are reported against the line that called the validated function, rather than the guard inside it, whether thrown or logged
-      - Validators are generic, so `parse` yields a typed value and `is_valid` narrows in a condition: `if Common.icon_datum:is_valid(source) then` treats `source` as `IconData` for the rest of the branch
-      - `validation.signature` checks a whole argument list in one call, reporting every bad argument at once, and takes rules spanning several arguments for a constraint one argument places on another
-      - Builder methods never mutate, so a shared validator can be narrowed by any caller without affecting the original
-    - Added `validation.common`, a catalog of ready-made validators for icons, colors, vectors, mod-relative file paths, sprite sizes, and prototype references
-    - Added the hidden `reskins-sprite-utils-validation-behavior` startup setting, selecting whether an invalid argument throws, is logged, or is ignored
-    - Added `IconTransform`, giving the scale, shift, tint, and layer flags to apply to an icon composed onto another, and taken from the `transform` field of an icon source
-      - `defines.icon_transforms` provides presets: `corners` places a source in one of the four corners at half scale, `compass` in one of eight positions at 0.4375 scale
-      - Where `transform` is given it is the whole statement; a `scale`, `shift`, or `tint` written beside it is ignored
-      - `floating` applies to every layer of the sourced icon and `draw_background` to its first layer only; a layer already setting either retains its value
-    - Added `colors.are_equal` for comparing two colors channel by channel, reading both on the same scale first and treating channels within a tolerance of each other as equal; by default the tolerance is half an 8-bit step
-    - Added `utils` module, with `utils.array_concat` to concatenate any number of array inputs of the same type into a single array
+    - Added `validation` module for defining reusable argument validators
+      - Primitives (`string`, `number`, `integer`, `boolean`, `func`, `table`, `any`), collections (`array`, `map`, `shape`, `tuple`), and combinators (`any_of`, `all_of`, `one_of`, `literal`, `custom`, `lazy`)
+      - `validator:parse` returns the validated value with its type; `validator:assert` throws and returns nothing
+      - `validator:validate` returns every failure with its path, such as `icon_data[3].icon_size`; `validator:is_valid` returns a boolean without throwing, and narrows the type when used in a condition
+      - Failures are reported against the line that called the validated function, whether thrown or logged
+      - `validation.signature` checks a full argument list in one call, reports every invalid argument at once, and accepts rules that span multiple arguments
+      - Builder methods return a new validator; narrowing a shared validator does not modify the original
+    - Added `validation.common`, a catalog of validators for icons, colors, vectors, mod-relative file paths, sprite sizes, and prototype references
+    - Added hidden startup setting `reskins-sprite-utils-validation-behavior`, selecting whether an invalid argument throws, is logged, or is ignored
+    - Added `Transform`, a scale and a shift applied together; used by the `transform` field of an icon source, `icons.transform_icon(s)`, and compositions
+      - Added `defines.icon_transforms` presets: `corners` (four corners, scale 0.5) and `compass` (eight positions, scale 0.4375)
+      - When `transform` is set on a source, `scale` and `shift` on the same source are ignored; `tint` and `floating` are separate source fields
+      - `floating` applies to every layer of the sourced icon; a layer that already sets it keeps its value
+      - The first layer of a sourced icon is always given `draw_background = true`
+    - Added icon verbs, each with a single-layer form taking an `IconData` object and a layered form taking an array of them
+      - `icons.transform_icon` and `icons.transform_icons` accept a `Transform` for scale and shift; the positional form is retained for backwards compatibility but is deprecated and will be removed in future
+      - `icons.convert_icon_defaults_type` and `icons.convert_icons_defaults_type` recompute an icon's `scale` and `shift` for the expected icon size of another icon defaults type; `icon_size` is unchanged
+      - `icons.float_icon(s)` set `floating`; `icons.remove_floating_from_icon(s)` clear it
+      - `icons.outline_icon(s)` set `draw_background` on the first layer that is not a spacer; `icons.remove_outline_from_icon(s)` set `draw_background = false` on every layer
+      - `icons.set_icon(s)_tint` set the tint; `icons.blend_icon(s)_tint` blend a tint into each layer's existing tint (white when absent) using `colors.blend` at the given weight, or a caller-supplied blending function
+      - Tint verbs do not modify a layer whose tint has an alpha of zero, which the game renders additively
+    - Added `colors.are_equal`, comparing two colors channel by channel after normalizing both; channels within a tolerance are treated as equal, default half an 8-bit step
+    - Added `utils` module with `utils.array_concat`, concatenating any number of arrays into one
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`
     - Added `icons.get_expected_icon_size`
-    - Added `options` (`IconAssignmentOptions`) field to `DeferrableIconData` and `DeferrableIconDatum`, to control how assignment to related prototypes fans out. This enables strict assignment, as well as only fanning out to e.g., only recipes.
+    - Added `options` (`IconAssignmentOptions`) field to `DeferrableIconData` and `DeferrableIconDatum`, controlling which related prototypes are assigned; supports strict assignment and assignment to only some prototype kinds, such as recipes
   Changes:
+    - A tint applied through an icon source, `icons.create_icons_from_sources`, `icons.add_icons_from_sources_to_icons`, the `icons.add_icons_from_prototype_to_*` methods, or the positional form of `icons.transform_icon(s)` no longer replaces a tint with an alpha of zero, which the game renders additively
     - Improved types of `prototype` parameters to `icons.clear_icon_from_prototype` and `icons.add_icons_from_prototype_to_icons` to include all prototypes that may have an icon
-    - `icons.assign_icons_to_prototype_and_related_prototypes` now assigns icons to related recipes of the same name that produce only the same item; where possible, if icon inheritance is permitted, the recipe icon will be cleared
+    - `icons.assign_icons_to_prototype_and_related_prototypes` now assigns icons to related recipes of the same name that produce only the same item; where icon inheritance is permitted, the recipe icon is cleared instead
     - The following methods now throw when the prototype (directly as a parameter or indirectly by name and type) is nil:
       - `icons.add_icons_from_prototype_to_icon`
       - `icons.add_icons_from_prototype_to_icons`
@@ -33,30 +41,32 @@ Date: ????
     - Revised `icons.transform_icon` to handle the single-icon case, and added `icons.transform_icons` for the layered icon case
     - `sprites.rescale_remnants_of_prototype` now works with the array form of `prototype.corpse` for entities with many corpse references
     - `sprites.make_rotated_animation_variations_from_spritesheet` and `sprites.make_4way_animation_from_spritesheet` now handle `size` as the means to specify width/height
-    - Icon, sprite, color, and utility methods now validate their arguments through the `validation` module; a failure names the function, the parameter, and the path within it, as in `add_missing_icon_defaults(): parameter 'icon_datum.icon_size': must be between 1 and 8192 inclusive, got 0`
-    - `icons.compose_icons` now rejects an argument that is neither an `IconData` object nor an array of them, rather than leaving it out of the composition without comment
-    - `icons.add_missing_icons_defaults` now rejects an empty array; an icon must carry at least one layer
-    - `icons.clear_icon_from_prototype` now clears the dark-background icon fields alongside the main ones, which would otherwise keep showing the replaced artwork on dark backgrounds
+    - Icon, sprite, color, and utility methods now validate their arguments through the `validation` module; a failure names the function, the parameter, and the path within it, e.g. `add_missing_icon_defaults(): parameter 'icon_datum.icon_size': must be between 1 and 8192 inclusive, got 0`
+    - `icons.compose_icons` now throws when an argument is neither an `IconData` object nor an array of them, rather than omitting it from the result
+    - `icons.add_missing_icons_defaults` now throws when given an empty array
+    - `icons.clear_icon_from_prototype` now also clears the dark-background icon fields
     - `IconDefaultsType` now offers `"starmap"` in place of `"space-location"` for the 512px starmap icon size
     - `icons.clear_icon_from_named_prototype`, `icons.get_dark_background_icon_from_named_prototype`, and `icons.get_starmap_icon_from_named_prototype` now report an unregistered type name rather than raising an index error
     - `icons.create_icons_from_sources`, `icons.add_icons_from_sources_to_icons`, `sprites.create_sprite_from_icon`, `sprites.create_sprite_from_icons` added optional parameter `defaults_type` to control how missing icon fields with defaults are resolved
-    - `colors.from_argb` now rejects a hex code carrying a character that is not a hexadecimal digit, including a leading `#`, rather than reading a color out of it
+    - `colors.from_argb` now throws when the hex code contains a character that is not a hexadecimal digit, including a leading `#`
   Bugfixes:
     - Fixed that `icons.get_dark_background_icon_from_prototype` and `icons.get_starmap_icon_from_prototype` could return an invalid icon if the target icon was not available; the methods both now return nil in that case
     - Icon methods now correctly pass-through the `draw_background` and `floating` properties on icons
-    - Fixed that `icons.assign_icons_to_prototype_and_related_prototypes` read the whole `dying_explosion` table as an explosion name rather than its `name` field, and did not handle the bare `EntityID` form, so an explicitly named dying explosion never received the icon
+    - Fixed that `icons.assign_icons_to_prototype_and_related_prototypes` read the `dying_explosion` table as an explosion name rather than its `name` field, and did not handle the `EntityID` string form, so an explicitly named dying explosion was not assigned the icon
     - Fixed that `icons.get_icon_from_prototype` sized the regular icon of a `space-location` prototype against the 512px starmap size rather than the default
     - Fixed that an empty `icons`, `starmap_icons`, or `dark_background_icons` array masked a defined `icon`, `starmap_icon`, or `dark_background_icon`
     - Fixed that `icons.get_starmap_icon_from_prototype` fell back to the prototype's regular `icon_size` for layers omitting one, rather than to `starmap_icon_size`
-    - Fixed that `icons.create_icons_from_sources` spliced the caller's tint table into the icon it returned, and raised an index error rather than a message when given no sources
-    - Fixed that `icons.add_missing_icon_defaults` returned `shift` and `tint` by reference, leaving every icon built from one source holding the same mutable tables
-    - Fixed that `icons.assign_deferrable_icon` preferred `icon_datum` over `icon_data` when both were set, against the engine's preference for `icons` over `icon`, and dropped `pictures` in that case
-    - Fixed that `colors.rgba_to_hsva` reported a saturation of `NaN` for black, which the HSVA conversions would then reject as a color they had themselves produced
-    - Fixed that `sprites.create_sprite_from_icon` and `sprites.create_sprite_from_icons` scaled each layer's artwork by the given `scale` but not its shift, pulling a composed icon apart at any scale but one
+    - Fixed that `icons.create_icons_from_sources` returned an icon referencing the caller's tint table, and raised an index error rather than a validation message when given no sources
+    - Fixed that `icons.add_missing_icon_defaults` returned `shift` and `tint` by reference, so icons built from the same source shared those tables
+    - Fixed that `icons.assign_deferrable_icon` preferred `icon_datum` over `icon_data` when both were set, contrary to the game's preference for `icons` over `icon`, and dropped `pictures` in that case
+    - Fixed that `colors.rgba_to_hsva` returned a saturation of `NaN` for black, which the HSVA conversion methods then rejected as invalid
+    - Fixed that `sprites.create_sprite_from_icon` and `sprites.create_sprite_from_icons` applied `scale` to each layer's artwork but not its shift, resulting in misaligned layered icons at any scale other than 1
     - Fixed that `icons.transform_icon` and `icons.transform_icons` left an existing shift unscaled when given a scale and no shift of their own
-    - Fixed that prototypes whose scale was determined by `tile_width` and `tile_height` were not correctly rescaled when using the rescale prototype methods.
+    - Fixed that prototypes whose scale was determined by `tile_width` and `tile_height` were not correctly rescaled when using the rescale prototype methods
+    - Fixed documentation on `icons.transform_icon` to correctly reflect that it handles singular icon layers, not the array form
   Deprecated:
-    - `colors.from_argb` is deprecated with the introduction of EmmyLua (and removal of sumneko) by the Factorio Modding Tool Kit, which correctly handles RGBA color strings
+    - Deprecated the positional call form of `icons.transform_icon` and `icons.transform_icons` (`scale, shift, tint, defaults_type`); use a `Transform` for scale and shift, and `icons.set_icon_tint` or `icons.set_icons_tint` for tint
+    - Deprecated `colors.from_argb`; the Factorio Modding Tool Kit now uses EmmyLua in place of sumneko, which correctly handles RGBA color strings
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
 Date: 2026-06-07

@@ -13,11 +13,12 @@ local _icons = {}
 
 local V = require("validation")
 local Common = require("validation.common")
+local Colors = require("colors")
 
 ---@type table<string, Reskins.SpriteUtils.Validation.Validator<any>>
 local existing_prototype_validators = {}
 
----Reports whether `name` names a prototype registered under `type_name`.
+---Indicates whether `name` names a prototype registered under `type_name`.
 ---
 ---A cross-argument rule rather than a parameter validator, since whether a name
 ---exists depends on the type name beside it.
@@ -161,58 +162,139 @@ local function apply_icons_defaults(icon_data, defaults_type)
 	return new_icon_data
 end
 
----Applies a scale, shift, and tint to one icon layer.
+---Indicates whether `icon_datum` carries an additive tint: one with an alpha of zero, which the game
+---draws additively rather than as a color. A highlights layer is tinted `{ 1, 1, 1, 0 }` for this,
+---and changing that tint loses the effect, so nothing that applies a tint touches such a layer.
+---@param icon_datum IconData # A valid `IconData` object.
+---@return boolean # Whether the layer's tint has an alpha of zero.
+---@nodiscard
+local function has_additive_tint(icon_datum)
+	local tint = icon_datum.tint
+	if not tint then
+		return false
+	end
+
+	local alpha = tint.a
+	if alpha == nil then
+		alpha = tint[4]
+	end
+
+	return alpha == 0
+end
+
+---Everything the internal substrate may apply to one layer at once: a `Transform`, and the fields
+---the sources pipeline and the positional `transform_icon(s)` set beside it.
+---
+---Not public. The public `Transform` is scale and shift only; the other fields have verbs of
+---their own, and this record exists so the paths that still take them together can share one
+---applier.
+---@class (exact) IconLayerAdjustment : Transform
+---The tint to set. Kept from the layer when its own tint is additive.
+---@field tint? Color
+---Whether to float the layer. A floor: a layer already floating stays floating.
+---@field floating? boolean
+---Whether to draw the layer's background. A floor: an explicit `false` on the layer survives.
+---@field draw_background? boolean
+
+---Indicates whether `adjustment` asks for nothing to be applied.
+---@param adjustment IconLayerAdjustment # A valid adjustment.
+---@return boolean # Whether every field of the adjustment is absent.
+---@nodiscard
+local function is_empty_adjustment(adjustment)
+	return not adjustment.scale
+		and not adjustment.shift
+		and not adjustment.tint
+		and not adjustment.floating
+		and not adjustment.draw_background
+end
+
+---Applies an `IconLayerAdjustment` to one icon layer.
 ---
 ---The working half of `transform_icon`, without the validation.
+---
+---`floating` and `draw_background` are a floor, not a replacement: a layer that already sets one keeps
+---it, so neither can be switched off from out here. This matches the merge already used to apply an
+---`IconLayerAdjustment` from an `IconSource` (see `apply_icons_from_sources`).
+---
+---A tint replaces the layer's own, except an additive one, which is a blend mode rather than a
+---color and is kept.
 ---@param icon_datum IconData # A valid `IconData` object.
----@param scale? double # The scale to apply.
----@param shift? Vector # The shift to apply.
----@param tint? Color # The tint to apply.
+---@param adjustment IconLayerAdjustment # A valid adjustment to apply.
 ---@param defaults_type? IconDefaultsType # The type-specific defaults to apply.
 ---@return SafeIconData # A copy with the transformations applied.
 ---@nodiscard
-local function apply_icon_transform(icon_datum, scale, shift, tint, defaults_type)
+local function apply_icon_adjustment(icon_datum, adjustment, defaults_type)
 	local copy = apply_icon_defaults(icon_datum, defaults_type)
-	if not scale and not shift and not tint then
+	if is_empty_adjustment(adjustment) then
 		return copy
 	end
 
+	local scale, shift = adjustment.scale, adjustment.shift
+
 	local scaled_shift = copy.shift and util.mul_shift(copy.shift, scale or 1) or nil
 	---@type SafeIconData
-	local transformed = {
+	local adjusted = {
 		icon = copy.icon,
 		icon_size = copy.icon_size,
 		scale = copy.scale * (scale or 1),
 		shift = shift and util.add_shift(scaled_shift or { 0, 0 }, shift) or scaled_shift,
-		tint = tint or copy.tint,
-		draw_background = copy.draw_background,
-		floating = copy.floating,
+		tint = has_additive_tint(copy) and copy.tint or adjustment.tint or copy.tint,
+		-- The flags are a floor: an adjustment may switch one on, never off. The adjustment's value is
+		-- read first so that an explicit `false` on the layer survives, where `false or nil` would
+		-- erase it.
+		draw_background = adjustment.draw_background or copy.draw_background,
+		floating = adjustment.floating or copy.floating,
 	}
 
-	return transformed
+	return adjusted
 end
 
----Applies a scale, shift, and tint to every layer of an icon.
+---Applies an `IconLayerAdjustment` to every layer of an icon.
 ---
 ---The working half of `transform_icons`, without the validation.
 ---@param icon_data IconData[] # A valid array of `IconData` objects.
----@param scale? double # The scale to apply.
----@param shift? Vector # The shift to apply.
----@param tint? Color # The tint to apply.
+---@param adjustment IconLayerAdjustment # A valid adjustment to apply to every layer.
 ---@param defaults_type? IconDefaultsType # The type-specific defaults to apply.
 ---@return SafeIconData[] # A copy with the transformations applied to each layer.
 ---@nodiscard
-local function apply_icons_transform(icon_data, scale, shift, tint, defaults_type)
-	if not scale and not shift and not tint then
+local function apply_icons_transform(icon_data, adjustment, defaults_type)
+	if is_empty_adjustment(adjustment) then
 		return apply_icons_defaults(icon_data, defaults_type)
 	end
 
-	local transformed_icon_data = {}
+	local adjusted_icon_data = {}
 	for index = 1, #icon_data do
-		transformed_icon_data[index] = apply_icon_transform(icon_data[index], scale, shift, tint, defaults_type)
+		adjusted_icon_data[index] = apply_icon_adjustment(icon_data[index], adjustment, defaults_type)
 	end
 
-	return transformed_icon_data
+	return adjusted_icon_data
+end
+
+---Indicates whether `icon_datum` is a spacer: an empty image holding a footprint open, which cannot
+---carry an outline. Spacers are recognized by file name and icon_size of 1, since the empty sprites
+---in circulation (`util.empty_sprite()` among them) share that convention rather than a single
+---path.
+---@param icon_datum IconData # A valid `IconData` object.
+---@return boolean # Whether the layer is a spacer.
+---@nodiscard
+local function is_spacer(icon_datum)
+	return icon_datum.icon:match("empty%.png$") ~= nil and icon_datum.icon_size == 1
+end
+
+---Sets `draw_background` on the first layer of `icon_data` that is not a spacer, in place.
+---
+---The working half of `outline`, for arrays the caller already owns.
+---@param icon_data IconData[] # A valid array of `IconData` objects, owned by the caller.
+---@return IconData[] # `icon_data`, outlined.
+local function outline_in_place(icon_data)
+	for index = 1, #icon_data do
+		if not is_spacer(icon_data[index]) then
+			icon_data[index].draw_background = true
+			break
+		end
+	end
+
+	return icon_data
 end
 
 local check_get_expected_icon_size = V.signature("get_expected_icon_size", {
@@ -1341,7 +1423,10 @@ local function apply_icons_from_prototype(icon_data, prototype, scale, shift, ti
 	local sourced_icon_data = _icons.get_icon_from_prototype(prototype)
 
 	for index = 1, #sourced_icon_data do
-		table.insert(icon_data_copy, apply_icon_transform(sourced_icon_data[index], scale, shift, tint, prototype.type))
+		table.insert(
+			icon_data_copy,
+			apply_icon_adjustment(sourced_icon_data[index], { scale = scale, shift = shift, tint = tint }, prototype.type)
+		)
 	end
 
 	return icon_data_copy
@@ -1567,7 +1652,42 @@ function _icons.add_icons_from_prototype_to_icon_by_name(icon_datum, name, type_
 	return apply_icons_from_prototype({ icon_datum }, data.raw[type_name][name], scale, shift, tint)
 end
 
+---Gets a copy of `icon_datum` with `field` set to `value`.
+---@param icon_datum IconData # A valid `IconData` object.
+---@param field string # The field to set.
+---@param value any # The value to set it to; `nil` clears it.
+---@return IconData # A copy with the field set.
+---@nodiscard
+local function layer_with_field(icon_datum, field, value)
+	local layer = util.copy(icon_datum)
+	layer[field] = value
+
+	return layer
+end
+
+---Gets an array holding the result of `fn` for each layer of `icon_data`, in order.
+---@generic T
+---@param icon_data IconData[] # A valid array of `IconData` objects.
+---@param fn fun(icon_datum: IconData, ...): T # Applied to each layer, with any extra arguments.
+---@param ... any # Extra arguments passed to `fn` after the layer.
+---@return T[] # The results, in layer order.
+---@nodiscard
+local function map_layers(icon_data, fn, ...)
+	local mapped = {}
+	for index = 1, #icon_data do
+		mapped[index] = fn(icon_data[index], ...)
+	end
+
+	return mapped
+end
+
 local check_transform_icon = V.signature("transform_icon", {
+	{ "icon_datum", Common.icon_datum },
+	{ "transform", Common.transform },
+	{ "defaults_type", Common.icon_defaults_type:optional() },
+})
+
+local check_transform_icon_positional = V.signature("transform_icon", {
 	{ "icon_datum", Common.icon_datum },
 	{ "scale", Common.positive_number:optional() },
 	{ "shift", Common.vector:optional() },
@@ -1576,57 +1696,72 @@ local check_transform_icon = V.signature("transform_icon", {
 })
 
 ---
----Transforms the given `icon_data` array by applying the given `scale`, `shift` and `tint` to each
----element of the array.
+---Scales and shifts the given `icon_datum`.
 ---
 ---### Remarks
+---- `scale` multiplies the scale the layer already has, and an existing shift is scaled by the same
+---  factor before `shift` is added, so the layer keeps its place within a composition as it moves.
 ---- Missing icon fields are set to default values as appropriate.
----- `icon_data` is not modified.
+---- `icon_datum` is not modified.
+---- The positional call form, `transform_icon(icon_datum, scale, shift, tint, defaults_type)`, is
+---  deprecated. Pass a `Transform` for scale and shift, and use `set_icon_tint` for tint.
 ---
 ---### Examples
 ---```lua
-------@type IconData[]
----local icon_data = {
----    {
----        icon = "__base__/graphics/icons/iron-plate.png",
----        icon_size = 64,
----        scale = 0.5,
----    },
----    {
----        icon = "__base__/graphics/icons/copper-wire.png",
----        icon_size = 64,
----        scale = 0.25,
----        shift = { -16, 16 }
----    },
----}
+----- Halve the layer and move it into the upper-right quadrant.
+---local placed = _icons.transform_icon(icon_datum, { scale = 0.5, shift = { 8, -8 } })
 ---
------ Transform the icon by scaling it to 1.5 times its original size
------ and shifting it by 16 pixels to the right.
----local transformed_icon_data = _icons.transform_icon(icon_data, 1.5, { 16, 0 })
+----- The presets cover the common placements.
+---local cornered = _icons.transform_icon(icon_datum, _defines.icon_transforms.corners.northeast)
 ---```
 ---
 ---### Parameters
----@param icon_datum IconData # An array of `IconData` objects to be transformed.
----@param scale? double # The scale to apply to the sourced icon. Default `nil`.
----@param shift? Vector # The shift to apply to the sourced icon. Default `nil`.
----@param tint? Color # The tint to apply to the sourced icon. Default `nil`.
+---@param icon_datum IconData # An `IconData` object.
+---@param transform Transform # The scale and shift to apply.
 ---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param ... unknown # Not used by this form.
 ---
 ---### Returns
----@return SafeIconData # A copy of `icon_datum` with the transformations applied.
+---@return SafeIconData # A copy of `icon_datum` with the transform applied.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_datum` is `nil`.\
----*@throws* `string` — Thrown when `icon_datum.icon` is not an absolute file path with a valid extension.\
----*@throws* `string` — Thrown when `icon_datum.icon_size` is not a positive integer.
+---*@throws* `string` — Thrown when `icon_datum` is not a valid `IconData` object.\
+---*@throws* `string` — Thrown when `transform` is not a `Transform`.
+---
+---### See Also
+---@see Icons.transform_icons
+---@overload fun(icon_datum: IconData, scale?: double, shift?: Vector, tint?: Color, defaults_type?: IconDefaultsType): SafeIconData
 ---@nodiscard
-function _icons.transform_icon(icon_datum, scale, shift, tint, defaults_type)
-	check_transform_icon(icon_datum, scale, shift, tint, defaults_type)
+function _icons.transform_icon(icon_datum, transform, defaults_type, ...)
+	if type(transform) ~= "table" then
+		-- The positional form: (icon_datum, scale, shift, tint, defaults_type).
+		local scale, shift = transform, defaults_type
+		local tint, positional_defaults_type = ...
 
-	return apply_icon_transform(icon_datum, scale, shift, tint, defaults_type)
+		check_transform_icon_positional(icon_datum, scale, shift, tint, positional_defaults_type)
+
+		return apply_icon_adjustment(icon_datum, {
+			scale = scale --[[@as double?]],
+			shift = shift --[[@as Vector?]],
+			tint = tint --[[@as Color?]],
+		}, positional_defaults_type--[[@as IconDefaultsType?]])
+	end
+
+	check_transform_icon(icon_datum, transform, defaults_type)
+
+	return apply_icon_adjustment(icon_datum, {
+		scale = transform.scale,
+		shift = transform.shift,
+	}, defaults_type)
 end
 
 local check_transform_icons = V.signature("transform_icons", {
+	{ "icon_data", Common.icon_data },
+	{ "transform", Common.transform },
+	{ "defaults_type", Common.icon_defaults_type:optional() },
+})
+
+local check_transform_icons_positional = V.signature("transform_icons", {
 	{ "icon_data", Common.icon_data },
 	{ "scale", Common.positive_number:optional() },
 	{ "shift", Common.vector:optional() },
@@ -1634,12 +1769,16 @@ local check_transform_icons = V.signature("transform_icons", {
 	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
----Transforms the given `icon_data` array by applying the given `scale`, `shift` and `tint` to each
----element of the array.
+---
+---Scales and shifts every layer of the given `icon_data`.
 ---
 ---### Remarks
+---- `scale` multiplies the scale each layer already has, and an existing shift is scaled by the
+---  same factor before `shift` is added, so the composition keeps its arrangement as it moves.
 ---- Missing icon fields are set to default values as appropriate.
 ---- `icon_data` is not modified.
+---- The positional call form, `transform_icons(icon_data, scale, shift, tint, defaults_type)`, is
+---  deprecated. Pass a `Transform` for scale and shift, and use `set_icons_tint` for tint.
 ---
 ---### Examples
 ---```lua
@@ -1658,30 +1797,669 @@ local check_transform_icons = V.signature("transform_icons", {
 ---    },
 ---}
 ---
------ Transform the icon by scaling it to 1.5 times its original size
------ and shifting it by 16 pixels to the right.
----local transformed_icon_data = _icons.transform_icon(icon_data, 1.5, { 16, 0 })
+----- Scale every layer to 1.5 times its original size and shift it 16 pixels to the right.
+---local transformed_icon_data = _icons.transform_icons(icon_data, { scale = 1.5, shift = { 16, 0 } })
 ---```
 ---
 ---### Parameters
----@param icon_data IconData[] # An array of `IconData` objects to be transformed.
----@param scale? double # The scale to apply to the sourced icon. Default `nil`.
----@param shift? Vector # The shift to apply to the sourced icon. Default `nil`.
----@param tint? Color # The tint to apply to the sourced icon. Default `nil`.
+---@param icon_data IconData[] # An array of `IconData` objects.
+---@param transform Transform # The scale and shift to apply to every layer.
 ---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param ... unknown # Not used by this form.
 ---
 ---### Returns
----@return SafeIconData[] # A copy of `icon_data` with the transformations applied.
+---@return SafeIconData[] # A copy of `icon_data` with the transform applied to every layer.
 ---
 ---### Exceptions
----*@throws* `string` — Thrown when `icon_data` is `nil`.\
----*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.\
----*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.
+---*@throws* `string` — Thrown when `icon_data` is not a non-empty array of valid `IconData` objects.\
+---*@throws* `string` — Thrown when `transform` is not a `Transform`.
+---
+---### See Also
+---@see Icons.transform_icon
+---@see Icons.scale_icon
+---@overload fun(icon_data: IconData[], scale?: double, shift?: Vector, tint?: Color, defaults_type?: IconDefaultsType): SafeIconData[]
 ---@nodiscard
-function _icons.transform_icons(icon_data, scale, shift, tint, defaults_type)
-	check_transform_icons(icon_data, scale, shift, tint, defaults_type)
+function _icons.transform_icons(icon_data, transform, defaults_type, ...)
+	if type(transform) ~= "table" then
+		-- The positional form: (icon_data, scale, shift, tint, defaults_type).
+		local scale, shift = transform, defaults_type
+		local tint, positional_defaults_type = ...
 
-	return apply_icons_transform(icon_data, scale, shift, tint, defaults_type)
+		check_transform_icons_positional(icon_data, scale, shift, tint, positional_defaults_type)
+
+		return apply_icons_transform(icon_data, { scale = scale, shift = shift, tint = tint }, positional_defaults_type)
+	end
+
+	check_transform_icons(icon_data, transform, defaults_type)
+
+	return apply_icons_transform(icon_data, { scale = transform.scale, shift = transform.shift }, defaults_type)
+end
+
+local check_convert_icon_defaults_type = V.signature("convert_icon_defaults_type", {
+	{ "icon_datum", Common.icon_datum },
+	{ "from_type", Common.icon_defaults_type:optional() },
+	{ "to_type", Common.icon_defaults_type:optional() },
+})
+
+---
+---Recomputes the scale and shift of the given `icon_datum` for the expected icon size of another
+---kind of icon, so it draws the same whichever prototype it is assigned to. The image is what it was;
+---`icon_size` is its size in pixels and does not change.
+---
+---### Remarks
+---- `scale` and `shift` are multiplied by the ratio of the two expected sizes, since both are
+---  measured against `expected_icon_size / 2`. `icon_size` does not change.
+---- Missing icon fields are set to default values, as for `from_type`, before converting.
+---- `icon_datum` is not modified.
+---
+---### Examples
+---```lua
+----- Reuse an item's icon layer for its technology, at technology size.
+---local technology_layer = _icons.convert_icon_defaults_type(item_layer, nil, "technology")
+---```
+---
+---### Parameters
+---@param icon_datum IconData # An `IconData` object.
+---@param from_type? IconDefaultsType # The name of the type-specific icon defaults `icon_datum` is scaled for, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param to_type? IconDefaultsType # The name of the type-specific icon defaults to size `icon_datum` for. Unrecognized names resolve to `defines.default_icon_size`.
+---
+---### Returns
+---@return SafeIconData # A copy of `icon_datum` scaled for `to_type`.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_datum` is not a valid `IconData` object.\
+---*@throws* `string` — Thrown when `from_type` or `to_type` is not a non-empty string.
+---
+---### See Also
+---@see Icons.convert_icons_defaults_type
+---@see Icons.get_expected_icon_size
+---@nodiscard
+function _icons.convert_icon_defaults_type(icon_datum, from_type, to_type)
+	check_convert_icon_defaults_type(icon_datum, from_type, to_type)
+
+	local ratio = resolve_expected_icon_size(to_type) / resolve_expected_icon_size(from_type)
+
+	return apply_icon_adjustment(icon_datum, { scale = ratio }, from_type)
+end
+
+local check_convert_icons_defaults_type = V.signature("convert_icons_defaults_type", {
+	{ "icon_data", Common.icon_data },
+	{ "from_type", Common.icon_defaults_type:optional() },
+	{ "to_type", Common.icon_defaults_type:optional() },
+})
+
+---
+---Recomputes the scale and shift of every layer of the given `icon_data` for the expected icon size
+---of another kind of icon, so the icon draws the same whichever prototype
+---it is assigned to.
+---
+---### Remarks
+---- Every layer's `scale` and `shift` are multiplied by the ratio of the two expected sizes, since
+---  both are measured against `expected_icon_size / 2`. `icon_size` does not change.
+---- Missing icon fields are set to default values, as for `from_type`, before converting.
+---- `icon_data` is not modified.
+---
+---### Examples
+---```lua
+----- Reuse an item's icon for its technology, at technology size.
+---local technology_icon = _icons.convert_icons_defaults_type(item_icon_data, nil, "technology")
+---```
+---
+---### Parameters
+---@param icon_data IconData[] # An array of `IconData` objects.
+---@param from_type? IconDefaultsType # The name of the type-specific icon defaults `icon_data` is scaled for, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param to_type? IconDefaultsType # The name of the type-specific icon defaults to size `icon_data` for. Unrecognized names resolve to `defines.default_icon_size`.
+---
+---### Returns
+---@return SafeIconData[] # A copy of `icon_data` scaled for `to_type`.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_data` is not a non-empty array of valid `IconData` objects.\
+---*@throws* `string` — Thrown when `from_type` or `to_type` is not a non-empty string.
+---
+---### See Also
+---@see Icons.convert_icon_defaults_type
+---@see Icons.get_expected_icon_size
+---@nodiscard
+function _icons.convert_icons_defaults_type(icon_data, from_type, to_type)
+	check_convert_icons_defaults_type(icon_data, from_type, to_type)
+
+	local ratio = resolve_expected_icon_size(to_type) / resolve_expected_icon_size(from_type)
+
+	return apply_icons_transform(icon_data, { scale = ratio }, from_type)
+end
+
+local check_icon_datum_verb = V.signature("icon verb", {
+	{ "icon_datum", Common.icon_datum },
+})
+
+local check_icon_data_verb = V.signature("icon verb", {
+	{ "icon_data", Common.icon_data },
+})
+
+---
+---Floats the given `icon_datum`: the layer is left out of the bounds the game fits an icon into, so
+---it may extend past the slot the icon is drawn in.
+---
+---### Remarks
+---- `icon_datum` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+---local indicator = _icons.float_icon(_icons.transform_icon(chevron, { shift = { 25, 0 } }))
+---```
+---
+---### Parameters
+---@param icon_datum IconData # An `IconData` object.
+---
+---### Returns
+---@return IconData # A copy of `icon_datum` with `floating` set.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_datum` is not a valid `IconData` object.
+---
+---### See Also
+---@see Icons.float_icons
+---@see Icons.remove_floating_from_icon
+---@nodiscard
+function _icons.float_icon(icon_datum)
+	check_icon_datum_verb(icon_datum)
+
+	return layer_with_field(icon_datum, "floating", true)
+end
+
+---
+---Floats every layer of the given `icon_data`: the layers are left out of the bounds the game fits
+---the icon into, so it may extend past the slot it is drawn in.
+---
+---### Remarks
+---- `icon_data` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+---local indicator = _icons.float_icons(_icons.transform_icons(chevron, { shift = { 25, 0 } }))
+---```
+---
+---### Parameters
+---@param icon_data IconData[] # An array of `IconData` objects.
+---
+---### Returns
+---@return IconData[] # A copy of `icon_data` with `floating` set on every layer.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_data` is not a non-empty array of valid `IconData` objects.
+---
+---### See Also
+---@see Icons.float_icon
+---@see Icons.remove_floating_from_icons
+---@nodiscard
+function _icons.float_icons(icon_data)
+	check_icon_data_verb(icon_data)
+
+	return map_layers(icon_data, layer_with_field, "floating", true)
+end
+
+---
+---Grounds the given `icon_datum`: the layer is fitted into the slot the icon is drawn in.
+---
+---### Remarks
+---- `icon_datum` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+---local grounded = _icons.remove_floating_from_icon(floating_layer)
+---```
+---
+---### Parameters
+---@param icon_datum IconData # An `IconData` object.
+---
+---### Returns
+---@return IconData # A copy of `icon_datum` with `floating` cleared.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_datum` is not a valid `IconData` object.
+---
+---### See Also
+---@see Icons.remove_floating_from_icons
+---@see Icons.float_icon
+---@nodiscard
+function _icons.remove_floating_from_icon(icon_datum)
+	check_icon_datum_verb(icon_datum)
+
+	return layer_with_field(icon_datum, "floating", nil)
+end
+
+---
+---Grounds every layer of the given `icon_data`: the icon is fitted into the slot it is drawn in.
+---
+---### Remarks
+---- `icon_data` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+---local grounded = _icons.remove_floating_from_icons(floating_icon_data)
+---```
+---
+---### Parameters
+---@param icon_data IconData[] # An array of `IconData` objects.
+---
+---### Returns
+---@return IconData[] # A copy of `icon_data` with `floating` cleared from every layer.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_data` is not a non-empty array of valid `IconData` objects.
+---
+---### See Also
+---@see Icons.remove_floating_from_icon
+---@see Icons.float_icons
+---@nodiscard
+function _icons.remove_floating_from_icons(icon_data)
+	check_icon_data_verb(icon_data)
+
+	return map_layers(icon_data, layer_with_field, "floating", nil)
+end
+
+---
+---Outlines the given `icon_datum`: the layer draws its background.
+---
+---### Remarks
+---- A spacer, an empty image holding a footprint open and recognized by a file name ending in
+---  `empty.png`, cannot carry an outline and is returned unchanged.
+---- `icon_datum` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+---local outlined = _icons.outline_icon(icon_datum)
+---```
+---
+---### Parameters
+---@param icon_datum IconData # An `IconData` object.
+---
+---### Returns
+---@return IconData # A copy of `icon_datum` with `draw_background` set, unless it is a spacer.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_datum` is not a valid `IconData` object.
+---
+---### See Also
+---@see Icons.outline_icons
+---@see Icons.remove_outline_from_icon
+---@nodiscard
+function _icons.outline_icon(icon_datum)
+	check_icon_datum_verb(icon_datum)
+
+	if is_spacer(icon_datum) then
+		return util.copy(icon_datum)
+	end
+
+	return layer_with_field(icon_datum, "draw_background", true)
+end
+
+---
+---Outlines the given `icon_data`: the first layer that is not a spacer draws its background.
+---
+---### Remarks
+---- A spacer is an empty image holding a footprint open, recognized by a file name ending in
+---  `empty.png`. It cannot carry an outline, so the outline goes to the first layer of artwork.
+---- An icon made only of spacers is returned unchanged.
+---- `icon_data` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+----- Give a shrunken icon back the outline its artwork drew at full size.
+---local outlined = _icons.outline_icons(_icons.minify_icon(icon_data, 0.8))
+---```
+---
+---### Parameters
+---@param icon_data IconData[] # An array of `IconData` objects.
+---
+---### Returns
+---@return IconData[] # A copy of `icon_data` with `draw_background` set on its first layer of artwork.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_data` is not a non-empty array of valid `IconData` objects.
+---
+---### See Also
+---@see Icons.outline_icon
+---@see Icons.remove_outline_from_icons
+---@nodiscard
+function _icons.outline_icons(icon_data)
+	check_icon_data_verb(icon_data)
+
+	return outline_in_place(map_layers(icon_data, util.copy))
+end
+
+---
+---Removes the outline from the given `icon_datum`: the layer does not draw its background.
+---
+---### Remarks
+---- The first layer of an icon draws its background unless told not to, so `draw_background` is
+---  set to an explicit `false` rather than cleared. The layer stays outline-free wherever it is
+---  later composed.
+---- `icon_datum` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+---local without_outline = _icons.remove_outline_from_icon(icon_datum)
+---```
+---
+---### Parameters
+---@param icon_datum IconData # An `IconData` object.
+---
+---### Returns
+---@return IconData # A copy of `icon_datum` with `draw_background` set to `false`.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_datum` is not a valid `IconData` object.
+---
+---### See Also
+---@see Icons.remove_outline_from_icons
+---@see Icons.outline_icon
+---@nodiscard
+function _icons.remove_outline_from_icon(icon_datum)
+	check_icon_datum_verb(icon_datum)
+
+	return layer_with_field(icon_datum, "draw_background", false)
+end
+
+---
+---Removes the outline from the given `icon_data`: no layer draws its background.
+---
+---### Remarks
+---- The first layer of an icon draws its background unless told not to, so every layer is set to
+---  an explicit `false` rather than cleared. The icon stays outline-free wherever it is later
+---  composed.
+---- `icon_data` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+---local without_outline = _icons.remove_outline_from_icons(icon_data)
+---```
+---
+---### Parameters
+---@param icon_data IconData[] # An array of `IconData` objects.
+---
+---### Returns
+---@return IconData[] # A copy of `icon_data` with `draw_background` set to `false` on every layer.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_data` is not a non-empty array of valid `IconData` objects.
+---
+---### See Also
+---@see Icons.remove_outline_from_icon
+---@see Icons.outline_icons
+---@nodiscard
+function _icons.remove_outline_from_icons(icon_data)
+	check_icon_data_verb(icon_data)
+
+	return map_layers(icon_data, layer_with_field, "draw_background", false)
+end
+
+---Gets a copy of `icon_datum` with its own copy of `tint`.
+---@param icon_datum IconData # A valid `IconData` object.
+---@param tint Color # The tint to set.
+---@return IconData # A copy with the tint set.
+---@nodiscard
+local function layer_with_tint(icon_datum, tint)
+	return layer_with_field(icon_datum, "tint", util.copy(tint))
+end
+
+---Gets a copy of `icon_datum` with `tint` set, unless its tint is additive, in which case a plain
+---copy.
+---@param icon_datum IconData # A valid `IconData` object.
+---@param tint Color # The tint to set.
+---@return IconData # A copy, tinted unless additive.
+---@nodiscard
+local function layer_with_tint_unless_additive(icon_datum, tint)
+	if has_additive_tint(icon_datum) then
+		return util.copy(icon_datum)
+	end
+
+	return layer_with_tint(icon_datum, tint)
+end
+
+local check_set_icon_tint = V.signature("set_icon_tint", {
+	{ "icon_datum", Common.icon_datum },
+	{ "tint", Common.color },
+})
+
+---
+---Sets the tint of the given `icon_datum`, replacing any it had.
+---
+---### Remarks
+---- The layer receives its own copy of `tint`.
+---- A layer whose tint has an alpha of zero is returned unchanged. The game draws such a layer
+---  additively rather than in a color, which is how a highlights layer, tinted `{ 1, 1, 1, 0 }`,
+---  gets its effect; setting a color on it would lose that.
+---- `icon_datum` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+---local red_layer = _icons.set_icon_tint(icon_datum, { r = 1, g = 0, b = 0 })
+---```
+---
+---### Parameters
+---@param icon_datum IconData # An `IconData` object.
+---@param tint Color # The tint to set.
+---
+---### Returns
+---@return IconData # A copy of `icon_datum` with `tint` set, unless it is additive.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_datum` is not a valid `IconData` object.\
+---*@throws* `string` — Thrown when `tint` is not a `Color`.
+---
+---### See Also
+---@see Icons.set_icons_tint
+---@see Icons.blend_icon_tint
+---@nodiscard
+function _icons.set_icon_tint(icon_datum, tint)
+	check_set_icon_tint(icon_datum, tint)
+
+	return layer_with_tint_unless_additive(icon_datum, tint)
+end
+
+local check_set_icons_tint = V.signature("set_icons_tint", {
+	{ "icon_data", Common.icon_data },
+	{ "tint", Common.color },
+})
+
+---
+---Sets the tint of every layer of the given `icon_data`, replacing any they had.
+---
+---### Remarks
+---- Each layer receives its own copy of `tint`.
+---- A layer whose tint has an alpha of zero is passed by. The game draws such a layer additively
+---  rather than in a color, which is how a highlights layer, tinted `{ 1, 1, 1, 0 }`, gets its
+---  effect; setting a color on it would lose that.
+---- `icon_data` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+---local red_icon = _icons.set_icons_tint(icon_data, { r = 1, g = 0, b = 0 })
+---```
+---
+---### Parameters
+---@param icon_data IconData[] # An array of `IconData` objects.
+---@param tint Color # The tint to set.
+---
+---### Returns
+---@return IconData[] # A copy of `icon_data` with `tint` set on every layer that is not additive.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_data` is not a non-empty array of valid `IconData` objects.\
+---*@throws* `string` — Thrown when `tint` is not a `Color`.
+---
+---### See Also
+---@see Icons.set_icon_tint
+---@see Icons.blend_icons_tint
+---@nodiscard
+function _icons.set_icons_tint(icon_data, tint)
+	check_set_icons_tint(icon_data, tint)
+
+	return map_layers(icon_data, layer_with_tint_unless_additive, tint)
+end
+
+---A blending function: takes the tint a layer already has and the tint being blended in, both
+---normalized, and returns the tint the layer ends up with.
+---@alias IconTintBlender fun(existing: NormalizedColor, incoming: NormalizedColor): Color
+
+local blender_function = V.func():describe_as("a blending function")
+
+---The tint a layer without one renders with.
+local UNTINTED = { r = 1, g = 1, b = 1, a = 1 }
+
+---Gets the mix to blend with: the given `blender`, or `colors.blend` at `weight`.
+---@param weight? float # The weight for the default mix.
+---@param blender? IconTintBlender # A mix to use instead.
+---@return IconTintBlender # The mix.
+---@nodiscard
+local function resolve_blender(weight, blender)
+	return blender or function(existing, incoming)
+		return Colors.blend(existing, incoming, weight)
+	end
+end
+
+---Gets a copy of `icon_datum` with `incoming` blended into its tint by `mix`.
+---
+---A layer without a tint renders untinted, which is white, so that is what `incoming` is mixed with.
+---@param icon_datum IconData # A valid `IconData` object.
+---@param incoming NormalizedColor # The normalized tint to blend in.
+---@param mix IconTintBlender # The mix to blend with.
+---@return IconData # A copy with the blended tint, normalized.
+---@nodiscard
+local function layer_with_blended_tint(icon_datum, incoming, mix)
+	local existing = Colors.normalize(icon_datum.tint or UNTINTED)
+
+	return layer_with_field(icon_datum, "tint", Colors.normalize(mix(existing, incoming)))
+end
+
+---Gets a copy of `icon_datum` with `incoming` blended into its tint by `mix`, unless its tint is
+---additive, in which case a plain copy.
+---@param icon_datum IconData # A valid `IconData` object.
+---@param incoming NormalizedColor # The normalized tint to blend in.
+---@param mix IconTintBlender # The mix to blend with.
+---@return IconData # A copy, blended unless additive.
+---@nodiscard
+local function layer_with_blended_tint_unless_additive(icon_datum, incoming, mix)
+	if has_additive_tint(icon_datum) then
+		return util.copy(icon_datum)
+	end
+
+	return layer_with_blended_tint(icon_datum, incoming, mix)
+end
+
+local check_blend_icon_tint = V.signature("blend_icon_tint", {
+	{ "icon_datum", Common.icon_datum },
+	{ "tint", Common.color },
+	{ "weight", Common.unit_interval:optional() },
+	{ "blender", blender_function:optional() },
+})
+
+---
+---Blends the given `tint` into the tint of the given `icon_datum`.
+---
+---### Remarks
+---- A layer without a tint renders untinted, which is white, so that is what `tint` is mixed with.
+---- A layer whose tint has an alpha of zero is returned unchanged. The game draws such a layer
+---  additively rather than in a color, which is how a highlights layer, tinted `{ 1, 1, 1, 0 }`,
+---  gets its effect; blending would lose that.
+---- By default the mix is `colors.blend` at the given `weight`. A `blender` replaces the mix
+---  entirely, and `weight` is then not used. It always receives normalized colors, and what it
+---  returns is normalized before it is set.
+---- `icon_datum` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+---local shifted = _icons.blend_icon_tint(icon_datum, family_color, 0.4)
+---```
+---
+---### Parameters
+---@param icon_datum IconData # An `IconData` object.
+---@param tint Color # The tint to blend in.
+---@param weight? float # How far the layer's tint moves toward `tint`, from `0` to `1`. Default `0.5`.
+---@param blender? IconTintBlender # The mix to use in place of `colors.blend` at `weight`.
+---
+---### Returns
+---@return IconData # A copy of `icon_datum` with its tint blended.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_datum` is not a valid `IconData` object.\
+---*@throws* `string` — Thrown when `tint` is not a `Color`.\
+---*@throws* `string` — Thrown when `weight` is not between 0 and 1.\
+---*@throws* `string` — Thrown when `blender` is not a function, or returns something other than a `Color`.
+---
+---### See Also
+---@see Icons.blend_icons_tint
+---@see Icons.set_icon_tint
+---@see Colors.blend
+---@nodiscard
+function _icons.blend_icon_tint(icon_datum, tint, weight, blender)
+	check_blend_icon_tint(icon_datum, tint, weight, blender)
+
+	return layer_with_blended_tint_unless_additive(icon_datum, Colors.normalize(tint), resolve_blender(weight, blender))
+end
+
+local check_blend_icons_tint = V.signature("blend_icons_tint", {
+	{ "icon_data", Common.icon_data },
+	{ "tint", Common.color },
+	{ "weight", Common.unit_interval:optional() },
+	{ "blender", blender_function:optional() },
+})
+
+---
+---Blends the given `tint` into the tint of every layer of the given `icon_data`, so layers that were
+---tinted differently stay distinguishable where `tint` set outright would make them alike.
+---
+---### Remarks
+---- A layer without a tint renders untinted, which is white, so that is what `tint` is mixed with.
+---- A layer whose tint has an alpha of zero is passed by. The game draws such a layer additively
+---  rather than in a color, which is how a highlights layer, tinted `{ 1, 1, 1, 0 }`, gets its
+---  effect; blending would lose that.
+---- By default the mix is `colors.blend` at the given `weight`. A `blender` replaces the mix
+---  entirely, and `weight` is then not used. It always receives normalized colors, and what it
+---  returns is normalized before it is set.
+---- `icon_data` is not modified, and no other field is touched.
+---
+---### Examples
+---```lua
+----- Shift a family of differently tinted icons toward the family color, keeping each distinct.
+---local family_icon = _icons.blend_icons_tint(icon_data, family_color, 0.4)
+---
+----- Composite the color over each layer's tint instead of mixing toward it.
+---local overlaid = _icons.blend_icons_tint(icon_data, family_color, nil, _colors.overlay)
+---```
+---
+---### Parameters
+---@param icon_data IconData[] # An array of `IconData` objects.
+---@param tint Color # The tint to blend in.
+---@param weight? float # How far each layer's tint moves toward `tint`, from `0` to `1`. Default `0.5`.
+---@param blender? IconTintBlender # The mix to use in place of `colors.blend` at `weight`.
+---
+---### Returns
+---@return IconData[] # A copy of `icon_data` with the tint of each layer that is not additive blended.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_data` is not a non-empty array of valid `IconData` objects.\
+---*@throws* `string` — Thrown when `tint` is not a `Color`.\
+---*@throws* `string` — Thrown when `weight` is not between 0 and 1.\
+---*@throws* `string` — Thrown when `blender` is not a function, or returns something other than a `Color`.
+---
+---### See Also
+---@see Icons.blend_icon_tint
+---@see Icons.set_icons_tint
+---@see Colors.blend
+---@see Colors.overlay
+---@nodiscard
+function _icons.blend_icons_tint(icon_data, tint, weight, blender)
+	check_blend_icons_tint(icon_data, tint, weight, blender)
+
+	return map_layers(
+		icon_data,
+		layer_with_blended_tint_unless_additive,
+		Colors.normalize(tint),
+		resolve_blender(weight, blender)
+	)
 end
 
 ---
@@ -1766,26 +2544,24 @@ local function apply_icons_from_sources(icon_data, sources, defaults_type)
 		local icon, is_blank_icon = get_icons_from_source(source, defaults_type)
 		has_blank_layers = has_blank_layers or is_blank_icon
 
-		local transform = source.transform or source
-		local transformed_icon = apply_icons_transform(
-			icon,
-			transform.scale,
-			transform.shift,
-			transform.tint,
-			source.type_name or source.defaults_type or defaults_type
-		)
+		-- A `transform` is the whole placement; a scale or shift beside it is ignored. Tint and
+		-- floating are statements about the sourced icon itself, made beside the placement.
+		local placement = source.transform or source
+		local transformed_icon = apply_icons_transform(icon, {
+			scale = placement.scale,
+			shift = placement.shift,
+			tint = source.tint,
+			floating = source.floating,
+		}, source.type_name or source.defaults_type or defaults_type)
 
 		for index = 1, #transformed_icon do
 			local icon_datum = transformed_icon[index]
 
-			-- Flags rather than transformations. A layer already setting one
-			-- keeps it, so neither can be switched off from out here.
-			icon_datum.floating = icon_datum.floating or transform.floating
-
-			-- The first layer alone: the outline belongs to the sourced icon as
-			-- a whole rather than to each layer it is built from.
+			-- Ensure that the first layer of any composed icon will have a background. The caller may not
+			-- have set it, and by default any icon that existed on its own has a background, even if
+			-- draw_background is not set.
 			if index == 1 then
-				icon_datum.draw_background = icon_datum.draw_background or transform.draw_background
+				icon_datum.draw_background = true
 			end
 
 			table.insert(combined_icon, icon_datum)
@@ -1894,14 +2670,17 @@ function _icons.create_icons_from_sources(sources, defaults_type)
 
 	has_blank_layers = (has_blank_layers or is_blank_icon)
 
-	-- Apply only a tint transformation on the base layer. Scale and shift are not applicable.
+	-- The base source is what the other sources are placed on, so its own
+	-- scale, shift, and transform are ignored; only its tint is applied. A layer
+	-- whose tint has an alpha of zero keeps it, since the game draws that layer
+	-- additively and a color would lose the effect.
 	--
 	-- Read from the copy rather than the original: assigning the caller's tint
 	-- would leave it shared with the icon this returns.
-	local base_transform = base_source.transform or base_source
-
 	for _, icon_datum in pairs(base_icon_data) do
-		icon_datum.tint = base_transform.tint or icon_datum.tint
+		if not has_additive_tint(icon_datum) then
+			icon_datum.tint = base_source.tint or icon_datum.tint
+		end
 	end
 
 	local icon_data, added_blank_layers = apply_icons_from_sources(base_icon_data, sources_copy, defaults_type)

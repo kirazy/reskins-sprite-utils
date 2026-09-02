@@ -39,6 +39,20 @@ function _primitives.boolean()
 	})
 end
 
+---@class FunctionValidator : Validator<function>
+local FunctionValidator = Validator.subclass("function")
+
+---Creates a validator accepting functions.
+---@return FunctionValidator
+---@nodiscard
+function _primitives.func()
+	return Validator.instance(FunctionValidator, {
+		rules = {
+			Validator.type_gate("function"),
+		},
+	})
+end
+
 -- Table
 
 ---@class TableValidator : Validator<table>

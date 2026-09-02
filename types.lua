@@ -85,40 +85,19 @@
 ---Controls which related prototypes the icon cascades to. Defaults apply as per `IconAssignmentOptions`.
 ---@field options? IconAssignmentOptions
 
----The transformations to apply to an icon being composed onto another.
----@class IconTransform
----The scale to apply to the sourced icon. Default `nil`.
+---A scale and a shift, applied together: the subject is scaled about its origin, and then
+---moved. Both are relative to whatever the subject already has, in the subject's own units.
 ---
----Multiplies whatever scale the sourced icon already had rather than replacing
----it. An ordinary 64px icon defaults to `0.5`, so a scale of `0.5` here leaves
----it at `0.25`.
+---For an icon, the scale multiplies the layer's `scale` and the shift is measured as
+---[IconData::shift](https://lua-api.factorio.com/latest/types/IconData.html#shift) is, where the
+---whole icon is `expected_icon_size / 2` across: 32 for an ordinary prototype, so `{ 8, -8 }`
+---places a source in the upper-right quadrant.
+---@class Transform
+---The factor to multiply the subject's scale by. Default `nil`, which leaves it as it is.
 ---@field scale? double
----The shift to apply to the sourced icon. Default `nil`.
----
----Measured as [IconData::shift](https://lua-api.factorio.com/latest/types/IconData.html#shift)
----is, where the whole icon is `expected_icon_size / 2` across. That is 32 for an
----ordinary prototype, so `{ 8, -8 }` places the source in the upper-right
----quadrant.
+---The offset to add to the subject's shift, after any existing shift is scaled. Default `nil`,
+---which leaves it as it is.
 ---@field shift? Vector
----The tint to apply to the sourced icon. Default `nil`.
----@field tint? Color
----When `true`, the sourced icon is not considered for calculating bounds of the icon, so it can go
----out of bounds of rectangle into which the composed icon is drawn in GUI.
----
----When the sourced icon is comprised of multiple layers, this property will be applied to all
----layers. Icon layers where this field is already `true` will retain their value.
----
----[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html%23floating#floating)
----@field floating? boolean
----When `true`, an outline is drawn using signed distance field generated on load. One icon image
----will have only one SDF generated. That means if the image is used in multiple icons with different
----scales, the outline width won't match the desired width in all the scales except the largest one.
----
----When the sourced icon is comprised of multiple layers, this property will be applied to the first
----layer only. Icon layers where this field is already `true` will retain their value.
----
----[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html%23draw_background#draw_background)
----@field draw_background? boolean
 
 ---The transformation fields shared by every form of icon source.
 ---@class TransformableIconBase
@@ -135,11 +114,22 @@
 ---ordinary prototype, so `{ 8, -8 }` places the source in the upper-right
 ---quadrant. Ignored when `transform` is defined.
 ---@field shift? Vector
----The tint to apply to the sourced icon. Ignored when `transform` is defined. Default `nil`.
+---The tint to apply to the sourced icon. Default `nil`.
+---
+---Applied to every layer of the sourced icon except one whose tint has an alpha of zero, which
+---the game draws additively rather than in a color; that layer keeps its tint.
 ---@field tint? Color
----The transformations to apply to the sourced icon; used preferentially when defined over `scale`,
----`shift`, and `tint`. Default `nil`.
----@field transform? IconTransform
+---When `true`, the sourced icon is not considered for calculating bounds of the icon, so it can go
+---out of the bounds into which the composed icon is drawn in GUI.
+---
+---Applied to every layer of the sourced icon. Icon layers where this field is already `true` will
+---retain their value.
+---
+---[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html%23floating#floating)
+---@field floating? boolean
+---The placement of the sourced icon; used preferentially when defined over `scale` and `shift`.
+---Default `nil`.
+---@field transform? Transform
 
 ---Provides the icon and optional transformations to a sourced `IconData` object.
 ---@class IconDatumSource : TransformableIconBase

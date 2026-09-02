@@ -184,24 +184,24 @@ _common.icon_datum = V.shape({
 ---An icon expressed as an array of `IconData` objects.
 _common.icon_data = V.array(_common.icon_datum):not_empty():describe_as("an array of IconData objects")
 
----The transformations applied to a sourced icon.
----@type ShapeValidator<IconTransform>
-_common.icon_transform = V.shape({
+---A `Transform`: a scale and a shift, either of which may be absent.
+---
+---Strict, since a `tint` or a flag written here is a mistake rather than part of a placement.
+---@type ShapeValidator<Transform>
+_common.transform = V.shape({
 	scale = _common.positive_number:optional(),
 	shift = _common.vector:optional(),
-	tint = _common.color:optional(),
-	floating = V.boolean():optional(),
-	draw_background = V.boolean():optional(),
 })
 	:strict()
-	:describe_as("an IconTransform")
+	:describe_as("a Transform")
 
 ---The transformation fields every icon source shares.
 local transformable = {
 	scale = _common.positive_number:optional(),
 	shift = _common.vector:optional(),
 	tint = _common.color:optional(),
-	transform = _common.icon_transform:optional(),
+	floating = V.boolean():optional(),
+	transform = _common.transform:optional(),
 }
 
 ---An icon source providing a single `IconData` object.

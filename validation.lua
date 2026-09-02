@@ -40,6 +40,7 @@ local _validation = {}
 -- Primitives.
 _validation.any = _primitives.any
 _validation.boolean = _primitives.boolean
+_validation.func = _primitives.func
 _validation.integer = _primitives.integer
 _validation.number = _primitives.number
 _validation.string = _primitives.string
