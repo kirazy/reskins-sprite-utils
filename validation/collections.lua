@@ -11,8 +11,8 @@ local _collections = {}
 ---
 ---`#` is unreliable on a table with gaps, so length rules count entries instead.
 ---@param value table
----@return integer count # The number of entries.
----@return integer max_index # The largest whole-number key, or `0` when there is none.
+---@return integer count The number of entries.
+---@return integer max_index The largest whole-number key, or `0` when there is none.
 local function measure(value)
 	local count, max_index = 0, 0
 
@@ -26,14 +26,9 @@ local function measure(value)
 	return count, max_index
 end
 
----Collects the keys of a table in alphabetical order.
----
----Factorio's `pairs` order is already stable from run to run, but it is hash
----order rather than a meaningful one. Sorting is what makes a list of field
----failures read predictably — alphabetically — rather than in whatever order
----the fields happened to be written.
----@param value table
----@return any[]
+---Gets the keys of the given table, sorted alphabetically.
+---@param value table The table.
+---@return any[] # The keys, sorted.
 local function sorted_keys(value)
 	local keys = {}
 	for key in pairs(value) do
@@ -85,24 +80,19 @@ local SEQUENCE_GATE = {
 }
 
 ---Creates a validator accepting an array whose every element satisfies `element`.
+---@generic T
+---@param element Validator<T> The validator applied to each element.
+---@return ArrayValidator<T>
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local IconData = V.array(IconDatum):not_empty()
 ---```
----
----### Parameters
----@generic T
----@param element Validator<T> # The validator applied to each element.
----
----### Returns
----@return ArrayValidator<T>
 ---@nodiscard
 function _collections.array(element)
 	local element_rule = {
 		id = "array.elements",
-		-- Deferred: describing the element now would force a `lazy` element to
-		-- resolve before a recursive definition had finished binding.
+		-- Deferred so that a `lazy` element is not resolved before its definition is bound.
 		describe = function()
 			return string.format("an array of %s", element:describe())
 		end,
@@ -111,8 +101,7 @@ function _collections.array(element)
 
 			local errors = {}
 			for index = 1, max_index do
-				-- Entries absent from a gapped array are the sequence gate's
-				-- business, not the element validator's.
+				-- Gaps in the array are reported by the sequence gate, not by the element validator.
 				if value[index] ~= nil then
 					local result = element:validate(value[index], { path = string.format("%s[%d]", ctx.path, index) })
 					for _, err in pairs(result.errors) do
@@ -166,7 +155,7 @@ end
 
 ---Requires the array to hold at least `min_length` elements.
 ---@param self ArrayValidator<T>
----@param min_length integer # The fewest elements allowed.
+---@param min_length integer The fewest elements allowed.
 ---@return ArrayValidator<T>
 ---@nodiscard
 function ArrayValidator.min_length(self, min_length)
@@ -186,7 +175,7 @@ end
 
 ---Requires the array to hold at most `max_length` elements.
 ---@param self ArrayValidator<T>
----@param max_length integer # The most elements allowed.
+---@param max_length integer The most elements allowed.
 ---@return ArrayValidator<T>
 ---@nodiscard
 function ArrayValidator.max_length(self, max_length)
@@ -206,7 +195,7 @@ end
 
 ---Requires the array to hold exactly `length` elements.
 ---@param self ArrayValidator<T>
----@param length integer # The number of elements required.
+---@param length integer The number of elements required.
 ---@return ArrayValidator<T>
 ---@nodiscard
 function ArrayValidator.length(self, length)
@@ -238,8 +227,7 @@ function ArrayValidator.unique(self)
 			local seen = {}
 			for index = 1, max_index do
 				local element = value[index]
-				-- `nan` is skipped rather than recorded: it cannot be a table key,
-				-- and comparing unequal to itself, it can never be a duplicate.
+				-- `nan` is skipped: it cannot be a table key, and it is never equal to itself.
 				if element ~= nil and element == element then
 					if seen[element] then
 						return false,
@@ -260,8 +248,10 @@ function ArrayValidator.unique(self)
 end
 
 ---Requires the array's elements to be in order.
+---
+---#### Parameters
 ---@param self ArrayValidator<T>
----@param compare (fun(a: T, b: T): boolean)? # Returns `true` when `a` may precede `b`. Defaults to `a <= b`.
+---@param compare (fun(a: T, b: T): boolean)? A function that returns `true` if `a` may precede `b`. Default `a <= b`.
 ---@return ArrayValidator<T>
 ---@nodiscard
 function ArrayValidator.sorted(self, compare)
@@ -280,11 +270,9 @@ function ArrayValidator.sorted(self, compare)
 			for index = 1, max_index do
 				if value[index] ~= nil then
 					if previous_index then
-						-- Guarded: this rule runs after the element rule rather than
-						-- instead of it, so a comparison can be handed elements that
-						-- already failed and have no order between them. The default
-						-- comparison raises on mixed types, and a supplied one may
-						-- raise on anything it did not expect.
+						-- This rule runs after the element rule, not instead of it, so the comparison may receive
+						-- elements that failed validation. The default comparison raises on mixed types, and a
+						-- supplied comparison may raise on unexpected values.
 						local compared, precedes = pcall(compare, value[previous_index], value[index])
 
 						if not compared then
@@ -316,19 +304,15 @@ end
 local MapValidator = Validator.subclass("map")
 
 ---Creates a validator accepting a table whose keys and values each satisfy a validator.
+---@generic K, V
+---@param key Validator<K> The validator applied to each key.
+---@param value Validator<V> The validator applied to each value.
+---@return MapValidator<K, V>
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local IconsByName = V.map(V.string():not_empty(), IconData)
 ---```
----
----### Parameters
----@generic K, V
----@param key Validator<K> # The validator applied to each key.
----@param value Validator<V> # The validator applied to each value.
----
----### Returns
----@return MapValidator<K, V>
 ---@nodiscard
 function _collections.map(key, value)
 	---@type ValidationRule<table<K, V>>
@@ -340,7 +324,7 @@ function _collections.map(key, value)
 		check = function(subject, ctx)
 			local errors = {}
 
-			-- Walked in sorted order so failures read alphabetically by key.
+			-- Keys are walked in sorted order so that failures are reported alphabetically.
 			for _, entry_key in pairs(sorted_keys(subject)) do
 				local key_result = key:validate(entry_key, { path = ctx.path })
 				for _, err in pairs(key_result.errors) do
@@ -392,7 +376,7 @@ end
 
 ---Requires the map to hold at least `min_count` entries.
 ---@param self MapValidator<K, V>
----@param min_count integer # The fewest entries allowed.
+---@param min_count integer The fewest entries allowed.
 ---@return MapValidator<K, V>
 ---@nodiscard
 function MapValidator.min_count(self, min_count)
@@ -412,7 +396,7 @@ end
 
 ---Requires the map to hold at most `max_count` entries.
 ---@param self MapValidator<K, V>
----@param max_count integer # The most entries allowed.
+---@param max_count integer The most entries allowed.
 ---@return MapValidator<K, V>
 ---@nodiscard
 function MapValidator.max_count(self, max_count)
@@ -442,8 +426,11 @@ local ShapeValidator = Validator.subclass("shape")
 ---Fields are required unless their validator is `:optional()`. Unrecognized keys
 ---are permitted; call `:strict()` to reject them, which catches misspelled
 ---prototype fields that would otherwise be silently ignored.
+---@generic F : table<string, Validator<any>>
+---@param fields F The validator for each named field.
+---@return ShapeValidator<{ [K in keyof F]: any }> # A validator typed over the given field names.
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local IconDatum = V.shape({
 ---    icon = ModFilePath,
@@ -451,13 +438,6 @@ local ShapeValidator = Validator.subclass("shape")
 ---    scale = V.number():positive():optional(),
 ---})
 ---```
----
----### Parameters
----@generic F : table<string, Validator<any>>
----@param fields F # The validator for each named field.
----
----### Returns
----@return ShapeValidator<{ [K in keyof F]: any }> # Typed over the given field names.
 ---@nodiscard
 function _collections.shape(fields)
 	local names = sorted_keys(fields)
@@ -468,7 +448,7 @@ function _collections.shape(fields)
 		check = function(value, ctx)
 			local errors = {}
 
-			-- Walked in sorted order so fields are reported alphabetically.
+			-- Fields are walked in sorted order so that failures are reported alphabetically.
 			for _, name in pairs(names) do
 				local result = fields[name]:validate(value[name], { path = _result.child_path(ctx.path, name) })
 				for _, err in pairs(result.errors) do
@@ -524,20 +504,18 @@ end
 
 ---Creates a copy of this validator with an additional rule spanning several fields.
 ---
----### Examples
+---#### Parameters
+---@param self ShapeValidator<TValidated>
+---@param predicate fun(value: TValidated): boolean A function that returns `true` if the table is acceptable.
+---@param message string The complete failure message, phrased to follow the path.
+---@return ShapeValidator<TValidated>
+---
+---#### Examples
 ---```lua
 ---local Prototype = V.shape({ icon = Icon:optional(), icons = Icons:optional() })
 ---    :where(function(value) return value.icon ~= nil or value.icons ~= nil end,
 ---           "must define one of 'icon' or 'icons'")
 ---```
----
----### Parameters
----@param self ShapeValidator<TValidated>
----@param predicate fun(value: TValidated): boolean # Returns `true` when the table is acceptable.
----@param message string # The complete failure message, phrased to follow the path.
----
----### Returns
----@return ShapeValidator<TValidated>
 ---@nodiscard
 function ShapeValidator.where(self, predicate, message)
 	return self:extend({
@@ -559,26 +537,17 @@ end
 local TupleValidator = Validator.subclass("tuple")
 
 ---Creates a validator accepting a fixed-length array of positionally typed elements.
+---@param ... Validator<any> The validator for each position, in order.
+---@return TupleValidator<any>
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local Offset = V.tuple(V.number(), V.number())
 ---```
----
----### Parameters
----@param ... Validator<any> # The validator for each position, in order.
----
----### Returns
----@return TupleValidator<any>
 ---@nodiscard
 function _collections.tuple(...)
-	-- Packed rather than collected with `{ ... }`: a nil among the arguments
-	-- would leave a gap, and the arity would silently shrink to whatever came
-	-- before it. `table.pack` records the count that was actually passed.
-	--
-	-- A packed table carries that count in its `n` field, so everything below
-	-- walks it by index; `pairs` would hand back `n` as though it were an
-	-- element.
+	-- Packed with `table.pack` so that a nil argument does not truncate the list. The result must
+	-- be walked by index, since `pairs` would return the `n` field as an element.
 	local elements = table.pack(...)
 	local arity = elements.n
 

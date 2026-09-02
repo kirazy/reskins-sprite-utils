@@ -6,11 +6,10 @@
 local V = require("validation")
 local _defines = require("defines")
 
----A catalog of ready-made validators for the values this library works with.
+---Provides validators for the values used by this library.
 ---
----These are ordinary validators built from `validation`, defined once and shared.
----Because builder methods never mutate, an entry can be narrowed for a specific
----use without disturbing the shared original:
+---Builder methods return a new validator, so an entry may be narrowed for a specific use without
+---modifying the shared validator:
 ---
 ---```lua
 ---local SmallIconSize = Common.sprite_size:max(64) -- Common.sprite_size is unchanged
@@ -19,7 +18,7 @@ local _defines = require("defines")
 ---Everything here is stage-agnostic except `Common.prototypes`, which reads
 ---`data.raw`.
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local Common = require("__reskins-sprite-utils__.validation.common")
 ---
@@ -33,13 +32,13 @@ local _defines = require("defines")
 local _common = {}
 
 ---Merges groups of shape fields into one table, left to right.
----@param ... table<string, Validator<any>> # The groups to merge.
+---@param ... table<string, Validator<any>> The groups to merge.
 ---@return table<string, Validator<any>>
 ---@nodiscard
 local function fields(...)
 	local merged = {}
 
-	-- Counted so that a nil group cannot silently drop every group after it.
+	-- Counted so that a nil group does not truncate the list.
 	local groups = table.pack(...)
 	for index = 1, groups.n do
 		for name, validator in pairs(groups[index] or {}) do
@@ -92,9 +91,7 @@ local color_component = V.number():finite():non_negative()
 ---A [Color](https://lua-api.factorio.com/latest/types/Color.html), as either named
 ---components or an array of three to four numbers.
 ---
----The named form is strict, so `{ r = 1, gg = 0.5 }` is reported rather than
----silently read as pure red. That strictness is also what separates the two
----forms: an array's numeric keys are unrecognized by the named branch.
+---The named form does not permit unknown fields.
 ---@type Validator<Color>
 _common.color = V.any_of(
 	V.shape({
@@ -108,19 +105,13 @@ _common.color = V.any_of(
 	V.array(color_component):min_length(3):max_length(4):describe_as("an array of three or four numbers")
 ):describe_as("a Color")
 
----A hue, in degrees.
----
----Deliberately unbounded: hue is cyclic, and the conversions read it modulo a
----full turn, so `400` and `-320` name the same color as `40` and are all
----equally usable.
+---A validator that checks that a value is a hue in degrees: a finite number. Values outside 0 to
+---360 are accepted, and are read modulo 360.
 local hue = V.number():finite():describe_as("a hue in degrees")
 
 ---An `HsvColor`, with `h` in degrees and `s`, `v`, and `a` between zero and one.
 ---
----Strict, because this is a shape the library produces itself rather than one
----read off a prototype. An `HslColor` handed to an HSV conversion is caught by
----the missing `v` alone, but a channel named for the wrong space is not, and
----silently converting the wrong color is worse than being told.
+---Unknown fields are not permitted.
 ---@type ShapeValidator<HsvColor>
 _common.hsv_color = V.shape({
 	h = hue,
@@ -152,17 +143,12 @@ _common.vector = V.any_of(
 	V.shape({ x = V.number():finite(), y = V.number():finite() }):strict():describe_as("a table of x and y components")
 ):describe_as("a Vector")
 
----The name of the type-specific icon defaults to generate.
----
----Deliberately not an enumeration: unrecognized names resolve to the default
----icon size rather than being rejected, so constraining the set here would
----reject values the library itself accepts.
+---A validator that checks that a value is an icon defaults type name: a non-empty string.
+---Unrecognized names are accepted, and resolve to the default icon size.
 _common.icon_defaults_type = V.string():not_empty():describe_as("an icon defaults type name")
 
----A single [IconData](https://lua-api.factorio.com/latest/types/IconData.html) object.
----
----Left open to unrecognized fields, since prototypes carry fields this library
----does not model. Call `:strict()` on a copy where a typo would matter.
+---A validator that checks that a value is an [IconData](https://lua-api.factorio.com/latest/types/IconData.html)
+---object. Unknown fields are permitted; call `:strict()` to reject them.
 ---@type ShapeValidator<IconData>
 _common.icon_datum = V.shape({
 	icon = _common.mod_file_path,
@@ -174,9 +160,8 @@ _common.icon_datum = V.shape({
 	floating = V.boolean():optional(),
 })
 	:where(function(value)
-		-- Passing an array where one object was wanted is the easy mistake to
-		-- make, and the field check alone reports it as a missing `icon`, which
-		-- does not point at what went wrong.
+		-- An array passed where an object was expected would otherwise be reported as a missing
+		-- `icon`.
 		---@diagnostic disable-next-line: undefined-field
 		return value[1] == nil
 	end, "must be a single IconData object, not an array of them")
@@ -185,9 +170,7 @@ _common.icon_datum = V.shape({
 ---An icon expressed as an array of `IconData` objects.
 _common.icon_data = V.array(_common.icon_datum):not_empty():describe_as("an array of IconData objects")
 
----A `Transform`: a scale and a shift, either of which may be absent.
----
----Strict, since a `tint` or a flag written here is a mistake rather than part of a placement.
+---A validator that checks that a value is a `Transform` with no unknown fields.
 ---@type ShapeValidator<Transform>
 _common.transform = V.shape({
 	scale = _common.positive_number:optional(),
@@ -237,10 +220,7 @@ _common.prototype_icon_source = V.shape(fields(transformable, {
 _common.icon_source = V.any_of(_common.icon_datum_source, _common.icon_data_source, _common.prototype_icon_source)
 	:describe_as("an IconSource")
 
----Controls which related prototypes an icon assignment cascades to.
----
----Strict, since this is a small, fixed set of switches the library defines itself rather than a shape
----read off a prototype: a misspelled field here should be caught, not silently ignored.
+---A validator that checks that a value is an `IconAssignmentOptions` object with no unknown fields.
 ---@type ShapeValidator<IconAssignmentOptions>
 _common.icon_assignment_options = V.shape({
 	infer_item = V.boolean():optional(),
@@ -275,21 +255,16 @@ _common.deferrable_icon_datum = V.shape({
 
 -- Icon compositions
 
----A stratum of an icon composition.
+---A validator that checks that a value is an icon composition stratum.
 ---@type Validator<IconCompositionStratum>
 _common.icon_composition_stratum = V.one_of(_defines.icon_composition_strata):describe_as("an icon composition stratum")
 
----What a group says about one projection: `false` to stay out of it, or a table for the
----projection to read.
----
----Open, since what the table holds is the projection's business.
+---A validator that checks that a value is a group `projections` entry: `false`, or a table of
+---settings for the projection. The fields of the table are not validated.
 local group_projection_entry = V.any_of(V.literal(false), V.table())
 	:describe_as("false or a table of settings for the projection")
 
----A group definition for an icon composition.
----
----Strict, since this is a small, fixed set of fields the library defines itself: a misspelled
----`unique` should be caught rather than silently read as its default.
+---A validator that checks that a value is an `IconCompositionGroup` with no unknown fields.
 ---@type ShapeValidator<IconCompositionGroup>
 _common.icon_composition_group = V.shape({
 	name = _common.non_empty_string,
@@ -302,12 +277,11 @@ _common.icon_composition_group = V.shape({
 	:strict()
 	:describe_as("an IconCompositionGroup")
 
----A projection of an icon composition: a name, whether its output is drawn in a slot, and how the
----composed layers are lowered to it.
+---A validator that checks that a value is an `IconCompositionProjection` with no unknown fields.
 ---@type ShapeValidator<IconCompositionProjection<unknown>>
 _common.icon_composition_projection = V.shape({
 	name = _common.non_empty_string,
-	has_slot = V.boolean(),
+	includes_annotations = V.boolean(),
 	lower = V.func(),
 })
 	:strict()
@@ -315,16 +289,9 @@ _common.icon_composition_projection = V.shape({
 
 -- Sprite sheets
 
----A sprite sheet that an animation is cut from.
----
----Recursive, since a layer of an animation is an animation: the same
----requirement applies at every depth, so a layer that names no artwork of its
----own is reported at the index it sits in.
----
----Checks only that the artwork is named, and where it is named by `filename`,
----that the path is one Factorio can resolve. Everything else an `Animation`
----carries is left open, this being a description of a sheet rather than a model
----of the prototype format.
+---A validator that checks that a value is an `Animation` that names its artwork, through `filename`,
+---`stripes`, or `layers`. A `filename` must be a mod-relative file path. The check is applied to
+---each layer of a layered animation. Other fields are not validated.
 ---@type ShapeValidator<Animation>
 local animation_spritesheet
 
@@ -347,33 +314,27 @@ animation_spritesheet = V.shape({
 
 _common.animation_spritesheet = animation_spritesheet
 
----A `WorkingVisualisation` whose animation is cut from a single sprite sheet.
----
----The `animation` field is what the 4-way slicing works from, so it is required
----here even though a `WorkingVisualisation` may carry direction-specific
----animations instead.
+---A validator that checks that a value is a `WorkingVisualisation` with an `animation` field that
+---is a sprite sheet. Direction-specific animations are not accepted.
 _common.working_visualisation = V.shape({
 	animation = _common.animation_spritesheet,
 }):describe_as("a WorkingVisualisation carrying an animation")
 
 -- Prototypes
 
----Validators that consult the prototypes defined so far.
----
----These read `data.raw`, because that is what they check. There is no runtime
----equivalent — `prototypes` is keyed by base class rather than concrete type
----name — so rather than pass quietly outside the prototype stages, they raise.
+---Validators that check values against the prototypes in `data.raw`. They may only be used during
+---the prototype stages; using one elsewhere raises an error.
 ---@class Common.Prototypes
 _common.prototypes = {}
 
----Gets `data.raw`, or explains why it is unavailable.
+---Gets `data.raw`. Raises an error if it is unavailable.
 ---@return table<string, table<string, table>>
 ---@nodiscard
 local function require_data_raw()
 	if not data or not data.raw then
 		error(
-			"reskins-sprite-utils: the validators in validation.common.prototypes read data.raw, so they only work "
-				.. "during the prototype stages. Using one elsewhere is a mistake rather than a pass.",
+			"reskins-sprite-utils: the validators in validation.common.prototypes read data.raw, and may only be "
+				.. "used during the prototype stages.",
 			0
 		)
 	end
@@ -389,18 +350,14 @@ _common.prototypes.is_registered_type = _common.prototype_type_name
 	:describe_as("a registered prototype type name")
 
 ---Creates a validator accepting the name of a prototype that exists in `data.raw`.
+---@param type_name string The prototype type to look the name up in.
+---@return Validator<any>
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local ExistingItem = Common.prototypes.existing_prototype("item")
 ---ExistingItem:assert(name, "name")
 ---```
----
----### Parameters
----@param type_name string # The prototype type to look the name up in.
----
----### Returns
----@return Validator<any>
 ---@nodiscard
 function _common.prototypes.existing_prototype(type_name)
 	return _common.prototype_name
@@ -412,13 +369,13 @@ function _common.prototypes.existing_prototype(type_name)
 		:describe_as(string.format("the name of an existing '%s' prototype", type_name))
 end
 
----A prototype defining an icon, through either its `icon` or its `icons` field.
+---A validator that checks that a value is a prototype with a `type` field that defines an icon
+---through either its `icon` or its `icons` field.
 ---@type ShapeValidator<PrototypeWithIcons>
-_common.prototypes.prototype_with_icons = V.shape({})
+_common.prototypes.prototype_with_icons = V.shape({ type = _common.prototype_type_name })
 	:where(function(value)
-		-- `icons` first, because that is the one the engine takes when both are
-		-- set. An empty array is truthy but defines nothing, so it does not
-		-- count as the field being present.
+		-- `icons` is checked first, as the engine uses it when both are set. An empty array does not
+		-- count as present.
 		return (value.icons ~= nil and value.icons[1] ~= nil) or value.icon ~= nil
 	end, "must define an icon through either the 'icon' or the 'icons' field")
 	:describe_as("a prototype defining an icon")

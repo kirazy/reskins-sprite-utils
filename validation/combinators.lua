@@ -7,17 +7,11 @@ local _result = require("validation.result")
 ---@class Combinators
 local _combinators = {}
 
----Packs a run of branch validators, rejecting a nil among them.
----
----Collecting varargs with `{ ... }` leaves a gap wherever a nil was passed, and
----every branch after that gap is silently dropped. The count `table.pack`
----records turns that into an error at the point of definition.
----
----Callers walk the result by index: a packed table carries its count in `n`, so
----`pairs` would hand back `n` as though it were a branch.
----@param caller string # The name of the calling factory, for the message.
----@param ... Validator<any> # The branches to pack.
----@return table branches # The packed branches, with `n` holding the count.
+---Packs the given branch validators into a table with its count in `n`. Raises an error if any
+---branch is `nil`. The result must be iterated by index, not with `pairs`.
+---@param caller string The name of the calling function, used in error messages.
+---@param ... Validator<any> The branches to pack.
+---@return table branches The packed branches, with `n` holding the count.
 ---@nodiscard
 local function pack_branches(caller, ...)
 	local branches = table.pack(...)
@@ -37,24 +31,16 @@ local AnyOfValidator = Validator.subclass("any_of")
 
 ---Creates a validator accepting a value that satisfies at least one of the given validators.
 ---
----Factorio's types are full of unions — a `Vector` is either `{x, y}` or a pair
----of numbers, an icon source is one of three shapes — and this is how they are
----expressed. When nothing matches, the failure lists what each branch wanted and
----why it did not fit, since the caller cannot otherwise tell which branch they
----were closest to satisfying.
+---When no validator accepts the value, the failure message lists the requirement of each validator
+---and why the value did not satisfy it.
+---@generic T
+---@param ... Validator<T> The branches to try, in order.
+---@return Validator<any>
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local Vector = V.any_of(V.tuple(V.number(), V.number()), V.shape({ x = V.number(), y = V.number() }))
 ---```
----
----### Parameters
----@generic T
----@param ... Validator<T> # The branches to try, in order.
----
----### Returns
----@return Validator<any>
----
 ---@overload fun<A>(a: Validator<A>): Validator<A>
 ---@overload fun<A, B>(a: Validator<A>, b: Validator<B>): Validator<A|B>
 ---@overload fun<A, B, C>(a: Validator<A>, b: Validator<B>, c: Validator<C>): Validator<A|B|C>
@@ -65,8 +51,8 @@ local AnyOfValidator = Validator.subclass("any_of")
 function _combinators.any_of(...)
 	local branches = pack_branches("V.any_of", ...)
 
-	-- Descriptions are resolved on demand rather than up front: a branch may be
-	-- a `lazy` validator standing in for a definition that is still being bound.
+	-- Descriptions are resolved on demand, since a branch may be a `lazy` validator whose
+	-- definition is not yet bound.
 	local function describe_branches()
 		local descriptions = {}
 		for index = 1, branches.n do
@@ -86,8 +72,7 @@ function _combinators.any_of(...)
 				check = function(value, ctx)
 					local failures = {}
 
-					-- Branches are tried in the order they were given, and the
-					-- first that matches wins.
+					-- Branches are tried in order; the first match is used.
 					for index = 1, branches.n do
 						local result = branches[index]:validate(value, { path = ctx.path })
 						if result.ok then
@@ -122,7 +107,7 @@ local AllOfValidator = Validator.subclass("all_of")
 
 ---Creates a validator accepting a value that satisfies every one of the given validators.
 ---@generic T
----@param ... Validator<T> # The validators to apply, in order.
+---@param ... Validator<T> The validators to apply, in order.
 ---@return Validator<T>
 ---@nodiscard
 function _combinators.all_of(...)
@@ -169,19 +154,15 @@ local OneOfValidator = Validator.subclass("one_of")
 ---Creates a validator accepting any value drawn from a finite set.
 ---
 ---Membership is decided by equality, so the set may hold values of any type.
+---@generic K, const V
+---@param values table<K, V> The permitted values.
+---@return Validator<V>
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local PipeMaterial = V.one_of(_defines.pipe_material)
 ---local AntennaVariant = V.one_of({ 0, 1, 2, 3, 4 })
 ---```
----
----### Parameters
----@generic K, const V
----@param values table<K, V> # The permitted values.
----
----### Returns
----@return Validator<V>
 ---@nodiscard
 function _combinators.one_of(values)
 	local described = _result.format_value(values)
@@ -210,7 +191,7 @@ local LiteralValidator = Validator.subclass("literal")
 
 ---Creates a validator accepting exactly one value.
 ---@generic const T
----@param expected T # The only permitted value.
+---@param expected T The only permitted value.
 ---@return Validator<T>
 ---@nodiscard
 function _combinators.literal(expected)
@@ -237,44 +218,26 @@ end
 
 local CustomValidator = Validator.subclass("custom")
 
----Creates a validator from a bare predicate.
----
----For the cases the built-in rules do not cover. Prefer composing the built-ins
----where possible, since they describe themselves in failure messages.
----
----### Parameters
----@param predicate fun(value: any): boolean # Returns `true` when the value is acceptable.
----@param message string # What the value must be, phrased to follow `must be`.
----
----### Returns
+---Creates a validator from the given predicate function.
+---@param predicate fun(value: any): boolean A function that returns `true` if the value is acceptable.
+---@param message string What the value must be, phrased to follow `must be`.
 ---@return Validator<any>
 ---@nodiscard
 function _combinators.custom(predicate, message)
 	return Validator.instance(CustomValidator):satisfies(predicate, message)
 end
 
----A validator standing in for one that is not yet defined.
----
----Two parameters rather than one: `TDeferred` is the deferred validator's own
----class, so `resolve` hands back the real thing, and `TValidated` is what that
----validator validates, which is what this stands in for everywhere a validator
----is accepted.
+---A validator that defers to a validator that is not yet defined. `TDeferred` is the class of the
+---deferred validator, and `TValidated` is the type it validates.
 ---@generic TDeferred : Validator<TValidated>, TValidated
 ---@class LazyValidator<TDeferred, TValidated> : Validator<TValidated>
----Resolves and caches the validator being deferred to.
----
----This is the way to reach a kind-specific builder. A lazy validator is a
----`Validator` and nothing more — `StringValidator` is a sibling class, never in
----its `__index` chain — so `V.lazy(f):min_length(3)` is a nil call where
----`V.lazy(f).resolve():min_length(3)` is not. Calling it resolves, so only do so
----once the definition being deferred to is complete.
+---Resolves and caches the deferred validator, and returns it. Kind-specific builder methods are
+---available on the returned validator, not on the lazy validator. Must not be called before the
+---deferred validator is defined.
 ---@field resolve fun(): TDeferred
 local LazyValidator = Validator.subclass("lazy")
 
----Describes the deferred validator.
----
----Describing has to resolve, since anything else would report a placeholder in
----the failure message of every union this takes part in.
+---Gets the description of the deferred validator. Resolves the deferred validator.
 ---@return string
 ---@nodiscard
 function LazyValidator:describe()
@@ -287,17 +250,16 @@ function LazyValidator:describe()
 		:describe()
 end
 
----Creates a validator that resolves the given validator the first time it is used.
+---Creates a validator that calls the given resolver function to get the validator to use the first
+---time it is used. Used for recursive and mutually-referencing definitions.
 ---
----This is how a recursive or mutually-referencing definition is expressed: the
----resolver runs after both definitions exist, rather than at the point the
----reference is written.
+---The type of the deferred validator is inferred from the resolver. A forward declaration must be
+---annotated with its type.
+---@generic TDeferred : Validator<any>, TValidated
+---@param resolver (fun(): TDeferred)|(fun(): Validator<TValidated>) A function that returns the validator to delegate to.
+---@return LazyValidator<TDeferred, TValidated>
 ---
----The type of the deferred validator is read from the resolver, so annotating
----the forward declaration is what keeps it from being erased. It has to be named
----once regardless, since a recursive definition cannot be inferred from itself.
----
----### Examples
+---#### Examples
 ---```lua
 ------@type ShapeValidator<Animation>
 ---local Animation
@@ -307,11 +269,6 @@ end
 ---    layers = V.array(V.lazy(function() return Animation end)):optional(),
 ---})
 ---```
----
----### Parameters
----@generic TDeferred : Validator<any>, TValidated
----@param resolver (fun(): TDeferred)|(fun(): Validator<TValidated>) # Returns the validator to delegate to.
----@return LazyValidator<TDeferred, TValidated>
 ---@nodiscard
 function _combinators.lazy(resolver)
 	---@type TDeferred?
@@ -322,7 +279,7 @@ function _combinators.lazy(resolver)
 			resolved = resolver()
 
 			if not resolved then
-				-- Almost always a forward reference read before it was assigned.
+				-- Usually a forward reference read before it was assigned.
 				error(
 					"reskins-sprite-utils: a lazy validator's resolver returned nil. It ran before the validator it "
 						.. "refers to had been assigned; make sure the reference is only read once the definition is complete.",

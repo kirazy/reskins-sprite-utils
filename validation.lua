@@ -6,28 +6,23 @@ local _collections = require("validation.collections")
 local _combinators = require("validation.combinators")
 local _signature = require("validation.signature")
 
----Builds reusable validators for method arguments and data structures.
+---Provides reusable validators for function arguments and data structures.
 ---
----A validator is defined once, from rules, and then applied wherever it is
----needed — the inverse of describing a value's requirements afresh at every call
----site. Builder methods never mutate, so a validator shared from a catalog can
----be extended by any caller without disturbing the original.
+---A validator is defined once and applied wherever it is needed. Builder methods return a new
+---validator and do not modify the original. Validators for Factorio structures, such as icons,
+---colors, vectors, and file paths, are provided by `validation.common`.
 ---
----For the Factorio structures this library already describes — icons, colors,
----vectors, file paths — see `validation.common`, which is built from these
----pieces.
+---This module may be used in any mod loading stage.
 ---
----Nothing here depends on a particular mod loading stage.
----
----### Examples
+---#### Examples
 ---```lua
 ---local V = require("__reskins-sprite-utils__.validation")
 ---
------ Defined once, at load:
+----- Define once.
 ---local PipeMaterial = V.one_of(_defines.pipe_material)
 ---local AntennaVariant = V.integer():in_range(0, 4)
 ---
------ Reused at every call site:
+----- Reuse across multiple call sites.
 ---function M.get_roboport(pipe_material, antenna_variant)
 ---    PipeMaterial:assert(pipe_material, "pipe_material")
 ---    AntennaVariant:assert(antenna_variant, "antenna_variant")

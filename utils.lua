@@ -2,7 +2,7 @@
 
 --- Provides low-level generalized utility methods.
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local _utils = require("__reskins-sprite-utils__.utils")
 ---```
@@ -11,11 +11,7 @@ local _utils = {}
 
 local V = require("validation")
 
----An array holding anything.
----
----What an array holds is not this module's business, since elements are carried
----through untouched. That it is an array is, since the order it is read in
----depends on it being a contiguous sequence.
+---A validator that checks that a value is an array. Elements are not validated.
 local any_array = V.array(V.any()):describe_as("an array")
 
 ---
@@ -26,7 +22,14 @@ local any_array = V.array(V.any()):describe_as("an array")
 ---An argument that is `nil` contributes nothing, so an array that is only
 ---sometimes wanted can be passed conditionally without standing in an empty one.
 ---
----### Examples
+---#### Parameters
+---@generic T
+---@param ... T[] The arrays to concatenate.
+---
+---#### Returns
+---@return T[] # A new array containing the elements of each given array, in order.
+---
+---#### Examples
 ---```lua
 ---local base_layers = { base_animation, base_shadow_animation }
 ---local tint_layers = { mask_animation, highlights_animation }
@@ -34,16 +37,7 @@ local any_array = V.array(V.any()):describe_as("an array")
 ---local layers = _utils.array_concat(base_layers, tint_layers)
 ----- { base_animation, base_shadow_animation, mask_animation, highlights_animation }
 ---```
----
----### Parameters
----@generic T
----@param ... T[] # The arrays to concatenate.
----
----### Returns
----@return T[] # A new array containing the elements of each given array, in order.
----
----### Exceptions
----*@throws* `string` — Thrown when an argument is neither an array nor `nil`.
+---@throws Thrown when an argument is neither an array nor `nil`.
 ---@nodiscard
 function _utils.array_concat(...)
 	local concatenated = {}

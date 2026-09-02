@@ -27,11 +27,8 @@ local VALID_BEHAVIORS = {
 ---@type ValidationBehavior?
 local behavior = nil
 
----Reads the behavior from the startup setting.
----
----The read is guarded because `settings` does not exist during the settings
----stage, not because validation is tied to any particular stage. Everything
----else in this module is stage-agnostic.
+---Reads the behavior from the startup setting. Returns the default behavior if `settings` is not
+---available, as during the settings stage, or the setting holds an unrecognized value.
 ---@return ValidationBehavior
 local function read_setting()
 	local ok, value = pcall(function()
@@ -56,7 +53,7 @@ function _config.get_behavior()
 end
 
 ---Sets the behavior applied when a validation fails, overriding the setting.
----@param new_behavior ValidationBehavior # One of `"throw"`, `"log"`, or `"off"`.
+---@param new_behavior ValidationBehavior One of `"throw"`, `"log"`, or `"off"`.
 function _config.set_behavior(new_behavior)
 	---@diagnostic disable-next-line: unnecessary-if
 	if not VALID_BEHAVIORS[new_behavior] then

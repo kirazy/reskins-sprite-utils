@@ -6,7 +6,7 @@
 
 --- Provides color tools for use with Artisanal Reskins: Sprite Utils.
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local _colors = require("__reskins-sprite-utils__.colors")
 ---```
@@ -65,12 +65,8 @@ end
 ---[View Documentation](https://lua-api.factorio.com/latest/types/Color.html%23r#r)
 ---@field r float
 
----Normalizes a color that has already been validated.
----
----Taken separately so that a color reaching this module through one of the
----conversions is checked once, against the parameter it was passed as, rather
----than again here as `tint`.
----@param tint Color # The color to normalize.
+---Normalizes the given color. The color is not validated.
+---@param tint Color The color to normalize.
 ---@return NormalizedColor # A copy of `tint` with all channels normalized and defined.
 ---@nodiscard
 local function normalize_color(tint)
@@ -99,22 +95,16 @@ local check_normalize = V.signature("normalize", {
 ---
 ---`tint` may use either named fields (`r`, `g`, `b`, `a`) or positional fields (`[1]`, `[2]`, `[3]`, `[4]`).
 ---If any channel value exceeds 1, all channels are divided by 255.
+---@param tint Color The color to normalize.
+---@return NormalizedColor # A copy of `tint` with all channels normalized and defined.
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local normalized = _colors.normalize({ r = 128, g = 191, b = 222, a = 255 })
 ----- Returns { r ≈ 0.502, g ≈ 0.749, b ≈ 0.871, a = 1.0 }
 ---```
----
----### Parameters
----@param tint Color # The color to normalize.
----
----### Returns
----@return NormalizedColor # A copy of `tint` with all channels normalized and defined.
----
----### Exceptions
----*@throws* `string` — Thrown when `tint` is `nil`.\
----*@throws* `string` — Thrown when `tint` is not a `Color`.
+---@throws Thrown when `tint` is `nil`.
+---@throws Thrown when `tint` is not a `Color`.
 ---@nodiscard
 function _colors.normalize(tint)
 	check_normalize(tint)
@@ -143,7 +133,15 @@ local check_are_equal = V.signature("are_equal", {
 ---`c1` and `c2` are not required to be normalized beforehand, so a color written
 ---on the 0–255 scale and the same color written on the 0–1 scale compare equal.
 ---
----### Examples
+---#### Parameters
+---@param c1 Color The first color.
+---@param c2 Color The second color.
+---@param tolerance? float The largest difference allowed between matching channels, from 0 to 1. When `0`, the channels must match exactly. Default `0.5 / 255`.
+---
+---#### Returns
+---@return boolean # `true` if every channel of `c1` is within `tolerance` of the matching channel of `c2`; otherwise, `false`.
+---
+---#### Examples
 ---```lua
 ---local same = _colors.are_equal({ r = 255, g = 0, b = 0, a = 255 }, { r = 1, g = 0, b = 0, a = 1 })
 ----- Returns true
@@ -151,19 +149,9 @@ local check_are_equal = V.signature("are_equal", {
 ---local exact = _colors.are_equal({ r = 0.5, g = 0, b = 0, a = 1 }, { r = 0.5001, g = 0, b = 0, a = 1 }, 0)
 ----- Returns false
 ---```
----
----### Parameters
----@param c1 Color # The first color.
----@param c2 Color # The second color.
----@param tolerance? float # The largest difference between 0 and 1 any one channel may have and still read as equal. When `0`, the channels must match exactly. Default `0.5 / 255`.
----
----### Returns
----@return boolean # Whether every channel of `c1` is within `tolerance` of the matching channel of `c2`.
----
----### Exceptions
----*@throws* `string` — Thrown when `c1` or `c2` is `nil`.\
----*@throws* `string` — Thrown when `c1` or `c2` is not a `Color`.\
----*@throws* `string` — Thrown when `tolerance` is not between 0 and 1.
+---@throws Thrown when `c1` or `c2` is `nil`.
+---@throws Thrown when `c1` or `c2` is not a `Color`.
+---@throws Thrown when `tolerance` is not between 0 and 1.
 ---@nodiscard
 function _colors.are_equal(c1, c2, tolerance)
 	check_are_equal(c1, c2, tolerance)
@@ -182,11 +170,7 @@ function _colors.are_equal(c1, c2, tolerance)
 	return true
 end
 
----An 8-character ARGB hex code, such as `"FF00C1DF"`.
----
----The count and the alphabet are one requirement rather than two, so a code
----that is the wrong length and a code carrying a character that is not a hex
----digit both read as the same thing being asked for.
+---A validator that checks that a value is an 8-character ARGB hex code, such as `"FF00C1DF"`.
 local argb_hex = V.string()
 	:matches("^%x%x%x%x%x%x%x%x$", "eight hexadecimal digits, in the order alpha, red, green, and blue")
 	:describe_as("an ARGB hex code")
@@ -202,7 +186,11 @@ local check_from_argb = V.signature("from_argb", {
 ---
 ---Visual Studio Code will remove them anyways on interacting with the color picker.
 ---
----### Examples
+---Use anywhere you would use a tint.
+---@param hex string An 8-character ARGB color hex code.
+---@return Color # The color the hex code names.
+---
+---#### Examples
 ---Import the colors module and then use it to create a tint. If working with the Factorio Modding Tool Kit and Visual
 ---Studio Code, once the Lua workspace has loaded the color picker will be interactive and render correctly in game.
 ---```lua
@@ -210,19 +198,10 @@ local check_from_argb = V.signature("from_argb", {
 ---
 ---local tahiti_blue = colors.from_argb("FF00C1DF")
 ---```
----Use anywhere you would use a tint.
----
----### Parameters
----@param hex string # An 8-character ARGB color hex code.
----
----### Returns
----@return Color # The color the hex code names.
----
----### Exceptions
----*@throws* `string` — Thrown when `hex` is `nil`.\
----*@throws* `string` — Thrown when `hex` is not eight hexadecimal digits.
----@nodiscard
+---@throws Thrown when `hex` is `nil`.
+---@throws Thrown when `hex` is not eight hexadecimal digits.
 ---@deprecated Use util.color("RRGGBBAA") with latest versions of FTMK/EmmyLua, as the color picker now correctly maintains RGBA syntax.
+---@nodiscard
 function _colors.from_argb(hex)
 	check_from_argb(hex)
 
@@ -241,20 +220,18 @@ local check_rgba_to_hsva = V.signature("rgba_to_hsva", {
 ---
 ---`tint` is not required to be normalized beforehand.
 ---
----### Examples
+---#### Parameters
+---@param tint Color The RGBA color to convert.
+---
+---#### Returns
+---@return HsvColor # An HSVA color with `h` in degrees (0–360) and `s`, `v`, `a` between 0 and 1.
+---
+---#### Examples
 ---```lua
 ---local hsva = _colors.rgba_to_hsva({ r = 0, g = 0.753, b = 0.871, a = 1 })
 ---```
----
----### Parameters
----@param tint Color # The RGBA color to convert.
----
----### Returns
----@return HsvColor # An HSVA color with `h` in degrees (0–360) and `s`, `v`, `a` between 0 and 1.
----
----### Exceptions
----*@throws* `string` — Thrown when `tint` is `nil`.\
----*@throws* `string` — Thrown when `tint` is not a `Color`.
+---@throws Thrown when `tint` is `nil`.
+---@throws Thrown when `tint` is not a `Color`.
 ---@nodiscard
 function _colors.rgba_to_hsva(tint)
 	check_rgba_to_hsva(tint)
@@ -283,8 +260,7 @@ function _colors.rgba_to_hsva(tint)
 
 	local v = max
 
-	-- Black has no value for its saturation to be measured against, and
-	-- dividing by it yields a NaN rather than the zero the color has.
+	-- Black has zero saturation. Dividing by zero would yield NaN.
 	local s = 0.0
 	if max > 0 then
 		s = range / max
@@ -307,20 +283,18 @@ local check_rgba_to_hsla = V.signature("rgba_to_hsla", {
 ---
 ---`tint` is not required to be normalized beforehand.
 ---
----### Examples
+---#### Parameters
+---@param tint Color The RGBA color to convert.
+---
+---#### Returns
+---@return HslColor # An HSLA color with `h` in degrees (0–360) and `s`, `l`, `a` between 0 and 1.
+---
+---#### Examples
 ---```lua
 ---local hsla = _colors.rgba_to_hsla({ r = 0, g = 0.753, b = 0.871, a = 1 })
 ---```
----
----### Parameters
----@param tint Color # The RGBA color to convert.
----
----### Returns
----@return HslColor # An HSLA color with `h` in degrees (0–360) and `s`, `l`, `a` between 0 and 1.
----
----### Exceptions
----*@throws* `string` — Thrown when `tint` is `nil`.\
----*@throws* `string` — Thrown when `tint` is not a `Color`.
+---@throws Thrown when `tint` is `nil`.
+---@throws Thrown when `tint` is not a `Color`.
 ---@nodiscard
 function _colors.rgba_to_hsla(tint)
 	check_rgba_to_hsla(tint)
@@ -369,21 +343,19 @@ local check_hsva_to_rgba = V.signature("hsva_to_rgba", {
 ---
 ---Converts the provided `tint` from HSVA to RGBA color space.
 ---
----### Examples
+---#### Parameters
+---@param tint HsvColor The HSVA color to convert, with `h` in degrees (0–360) and `s`, `v`, `a` between 0 and 1.
+---
+---#### Returns
+---@return NormalizedColor # An RGBA color with channel values clamped between 0 and 1.
+---
+---#### Examples
 ---```lua
 ---local rgba = _colors.hsva_to_rgba({ h = 191, s = 1, v = 0.871, a = 1 })
 ---```
----
----### Parameters
----@param tint HsvColor # The HSVA color to convert, with `h` in degrees (0–360) and `s`, `v`, `a` between 0 and 1.
----
----### Returns
----@return NormalizedColor # An RGBA color with channel values clamped between 0 and 1.
----
----### Exceptions
----*@throws* `string` — Thrown when `tint` is `nil`.\
----*@throws* `string` — Thrown when `tint` is not an `HsvColor`.\
----*@throws* `string` — Thrown when `tint.s`, `tint.v`, or `tint.a` is not between 0 and 1.
+---@throws Thrown when `tint` is `nil`.
+---@throws Thrown when `tint` is not an `HsvColor`.
+---@throws Thrown when `tint.s`, `tint.v`, or `tint.a` is not between 0 and 1.
 ---@nodiscard
 function _colors.hsva_to_rgba(tint)
 	check_hsva_to_rgba(tint)
@@ -409,21 +381,19 @@ local check_hsla_to_rgba = V.signature("hsla_to_rgba", {
 ---
 ---Converts the provided `tint` from HSLA to RGBA color space.
 ---
----### Examples
+---#### Parameters
+---@param tint HslColor The HSLA color to convert, with `h` in degrees (0–360) and `s`, `l`, `a` between 0 and 1.
+---
+---#### Returns
+---@return NormalizedColor # An RGBA color with channel values clamped between 0 and 1.
+---
+---#### Examples
 ---```lua
 ---local rgba = _colors.hsla_to_rgba({ h = 191, s = 1, l = 0.435, a = 1 })
 ---```
----
----### Parameters
----@param tint HslColor # The HSLA color to convert, with `h` in degrees (0–360) and `s`, `l`, `a` between 0 and 1.
----
----### Returns
----@return NormalizedColor # An RGBA color with channel values clamped between 0 and 1.
----
----### Exceptions
----*@throws* `string` — Thrown when `tint` is `nil`.\
----*@throws* `string` — Thrown when `tint` is not an `HslColor`.\
----*@throws* `string` — Thrown when `tint.s`, `tint.l`, or `tint.a` is not between 0 and 1.
+---@throws Thrown when `tint` is `nil`.
+---@throws Thrown when `tint` is not an `HslColor`.
+---@throws Thrown when `tint.s`, `tint.l`, or `tint.a` is not between 0 and 1.
 ---@nodiscard
 function _colors.hsla_to_rgba(tint)
 	check_hsla_to_rgba(tint)
@@ -472,24 +442,22 @@ local check_overlay = V.signature("overlay", {
 ---
 ---`base` and `overlay` are not required to be normalized beforehand.
 ---
----### Examples
+---#### Parameters
+---@param base Color The base color to composite over.
+---@param overlay Color The overlay color to composite on top.
+---
+---#### Returns
+---@return NormalizedColor # The composited RGBA color, with channel values clamped between 0 and 1.
+---
+---#### Examples
 ---```lua
 ---local result = _colors.overlay(
 ---    { r = 0.2, g = 0.2, b = 0.2, a = 1 },
 ---    { r = 0, g = 0.753, b = 0.871, a = 0.5 }
 ---)
 ---```
----
----### Parameters
----@param base Color # The base color to composite over.
----@param overlay Color # The overlay color to composite on top.
----
----### Returns
----@return NormalizedColor # The composited RGBA color, with channel values clamped between 0 and 1.
----
----### Exceptions
----*@throws* `string` — Thrown when `base` or `overlay` is `nil`.\
----*@throws* `string` — Thrown when `base` or `overlay` is not a `Color`.
+---@throws Thrown when `base` or `overlay` is `nil`.
+---@throws Thrown when `base` or `overlay` is not a `Color`.
 ---@nodiscard
 function _colors.overlay(base, overlay)
 	check_overlay(base, overlay)
@@ -552,7 +520,15 @@ local check_blend = V.signature("blend", {
 ---
 ---`c1` and `c2` are not required to be normalized beforehand.
 ---
----### Examples
+---#### Parameters
+---@param c1 Color The first color.
+---@param c2 Color The second color.
+---@param weight? float A fractional weight between 0 and 1 that determines the proportional color mix. When `0`, `c1` is returned, when `1`, `c2` is returned. Default `0.5`.
+---
+---#### Returns
+---@return NormalizedColor # The blended RGBA color, with channel values clamped between 0 and 1.
+---
+---#### Examples
 ---```lua
 ---local blended = _colors.blend(
 ---    { r = 1, g = 0, b = 0, a = 1 },
@@ -560,19 +536,9 @@ local check_blend = V.signature("blend", {
 ---    0.5
 ---)
 ---```
----
----### Parameters
----@param c1 Color # The first color.
----@param c2 Color # The second color.
----@param weight? float # A fractional weight between 0 and 1 that determines the proportional color mix. When `0`, `c1` is returned, when `1`, `c2` is returned. Default `0.5`.
----
----### Returns
----@return NormalizedColor # The blended RGBA color, with channel values clamped between 0 and 1.
----
----### Exceptions
----*@throws* `string` — Thrown when `c1` or `c2` is `nil`.\
----*@throws* `string` — Thrown when `c1` or `c2` is not a `Color`.\
----*@throws* `string` — Thrown when `weight` is not between 0 and 1.
+---@throws Thrown when `c1` or `c2` is `nil`.
+---@throws Thrown when `c1` or `c2` is not a `Color`.
+---@throws Thrown when `weight` is not between 0 and 1.
 ---@nodiscard
 function _colors.blend(c1, c2, weight)
 	check_blend(c1, c2, weight)

@@ -5,24 +5,18 @@ local _result = require("validation.result")
 
 ---A single check applied to a value.
 ---
----`check` returns `true` when the value satisfies the rule. On failure it
----returns `false` plus either a message describing what was wrong, or a list of
----`ValidationError` objects already carrying their own paths — the latter is how
----composite rules report failures against nested values.
+---`check` returns `true` if the value satisfies the rule. Otherwise, it returns `false` and either
+---a message describing the failure, or an array of `ValidationError` objects with their own paths,
+---for failures against nested values.
 ---@class ValidationRule<TValidated>
 ---A stable identifier, such as `string.min_length`. Used to locate a rule for removal.
 ---@field id string
----A fragment describing what the rule requires, such as `at least 3 characters long`.
----
----A rule whose description depends on another validator supplies a function
----instead of a string, so that describing it is deferred along with everything
----else. Calling `describe()` on a child at rule-construction time would force a
----`lazy` child to resolve before a recursive definition had been bound.
+---A fragment describing what the rule requires, such as `at least 3 characters long`. A rule whose
+---description depends on another validator supplies a function, which is called when the
+---description is needed.
 ---@field describe string|fun(): string
----The check itself.
----
----`value` is whatever the validator validates, so a rule of an `ArrayValidator<TValidated>`
----is handed the whole `T[]` rather than an element.
+---The check. `value` is the whole value being validated; a rule of an `ArrayValidator` receives
+---the array, not an element.
 ---@field check fun(value: TValidated, ctx: ValidationContext): boolean, (string|ValidationError[])?
 ---When `true`, a failure stops evaluation of the remaining rules. Used by type checks.
 ---@field is_gate boolean?
@@ -45,7 +39,7 @@ local _result = require("validation.result")
 ---methods never mutate; each returns a new validator carrying one more rule, so
 ---a validator shared from a catalog can be safely extended by any caller.
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local V = require("__reskins-sprite-utils__.validation")
 ---
@@ -85,11 +79,9 @@ local function describe_rule(rule)
 	return rule.describe
 end
 
----Creates a validator class inheriting the shared methods.
----
----Each kind gets its own class so that kind-specific builder methods are only
----reachable on validators that can use them.
----@param kind string # The kind of value the class validates.
+---Creates a validator class for the given `kind` that inherits the shared methods. Kind-specific
+---builder methods are defined on the class.
+---@param kind string The kind of value the class validates.
 ---@return Validator<TValidated> # The new class.
 ---@nodiscard
 function Validator.subclass(kind)
@@ -101,9 +93,11 @@ function Validator.subclass(kind)
 end
 
 ---Creates a validator instance of the given class.
+---
+---#### Parameters
 ---@generic C
----@param class C # A class produced by `Validator<TValidated>.subclass`.
----@param fields table? # Additional instance fields, such as a shape's field validators.
+---@param class C A class produced by `Validator<TValidated>.subclass`.
+---@param fields table? Additional instance fields, such as a shape's field validators.
 ---@return C
 ---@nodiscard
 function Validator.instance(class, fields)
@@ -120,8 +114,10 @@ end
 ---Type rules are gates: when one fails the remaining rules are skipped, so a
 ---length rule never sees a number and the caller gets one clear message instead
 ---of a Lua error from inside the rule.
----@param expected_type type # The `type()` name required.
----@param article string? # How to describe the type, such as `"an array"`. Defaults to the type name.
+---
+---#### Parameters
+---@param expected_type type The `type()` name required.
+---@param article string? How to describe the type, such as `"an array"`. Defaults to the type name.
 ---@return ValidationRule<any>
 ---@nodiscard
 function Validator.type_gate(expected_type, article)
@@ -170,7 +166,7 @@ end
 ---Creates a copy of this validator with an additional rule.
 ---@generic S : Validator<any>
 ---@param self S
----@param rule ValidationRule<TValidated> # The rule to append.
+---@param rule ValidationRule<TValidated> The rule to append.
 ---@return S
 ---@nodiscard
 function Validator.extend(self, rule)
@@ -183,7 +179,7 @@ end
 ---Creates a copy of this validator with the identified rule removed.
 ---@generic S : Validator<any>
 ---@param self S
----@param rule_id string # The `id` of the rule to drop.
+---@param rule_id string The `id` of the rule to drop.
 ---@return S
 ---@nodiscard
 function Validator.without(self, rule_id)
@@ -232,7 +228,7 @@ end
 ---`"an IconData object"`, in place of a description assembled from its rules.
 ---@generic S : Validator<any>
 ---@param self S
----@param text string # The description to use.
+---@param text string The description to use.
 ---@return S
 ---@nodiscard
 function Validator.describe_as(self, text)
@@ -243,10 +239,12 @@ function Validator.describe_as(self, text)
 end
 
 ---Creates a copy of this validator with an additional predicate rule.
+---
+---#### Parameters
 ---@generic S : Validator<any>
 ---@param self S
----@param predicate fun(value: TValidated): boolean # Returns `true` when the value is acceptable.
----@param message string # What the value must be, phrased to follow `must be`, such as `a power of two`.
+---@param predicate fun(value: TValidated): boolean A function that returns `true` if the value is acceptable.
+---@param message string What the value must be, phrased to follow `must be`, such as `a power of two`.
 ---@return S
 ---@nodiscard
 function Validator.satisfies(self, predicate, message)
@@ -288,7 +286,14 @@ end
 
 ---Validates a value against this validator's rules, without raising.
 ---
----### Examples
+---#### Parameters
+---@param value unknown The value to check.
+---@param opts ValidationOptions? Path and collection options.
+---
+---#### Returns
+---@return ValidationResult # A result indicating whether the value is valid, with every failure found.
+---
+---#### Examples
 ---```lua
 ---local result = IconDatum:validate(icon_datum, { path = "icon_datum" })
 ---if not result.ok then
@@ -297,13 +302,6 @@ end
 ---    end
 ---end
 ---```
----
----### Parameters
----@param value unknown # The value to check.
----@param opts ValidationOptions? # Path and collection options.
----
----### Returns
----@return ValidationResult # Whether the value is valid, and every failure found.
 ---@nodiscard
 function Validator:validate(value, opts)
 	opts = opts or {}
@@ -326,8 +324,8 @@ function Validator:validate(value, opts)
 	local ctx = { path = path }
 	local errors = {}
 
-	-- Rules run in the order they were added; the type gate coming first is what
-	-- keeps every later rule safe from a value of the wrong type.
+	-- Rules run in the order added. The type gate runs first, so later rules receive a value of
+	-- the expected type.
 	for _, rule in pairs(self.rules) do
 		local ok, detail = rule.check(value, ctx)
 		if not ok then
@@ -339,8 +337,8 @@ function Validator:validate(value, opts)
 				errors[#errors + 1] = { path = path, message = detail or ("must be " .. tostring(describe_rule(rule))) }
 			end
 
-			-- A failed type check makes every later rule meaningless, so stop
-			-- regardless of whether the caller asked for everything.
+			-- A failed type check makes the remaining rules meaningless; stop even if the caller asked
+			-- for every failure.
 			if rule.is_gate or not collect_all then
 				return _result.from_errors(errors)
 			end
@@ -350,10 +348,7 @@ function Validator:validate(value, opts)
 	return _result.from_errors(errors)
 end
 
----Runs the validation and reports a failure, returning the value regardless.
----
----`parse` and `assert` both call this directly rather than one delegating to the
----other, so that neither is a frame the other has to account for.
+---Runs the validation and reports any failure. Returns the value in either case.
 ---@param self Validator<any>
 ---@param value any
 ---@param param_name string?
@@ -372,9 +367,8 @@ local function report_failure(self, value, param_name, function_name)
 	end
 
 	if not function_name then
-		-- Found by walking out of this module rather than by counting frames, so
-		-- that the name and the line reported alongside it are read from the very
-		-- same frame. Tail calls leave no name behind, hence the fallback.
+		-- The frame is found by walking out of this module rather than by counting, so that the name
+		-- and line are read from the same frame. A tail call leaves no name, hence the fallback.
 		local _, name = _result.blame()
 
 		function_name = name or "<unknown>"
@@ -385,7 +379,7 @@ local function report_failure(self, value, param_name, function_name)
 	return value
 end
 
----Reports whether a value satisfies this validator. Never raises.
+---Indicates whether a value satisfies this validator. Never raises.
 ---
 ---Declared as a `TypeGuard<TValidated>`, so a value checked in a condition is narrowed to
 ---the type this validator validates for the rest of the branch:
@@ -395,12 +389,9 @@ end
 ---    source.icon_size = 64 -- source is an IconData here
 ---end
 ---```
----
----`self` is an explicit parameter, which is what lets `T` be read from the
----receiver; callers still use `validator:is_valid(value)` as normal.
 ---@generic T
 ---@param self Validator<TValidated>
----@param value any # The value to check.
+---@param value any The value to check.
 ---@return TypeGuard<TValidated>
 ---@nodiscard
 function Validator.is_valid(self, value)
@@ -417,7 +408,17 @@ end
 ---`"log"` records the message, and `"off"` skips validation altogether. The
 ---value is returned unchanged either way.
 ---
----### Examples
+---#### Parameters
+---@generic T
+---@param self Validator<TValidated>
+---@param value unknown The value to check.
+---@param param_name string? The parameter name, used in the message. Defaults to `"value"`.
+---@param function_name string? The function name, used in the message. Detected from the stack when omitted, except under a tail call; pass it explicitly there.
+---
+---#### Returns
+---@return T # The given `value`, unchanged.
+---
+---#### Examples
 ---```lua
 ---function M.scale_icon(icon_data, scalar)
 ---    icon_data = Common.icon_data:parse(icon_data, "icon_data")
@@ -425,28 +426,10 @@ end
 ---    -- icon_data is IconData[] and scalar is a number from here on
 ---end
 ---```
----
----### Parameters
----@generic T
----@param self Validator<TValidated>
----@param value unknown # The value to check.
----@param param_name string? # The parameter name, used in the message. Defaults to `"value"`.
----@param function_name string? # The function name, used in the message. Detected from the stack when omitted, except under a tail call; pass it explicitly there.
----
----### Returns
----@return T # The given `value`, unchanged.
----
----### Exceptions
----*@throws* `string` — Thrown when the value is invalid and the behavior is `"throw"`.
+---@throws Thrown when the value is invalid and the behavior is `"throw"`.
 function Validator.parse(self, value, param_name, function_name)
-	-- Deliberately not `return report_failure(...)`. A tail call from here would
-	-- discard this frame and mark the next one as tail-called, which is the very
-	-- signal used to detect a tail call made by the *caller*; the two would then
-	-- be indistinguishable without comparing function identities.
-	--
-	-- The tail call is worth giving up: this is one frame, not recursion, so
-	-- there is no stack depth to save, and the frame costs far less than the
-	-- validation it sits beside.
+	-- Not a tail call. A tail call would discard this frame and mark the next as tail-called,
+	-- which is the signal used to detect a tail call by the caller.
 	local checked = report_failure(self, value, param_name, function_name)
 
 	return checked
@@ -457,7 +440,12 @@ end
 ---Returns nothing, so it reads as a statement guard. Use `parse` when the typed
 ---value is wanted.
 ---
----### Examples
+---#### Parameters
+---@param value unknown The value to check.
+---@param param_name string? The parameter name, used in the message. Defaults to `"value"`.
+---@param function_name string? The function name, used in the message. Detected from the stack when omitted.
+---
+---#### Examples
 ---```lua
 ---function M.scale_icon(icon_data, scalar)
 ---    Common.icon_data:assert(icon_data, "icon_data")
@@ -465,14 +453,7 @@ end
 ---    ...
 ---end
 ---```
----
----### Parameters
----@param value unknown # The value to check.
----@param param_name string? # The parameter name, used in the message. Defaults to `"value"`.
----@param function_name string? # The function name, used in the message. Detected from the stack when omitted.
----
----### Exceptions
----*@throws* `string` — Thrown when the value is invalid and the behavior is `"throw"`.
+---@throws Thrown when the value is invalid and the behavior is `"throw"`.
 function Validator:assert(value, param_name, function_name)
 	report_failure(self, value, param_name, function_name)
 end

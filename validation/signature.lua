@@ -10,17 +10,13 @@ local _signature = {}
 ---One parameter of a signature: its name, then its validator.
 ---@alias SignatureParameter [string, Validator<any>]
 
----A rule spanning more than one argument.
----
----A parameter's validator sees only that parameter, so a constraint one
----argument places on another has nowhere to live. This is where it goes.
+---A rule that checks more than one argument together.
 ---@class SignatureRule
----The parameter to blame. Omit where no single argument is at fault and the
----failure belongs to the call as a whole.
+---The name of the parameter to report the failure against. If `nil`, the failure is reported
+---against the call as a whole.
 ---@field parameter string?
----The parameters to hand `check`, named rather than positional so one rule can
----be shared between signatures that declare them in different orders. Every
----argument in declaration order when absent.
+---The names of the parameters passed to `check`, in order. If `nil`, every argument is passed in
+---declaration order.
 ---@field arguments string[]?
 ---Receives the arguments named by `arguments`, in that order, and returns
 ---whether they are acceptable together. A returned message replaces `message`.
@@ -29,13 +25,28 @@ local _signature = {}
 ---`check` returns no message of its own.
 ---@field message string?
 
----Creates a checker validating a function's arguments in one call.
+---Creates a function that validates the arguments of a function in one call. Every argument is
+---checked, and every invalid argument is reported.
 ---
----The function name and every parameter name are bound once, where the
----signature is declared, rather than repeated at each guard. Every argument is
----checked, so one call reports every bad argument instead of only the first.
+---A rule that checks several arguments together is given in `rules`:
+---```lua
+---local check_args = V.signature("get_icon_from_named_prototype", {
+---    { "name", Common.prototype_name },
+---    { "type_name", Common.prototypes.is_registered_type },
+---}, {
+---    { parameter = "name", check = name_exists_under_type },
+---})
+---```
 ---
----### Examples
+---#### Parameters
+---@param function_name string The name of the function being guarded, used in messages.
+---@param params SignatureParameter[] Each parameter's name and validator, in declaration order.
+---@param rules SignatureRule[]? Rules spanning more than one argument, run once every argument is individually valid.
+---
+---#### Returns
+---@return fun(...) # A function that accepts the arguments of the validated function, in order, and validates them.
+---
+---#### Examples
 ---```lua
 ---local check_args = V.signature("scale_icon", {
 ---    { "icon_data", Common.icon_data },
@@ -48,33 +59,10 @@ local _signature = {}
 ---    ...
 ---end
 ---```
----
----A rule spanning several arguments goes in `rules`, since a parameter's
----validator sees only that parameter:
----```lua
----local check_args = V.signature("get_icon_from_named_prototype", {
----    { "name", Common.prototype_name },
----    { "type_name", Common.prototypes.is_registered_type },
----}, {
----    { parameter = "name", check = name_exists_under_type },
----})
----```
----
----### Parameters
----@param function_name string # The name of the function being guarded, used in messages.
----@param params SignatureParameter[] # Each parameter's name and validator, in declaration order.
----@param rules SignatureRule[]? # Rules spanning more than one argument, run once every argument is individually valid.
----
----### Returns
----@return fun(...) # A checker accepting the guarded function's arguments, in order.
----
----### Exceptions
----*@throws* `string` — Thrown by the returned checker when an argument is invalid and the behavior is `"throw"`.
+---@throws Thrown by the returned checker when an argument is invalid and the behavior is `"throw"`.
 ---@nodiscard
 function _signature.signature(function_name, params, rules)
-	-- Checked once, here, rather than trusted at call time. A gap in the list
-	-- would otherwise mean quietly validating fewer arguments than were
-	-- declared, which is the one failure a validator must never have.
+	-- Checked at declaration. A gap in the list would validate fewer arguments than declared.
 	local declared = 0
 	for _ in pairs(params) do
 		declared = declared + 1
@@ -111,9 +99,8 @@ function _signature.signature(function_name, params, rules)
 		positions[param[1]] = index
 	end
 
-	-- Rules are resolved here rather than at call time: a rule naming an
-	-- argument the signature does not declare is a mistake in the declaration,
-	-- and it should be reported where it was written.
+	-- Resolved at declaration so that a rule naming an undeclared argument is reported where it
+	-- is written.
 	local prepared_rules = {}
 	for index, rule in pairs(rules or {}) do
 		if type(rule) ~= "table" or type(rule.check) ~= "function" then
@@ -181,9 +168,8 @@ function _signature.signature(function_name, params, rules)
 			end
 		end
 
-		-- Only once every argument stands on its own. A rule spanning two
-		-- arguments has nothing useful to say about one that is the wrong type,
-		-- and would have to guard against it before looking at either.
+		-- Rules run only after every argument is individually valid. A rule spanning arguments
+		-- cannot handle an argument of the wrong type.
 		if #errors == 0 then
 			for _, rule in pairs(prepared_rules) do
 				local ok, message

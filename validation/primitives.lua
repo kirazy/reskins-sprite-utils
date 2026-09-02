@@ -88,7 +88,7 @@ function _primitives.string()
 end
 
 ---Requires the string to be at least `min_length` characters long.
----@param min_length integer # The fewest characters allowed.
+---@param min_length integer The fewest characters allowed.
 ---@return StringValidator
 ---@nodiscard
 function StringValidator:min_length(min_length)
@@ -106,7 +106,7 @@ function StringValidator:min_length(min_length)
 end
 
 ---Requires the string to be at most `max_length` characters long.
----@param max_length integer # The most characters allowed.
+---@param max_length integer The most characters allowed.
 ---@return StringValidator
 ---@nodiscard
 function StringValidator:max_length(max_length)
@@ -124,8 +124,8 @@ function StringValidator:max_length(max_length)
 end
 
 ---Requires the string's length to fall within the given inclusive range.
----@param min_length integer # The fewest characters allowed.
----@param max_length integer # The most characters allowed.
+---@param min_length integer The fewest characters allowed.
+---@param max_length integer The most characters allowed.
 ---@return StringValidator
 ---@nodiscard
 function StringValidator:length_in_range(min_length, max_length)
@@ -177,8 +177,8 @@ function StringValidator:is_empty()
 end
 
 ---Requires the string to match the given Lua pattern.
----@param pattern string # The Lua pattern to match.
----@param description string? # How to describe the requirement, in place of the raw pattern.
+---@param pattern string The Lua pattern to match.
+---@param description string? How to describe the requirement, in place of the raw pattern.
 ---@return StringValidator
 ---@nodiscard
 function StringValidator:matches(pattern, description)
@@ -200,7 +200,7 @@ end
 ---Requires the string to begin with the given prefix.
 ---
 ---The prefix is compared literally; pattern magic characters carry no meaning.
----@param prefix string # The required prefix.
+---@param prefix string The required prefix.
 ---@return StringValidator
 ---@nodiscard
 function StringValidator:starts_with(prefix)
@@ -220,7 +220,7 @@ end
 ---Requires the string to end with the given suffix.
 ---
 ---The suffix is compared literally; pattern magic characters carry no meaning.
----@param suffix string # The required suffix.
+---@param suffix string The required suffix.
 ---@return StringValidator
 ---@nodiscard
 function StringValidator:ends_with(suffix)
@@ -240,7 +240,7 @@ end
 ---Requires the string to contain the given substring.
 ---
 ---The substring is compared literally; pattern magic characters carry no meaning.
----@param substring string # The required substring.
+---@param substring string The required substring.
 ---@return StringValidator
 ---@nodiscard
 function StringValidator:contains(substring)
@@ -372,8 +372,8 @@ function NumberValidator:not_zero()
 end
 
 ---Requires the number to fall within the given inclusive range.
----@param min number # The smallest value allowed.
----@param max number # The largest value allowed.
+---@param min number The smallest value allowed.
+---@param max number The largest value allowed.
 ---@return NumberValidator
 ---@nodiscard
 function NumberValidator:in_range(min, max)
@@ -399,7 +399,7 @@ end
 ---Requires the number to be no smaller than the given value.
 ---
 ---The inclusive counterpart of `greater_than`, and the one-sided form of `in_range`.
----@param min number # The smallest value allowed.
+---@param min number The smallest value allowed.
 ---@return NumberValidator
 ---@nodiscard
 function NumberValidator:at_least(min)
@@ -419,7 +419,7 @@ end
 ---Requires the number to be no larger than the given value.
 ---
 ---The inclusive counterpart of `less_than`, and the one-sided form of `in_range`.
----@param max number # The largest value allowed.
+---@param max number The largest value allowed.
 ---@return NumberValidator
 ---@nodiscard
 function NumberValidator:at_most(max)
@@ -437,7 +437,7 @@ function NumberValidator:at_most(max)
 end
 
 ---Requires the number to exceed the given value.
----@param min number # The value the number must exceed.
+---@param min number The value the number must exceed.
 ---@return NumberValidator
 ---@nodiscard
 function NumberValidator:greater_than(min)
@@ -455,7 +455,7 @@ function NumberValidator:greater_than(min)
 end
 
 ---Requires the number to fall below the given value.
----@param max number # The value the number must fall below.
+---@param max number The value the number must fall below.
 ---@return NumberValidator
 ---@nodiscard
 function NumberValidator:less_than(max)

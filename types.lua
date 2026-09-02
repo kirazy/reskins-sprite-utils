@@ -24,11 +24,10 @@
 
 ---Type names/aliases that map to icon_size defaults as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
 ---
----Every name here other than `"default"`, `"starmap"` and `"shortcut-small"` is also a
----prototype type name whose expected icon size matches, which is what lets a
----`prototype.type` be passed straight through. `"starmap"` is deliberately not
----`"space-location"`: a space location's regular `icon` takes the default size,
----and only its `starmap_icon` expects 512.
+---Every name other than `"default"`, `"starmap"`, and `"shortcut-small"` is a prototype type name
+---with the matching expected icon size. `"starmap"` is the expected size of
+---`SpaceLocationPrototype::starmap_icon`; the regular `icon` of a space location uses the default
+---size.
 ---@alias IconDefaultsType
 ---| "default"
 ---| "technology"
@@ -103,9 +102,8 @@
 ---@class TransformableIconBase
 ---The scale to apply to the sourced icon. Default `nil`.
 ---
----Multiplies whatever scale the sourced icon already had rather than replacing
----it. An ordinary 64px icon defaults to `0.5`, so a scale of `0.5` here leaves
----it at `0.25`. Ignored when `transform` is defined.
+---Multiplied with the existing scale of the sourced icon. An ordinary 64px icon defaults to a
+---scale of `0.5`, so a scale of `0.5` here results in `0.25`. Ignored when `transform` is defined.
 ---@field scale? double
 ---The shift to apply to the sourced icon. Default `nil`.
 ---
@@ -116,8 +114,8 @@
 ---@field shift? Vector
 ---The tint to apply to the sourced icon. Default `nil`.
 ---
----Applied to every layer of the sourced icon except one whose tint has an alpha of zero, which
----the game draws additively rather than in a color; that layer keeps its tint.
+---Applied to every layer of the sourced icon, except layers whose tint has an alpha of zero, which
+---the game renders additively.
 ---@field tint? Color
 ---When `true`, the sourced icon is not considered for calculating bounds of the icon, so it can go
 ---out of the bounds into which the composed icon is drawn in GUI.
@@ -161,81 +159,81 @@
 ---An array of icon data sources, whether a mix of explicit icons or a instructions on where to retrieve icons.
 ---@alias IconSources (IconDatumSource|IconDataSource|PrototypeIconSource)[]
 
----A stratum of an icon composition: the band of the stack a group's content sits in, and with it
----the space the content is authored in.
+---A stratum of an icon composition. Content is drawn by stratum, in the order listed.
 ---
----`backdrop`, `canvas`, and `overlay` hold artwork, drawn in that order from the bottom up, which a
----placement and the composition's transform move and scale together. `annotation` holds marks
----authored against the slot the finished icon is drawn in: they are drawn last, are never placed,
----transformed, or floated, and are left out when the composition is embedded in another.
+---`backdrop`, `canvas`, and `overlay` hold artwork, which placements and the `transform` of the
+---composition scale and shift together. `annotation` holds content positioned relative to the
+---finished icon, which is not placed, transformed, or floated, and is not included when the
+---composition is embedded in another composition.
 ---@alias IconCompositionStratum
----| "backdrop" # Artwork beneath the subject, such as a plate or a box.
+---| "backdrop" # Artwork drawn beneath the subject of the icon, such as a plate or a box.
 ---| "canvas" # The subject of the icon.
----| "overlay" # Artwork over the subject, such as a symbol or a sourced icon.
----| "annotation" # Marks against the slot, such as tier labels.
+---| "overlay" # Artwork drawn over the subject of the icon, such as a symbol or a sourced icon.
+---| "annotation" # Content positioned relative to the finished icon, such as a badge in a corner.
 
----A named group of content in an icon composition.
+---Defines a named group of content in an icon composition.
 ---
----A plain table, defined once and shared: a composition adopts a group the first time content is
----added to it, and a later definition under the same name must say the same things.
+---A composition stores the definition the first time content is added to a group with its name. A
+---later definition with the same name must be equal to the stored definition.
 ---@class IconCompositionGroup
----The name the group is known by within a composition.
+---The name of the group, unique within a composition.
 ---@field name string
----Which band of the stack the group's content sits in.
+---The stratum the content of the group is drawn in.
 ---@field stratum IconCompositionStratum
----Where the group sits among the groups of its stratum, lowest first. Default `0`. Groups of the
----same order stack by name, and content within a group in the order it was added.
+---The drawing order of the group within its stratum, lowest first. Default `0`. Groups with the
+---same order are drawn in name order, and content within a group in the order it was added.
 ---@field order? number
----Whether the composition's `set_tint` and `blend_tint` reach the group's content. Default `true`.
+---Whether `set_tint` and `blend_tint` are applied to the content of the group. Default `true`.
 ---@field tintable? boolean
----Whether the group holds one piece of content at a time, so adding to it replaces what it held.
----Default `false`.
+---Whether the group holds one content at a time. When `true`, adding content to the group replaces
+---its existing content. Default `false`.
 ---@field unique? boolean
----What the group says about each projection, by projection name: `false` keeps the group out of
----that projection; a table is handed to the projection to read as it sees fit.
+---Settings for each projection, by projection name. `false` excludes the group from the
+---projection; a table is passed to the projection as the entry of the group.
 ---@field projections? table<string, table|false>
 
----One group's content as a projection receives it: placed, transformed, and with the recorded
----verbs applied.
+---The content of one group as passed to a projection, with missing icon fields set to default
+---values, placements applied, and the recorded operations applied.
 ---@class IconCompositionProjectedContribution
 ---The group the content belongs to.
 ---@field group IconCompositionGroup
----The content, as icon layers in the frame the composition was projected to.
+---The layers of the content, converted to the icon defaults type given by the build options, if
+---any.
 ---@field layers SafeIconData[]
----The group's entry for the projection, when it made one.
+---The entry of the group for the projection, if the group defines one.
 ---@field entry? table
 
----What a projection is told about the composition it lowers.
+---Information about the composition passed to the `lower` function of a projection.
 ---@class IconCompositionProjectionContext
----The name of the type-specific icon defaults the layers are scaled for.
+---The name of the type-specific icon defaults the layers are converted to.
 ---@field defaults_type? IconDefaultsType
 ---The composition being projected.
 ---@field composition IconComposition
 
----A way of lowering an icon composition to an output, such as an icon or a sprite.
+---Defines how an icon composition is built to an output, such as an icon or a sprite.
 ---@class IconCompositionProjection<T>
----The name groups refer to the projection by in their `projections` entries.
+---The name of the projection, used as the key of group `projections` entries.
 ---@field name string
----Whether the output is drawn in a slot. When it is not, `annotation` content is left out unless
----its group makes an entry for the projection.
----@field has_slot boolean
----Lowers the contributions, in stacking order, to the output.
+---Whether `annotation` content is included. When `false`, annotation content is included only if
+---its group has an entry for the projection.
+---@field includes_annotations boolean
+---Builds the output from the projected contributions, given in drawing order.
 ---@field lower fun(contributions: IconCompositionProjectedContribution[], context: IconCompositionProjectionContext): T
 
----What a group may say to the `pictures` projection.
+---Settings for a group in the `pictures` projection.
 ---@class IconCompositionPicturesEntry
----Rewrites the group's lowered sprite layers. Returns the layers to keep in the group's place, and
----optionally layers to emit after every group.
+---A function that receives the sprite layers of the group and returns the layers to use in place
+---of them, and optionally an array of layers to draw after all groups.
 ---@field rewrite? fun(layers: Sprite[], contribution: IconCompositionProjectedContribution): Sprite[], Sprite[]?
 
 ---Options for building or projecting an icon composition.
 ---@class IconCompositionBuildOptions
----The name of the type-specific icon defaults to size the output for, when it differs from the
----composition's own. Every stratum has its scale and shift recomputed, annotations included.
+---The name of the type-specific icon defaults to convert the output to. The scale and shift of
+---every layer, including annotation layers, are converted. If `nil`, the output is not converted.
 ---@field to? IconDefaultsType
 
----What may be added to an icon composition: an icon, an icon source, a prototype defining an
----icon, or another composition.
+---Content that may be added to an icon composition: an `IconData` object, an array of `IconData`
+---objects, an `IconSource`, a prototype defining an icon, or an `IconComposition`.
 ---@alias IconCompositionContent IconData|IconData[]|IconSource|PrototypeWithIcons|IconComposition
 
 ---Provides additional fields for the `Animation` object when using a sprite sheet with

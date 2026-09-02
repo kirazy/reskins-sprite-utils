@@ -2,7 +2,7 @@
 
 --- Provides enumerations for use with Artisanal Reskins: Sprite Utils.
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local _defines = require("__reskins-sprite-utils__.defines")
 ---```
@@ -38,12 +38,11 @@ local COMPASS_SHIFT = 10
 ---Ready-made `Transform` values for the common ways of placing one icon on
 ---another.
 ---
----### Remarks
 ---- Sized for the 32-unit shift space of an ordinary prototype, which is not
 ---  the space a technology, achievement, item group, shortcut, or starmap
 ---  icon is measured in.
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local _defines = require("__reskins-sprite-utils__.defines")
 ---local _icons = require("__reskins-sprite-utils__.icons")
@@ -78,8 +77,7 @@ _defines.icon_transforms = {
 	---Icon transform presets placing an icon source at one of eight points around
 	---the edge of the icon.
 	---
-	---Scaled slightly smaller than the corner presets so that all eight fit, and
-	---offset further out, which leaves the middle of the icon clear.
+	---The presets are scaled to `0.4375` and offset so that the eight positions do not overlap.
 	---@class CompassIconTransformPresets
 	compass = {
 		---Places an icon source at the top edge, centred.
@@ -102,14 +100,13 @@ _defines.icon_transforms = {
 }
 
 ---
----The strata of an icon composition, from the bottom of the stack up.
+---The strata of an icon composition, in drawing order.
 ---
----### Remarks
----- Content in an earlier stratum is drawn beneath content in a later one, whatever order it was
----  added in.
----- `backdrop`, `canvas`, and `overlay` hold artwork, which placements and the composition's
----  transform move and scale together. `annotation` holds marks authored against the slot the
----  finished icon is drawn in, which are neither moved nor scaled.
+---- Content in an earlier stratum is drawn beneath content in a later stratum, regardless of the
+---  order the content was added in.
+---- `backdrop`, `canvas`, and `overlay` hold artwork, which placements and the `transform` of the
+---  composition scale and shift together. `annotation` holds content positioned relative to the
+---  finished icon, which is not scaled or shifted.
 ---@type IconCompositionStratum[]
 _defines.icon_composition_strata = { "backdrop", "canvas", "overlay", "annotation" }
 

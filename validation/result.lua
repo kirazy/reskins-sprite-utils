@@ -23,27 +23,21 @@ local _result = {}
 ---Matches a key that can be written with dot notation.
 local IDENTIFIER_PATTERN = "^[%a_][%w_]*$"
 
----The path shared by every file of this module.
----
----Derived from this file's own source rather than written down, so moving or
----renaming a file cannot silently leave it outside the module.
+---The directory of this module, read from the source path of this file.
 local MODULE_PREFIX = ""
 if debug ~= nil then
 	---@diagnostic disable-next-line: need-check-nil
 	MODULE_PREFIX = (debug.getinfo(1, "S").source:gsub("[^/\\]*$", ""))
 end
 
----Reports whether a stack frame belongs to this module.
----@param source string # A frame's `source`, as `debug.getinfo` reports it.
----@return boolean
+---Indicates whether a stack frame belongs to this module.
+---@param source string The `source` of the frame, as reported by `debug.getinfo`.
+---@return boolean # `true` if the frame belongs to this module; otherwise, `false`.
 local function is_module_frame(source)
 	return MODULE_PREFIX ~= "" and source:sub(1, #MODULE_PREFIX) == MODULE_PREFIX
 end
 
----Formats a value for inclusion in a failure message.
----
----`serpent` is guarded rather than assumed so this module stays usable wherever
----it is required from.
+---Formats the given value for inclusion in a failure message. Uses `serpent` if it is available.
 ---@param value any
 ---@return string
 function _result.format_value(value)
@@ -61,8 +55,8 @@ end
 ---Extends a path with a table key.
 ---
 ---Identifier-safe string keys use dot notation; everything else is bracketed.
----@param path string # The path of the containing value.
----@param key any # The key of the contained value.
+---@param path string The path of the containing value.
+---@param key any The key of the contained value.
 ---@return string
 function _result.child_path(path, key)
 	if type(key) == "string" and key:match(IDENTIFIER_PATTERN) then
@@ -84,8 +78,8 @@ function _result.pass()
 end
 
 ---Creates a result representing a single failure.
----@param path string # The path of the offending value.
----@param message string # What was wrong with it.
+---@param path string The path of the offending value.
+---@param message string The failure message.
 ---@return ValidationResult
 ---@nodiscard
 function _result.fail(path, message)
@@ -108,9 +102,11 @@ end
 ---
 ---A lone failure reads as one line; several are listed beneath a header so the
 ---path of each is visible at a glance.
----@param function_name string # The function whose parameter failed.
----@param param_name string # The parameter that failed.
----@param errors ValidationError[] # The failures to render.
+---
+---#### Parameters
+---@param function_name string The function whose parameter failed.
+---@param param_name string The parameter that failed.
+---@param errors ValidationError[] The failures to render.
 ---@return string
 ---@nodiscard
 function _result.format_message(function_name, param_name, errors)
@@ -131,7 +127,7 @@ end
 ---`log` has no level parameter and stamps its own call site instead, which would
 ---attribute every logged failure to this file. Resolving the location by hand is
 ---what keeps `"log"` pointing at the same line `"throw"` blames.
----@param level integer # The stack level to locate, as per `error`.
+---@param level integer The stack level to locate, as per `error`.
 ---@return string # A `source:line: ` prefix, or an empty string when unavailable.
 ---@nodiscard
 local function where(level)
@@ -139,8 +135,7 @@ local function where(level)
 		return ""
 	end
 
-	-- Offset by one: `error` counts levels from its caller, which is one frame
-	-- above this function.
+	-- Offset by one, since `error` counts levels from its caller.
 	local info = debug.getinfo(level + 1, "Sl")
 	if not info or not info.currentline or info.currentline <= 0 then
 		return ""
@@ -160,7 +155,7 @@ end
 ---inside it: the guard is in the same place on every failure and so locates
 ---nothing.
 ---
----### Returns
+---#### Returns
 ---@return integer # The level of the frame to blame, relative to the caller of this function.
 ---@return string? # The name of the validated function, when it can be known.
 ---@nodiscard
@@ -169,8 +164,8 @@ function _result.blame()
 		return 1, nil
 	end
 
-	-- Level 1 is this function and level 2 is its caller, always a frame of this
-	-- module; walk outwards until a frame is not.
+	-- Level 1 is this function and level 2 is its caller, which is in this module. Walk outwards
+	-- until a frame outside the module is found.
 	local level = 2
 	local frame = debug.getinfo(level, "S")
 	while frame and is_module_frame(frame.source) do
@@ -179,16 +174,14 @@ function _result.blame()
 	end
 
 	if not frame then
-		-- The whole stack belongs to this module, which should not happen. Blame
-		-- the outermost frame there is rather than an invalid level.
+		-- Every frame belongs to this module, which should not happen. Blame the outermost frame.
 		return level - 2, nil
 	end
 
-	-- A tail call into this module discards the validated function's frame, so
-	-- the frame just found is already its caller. A tail call into the validated
-	-- function loses its caller the same way, leaving its own line as the closest
-	-- true thing to report. Either way the frame found is the one to blame, one
-	-- nearer than usual, and Lua keeps no name for a frame entered by a tail call.
+	-- A tail call into this module discards the validated function's frame, so the frame found is
+	-- its caller. A tail call into the validated function discards its caller's frame, leaving the
+	-- validated function's own line. In either case the frame found is the one to blame, and Lua
+	-- keeps no name for a frame entered by a tail call.
 	local entry = debug.getinfo(level - 1, "t")
 	local guarded = debug.getinfo(level, "t")
 	if (entry and entry.istailcall) or (guarded and guarded.istailcall) then
@@ -204,7 +197,7 @@ end
 ---
 ---Throwing is the default; `"log"` records the message and returns; `"off"`
 ---does nothing.
----@param message string # The rendered failure message.
+---@param message string The rendered failure message.
 function _result.report(message)
 	local behavior = _config.get_behavior()
 
@@ -212,8 +205,8 @@ function _result.report(message)
 		return
 	end
 
-	-- `blame` reports levels relative to its caller, and `error` counts them from
-	-- its own caller, which is this function: the two agree without adjustment.
+	-- `blame` reports levels relative to its caller, and `error` counts levels from its caller,
+	-- which is this function. No adjustment is needed.
 	local level = _result.blame()
 
 	if behavior == "log" then

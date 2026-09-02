@@ -6,7 +6,7 @@
 
 --- Provides methods for manipulating sprites.
 ---
----### Examples
+---#### Examples
 ---```lua
 ---local _sprites = require("__reskins-sprite-utils__.sprites")
 ---```
@@ -20,27 +20,18 @@ local Common = require("validation.common")
 ---Source pixels a sprite draws to one tile at a scale of one.
 local TILE_SIZE = 32
 
----Converts one defaulted icon layer into a sprite layer.
----
----Takes the layer already defaulted rather than defaulting it here, so an
----array is checked once against its own indices rather than once per layer
----with no indication of which layer it was.
----@param icon_layer SafeIconData # A defaulted icon layer.
----@param scale? double # The scale to apply to the sprite.
----@return Sprite # A layer of sprite
+---Converts the given icon layer, with its missing fields already set to default values, into a
+---sprite layer.
+---@param icon_layer SafeIconData An icon layer with missing fields set to default values.
+---@param scale? double The scale to apply to the sprite.
+---@return Sprite # A sprite layer.
 local function convert_icon_layer_to_sprite_layer(icon_layer, scale)
 	local icon_copy = icon_layer
 	local scale_to_apply = scale and scale * icon_copy.scale or icon_copy.scale
 
-	-- One unit of an icon's shift is one rendered pixel of it: an icon spans
-	-- `expected_icon_size / 2` units and renders `icon_size * scale` pixels
-	-- across, and its default scale is what makes those the same number. A
-	-- sprite draws one source pixel to a thirty-second of a tile, so the offset
-	-- and the artwork it offsets cross into tiles by the very same factor --
-	-- which is what keeps the layers where the icon put them.
-	--
-	-- A scale asked for here grows the whole composition, so it grows the
-	-- offsets within it too, exactly as `icons.scale_icon` does.
+	-- One unit of icon shift is one rendered pixel of the icon at its default scale, and a sprite
+	-- draws one source pixel per 1/32 tile, so shifts and artwork convert to tiles by the same
+	-- factor. The given `scale` scales the shifts as well, as `icons.scale_icon` does.
 	local converted_shift = icon_copy.shift and util.mul_shift(icon_copy.shift, (scale or 1) / TILE_SIZE) or nil
 
 	---@type Sprite
@@ -57,9 +48,8 @@ local function convert_icon_layer_to_sprite_layer(icon_layer, scale)
 end
 
 local check_create_sprite_from_icons = V.signature("create_sprite_from_icons", {
-	-- Checked as a table only. The icon data itself is validated once, by the
-	-- call to `icons.add_missing_icons_defaults` below, which reports a failure
-	-- against the index it came from.
+	-- Checked as a table only. The icon data is validated by `icons.add_missing_icons_defaults`
+	-- below, which reports failures by index.
 	{ "icon_data", V.table() },
 	{ "scale", Common.positive_number:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
@@ -71,15 +61,15 @@ local check_create_sprite_from_icons = V.signature("create_sprite_from_icons", {
 ---Missing icon fields are set to default values as appropriate.
 ---`icon_data` is not modified.
 ---
----### Parameters
----@param icon_data IconData[] # An array of `IconData` objects.
----@param scale? double # The scale to apply to the sprite. Values other than 1 grow or shrink the composition, shifts included, uniformly across all layers.
----@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---#### Parameters
+---@param icon_data IconData[] An array of `IconData` objects.
+---@param scale? double The scale to apply to the sprite. Values other than 1 grow or shrink the composition, shifts included, uniformly across all layers.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---
----### Returns
+---#### Returns
 ---@return Sprite # A `Sprite` object created from `icon_data`.
 ---
----### Examples
+---#### Examples
 ---```lua
 ------@type IconData[]
 ---local icon_data = {
@@ -98,11 +88,9 @@ local check_create_sprite_from_icons = V.signature("create_sprite_from_icons", {
 ---
 ---local sprite = _sprites.create_sprite_from_icons(icon_data, 1.0)
 ---```
----
----### Exceptions
----*@throws* `string` — Thrown when `icon_data` is `nil`.\
----*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.\
----*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.
+---@throws Thrown when `icon_data` is `nil`.
+---@throws Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.
+---@throws Thrown when `icon_data[n].icon_size` is not a positive integer.
 ---@nodiscard
 function _sprites.create_sprite_from_icons(icon_data, scale, defaults_type)
 	check_create_sprite_from_icons(icon_data, scale, defaults_type)
@@ -122,7 +110,7 @@ function _sprites.create_sprite_from_icons(icon_data, scale, defaults_type)
 end
 
 local check_create_sprite_from_icon = V.signature("create_sprite_from_icon", {
-	-- As above: the icon itself is validated by `add_missing_icon_defaults`.
+	-- The icon is validated by `add_missing_icon_defaults`.
 	{ "icon_datum", V.table() },
 	{ "scale", Common.positive_number:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
@@ -134,15 +122,15 @@ local check_create_sprite_from_icon = V.signature("create_sprite_from_icon", {
 ---Missing icon fields are set to default values as appropriate.
 ---`icon_datum` is not modified.
 ---
----### Parameters
----@param icon_datum IconData  # An `IconData` object.
----@param scale? double # The scale to apply to the sprite. Values other than 1 grow or shrink the composition, shifts included, uniformly across all layers.
----@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---#### Parameters
+---@param icon_datum IconData An `IconData` object.
+---@param scale? double The scale to apply to the sprite. Values other than 1 grow or shrink the composition, shifts included, uniformly across all layers.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---
----### Returns
+---#### Returns
 ---@return Sprite # A `Sprite` object created from `icon_datum`.
 ---
----### Examples
+---#### Examples
 ---```lua
 ------@type IconData
 ---local icon_datum = {
@@ -153,12 +141,10 @@ local check_create_sprite_from_icon = V.signature("create_sprite_from_icon", {
 ---
 ---local sprite = _sprites.create_sprite_from_icon(icon_datum, 1.0)
 ---```
----
----### Exceptions
----*@throws* `string` — Thrown when `icon_datum` is `nil`.\
----*@throws* `string` — Thrown when `icon_datum` is not an IconData object.\
----*@throws* `string` — Thrown when `icon_datum.icon` is not an absolute file path with a valid extension.\
----*@throws* `string` — Thrown when `icon_datum.icon_size` is not a positive integer.
+---@throws Thrown when `icon_datum` is `nil`.
+---@throws Thrown when `icon_datum` is not an IconData object.
+---@throws Thrown when `icon_datum.icon` is not an absolute file path with a valid extension.
+---@throws Thrown when `icon_datum.icon_size` is not a positive integer.
 ---@nodiscard
 function _sprites.create_sprite_from_icon(icon_datum, scale, defaults_type)
 	check_create_sprite_from_icon(icon_datum, scale, defaults_type)
@@ -202,34 +188,16 @@ end
 ---Creates an `Animation4Way` object using the given `animation`, parsing the `line_length`
 ---and `frame_count` fields to slice a sprite sheet into direction-based `Animation` objects.
 ---
----### Remarks
 ---Extends the functionality of `make_rotated_animation_variations_from_sheet` to include handling
 ---of vertically oriented sprite sheets (set `vertically_oriented` to `true`), and of the additional
 ---parameters `run_mode` and `frame_sequence`.
 ---
 ---`animation` is not modified.
 ---
----### Parameters
----@param animation VerticallyOrientableAnimation|Animation # The animation object to create the 4-way animation from.
----
----### Returns
----@return Animation4Way|Sprite4Way # The 4-way animation object created from `animation`.
----
----### Examples
----To use the `vertically_oriented` parameter, include it in the `animation` object:
----```lua
----{
----    filename = "__mod-name__/graphics/entity/prototype/prototype.png",
----    priority = "extra-high",
----    vertically_oriented = true,
----    width = 660,
----    height = 460,
----    shift = util.by_pixel_hr(100, 20),
----    scale = 0.5,
----},
----```
 ---For a real-world example, see the Advanced Gas Refinery sprite sheets in Artisanal Reskins:
 ---Angel's Mods.
+---@param animation VerticallyOrientableAnimation|Animation The animation object to create the 4-way animation from.
+---@return Animation4Way|Sprite4Way # The 4-way animation object created from `animation`.
 ---@nodiscard
 local function build_4way_animation(animation)
 	local animation_copy = util.copy(animation)
@@ -243,8 +211,8 @@ local function build_4way_animation(animation)
 	}
 
 	---Creates the `Animation` object for the given `direction` using the given `source_animation`.
-	---@param direction DirectionDefines # The direction to create the animation for.
-	---@param source_animation VerticallyOrientableAnimation # The source animation object with a sprite sheet supporting direction-based configurations.
+	---@param direction DirectionDefines The direction to create the animation for.
+	---@param source_animation VerticallyOrientableAnimation The source animation object with a sprite sheet supporting direction-based configurations.
 	---@return Animation # The new animation for the given `direction`.
 	local function make_animation_layer_for_direction(direction, source_animation)
 		local start_frame = (source_animation.frame_count or 1) * direction
@@ -302,12 +270,13 @@ local function build_4way_animation(animation)
 	end
 
 	---Creates the `Animation` object for the given `direction` using the given `source_animation`.
-	---@param direction DirectionDefines # The direction to create the animation for.
+	---@param direction DirectionDefines The direction to create the animation for.
 	---@return Animation # The new animation for the given `direction`.
 	---@nodiscard
 	local function make_animation_for_direction(direction)
 		if animation_copy.layers then
 			local new_animation = { layers = {} }
+			-- Assigned by index to preserve layer order, which is draw order.
 			for _, layer in pairs(animation_copy.layers) do
 				new_animation.layers[#new_animation.layers + 1] = make_animation_layer_for_direction(direction, layer)
 			end
@@ -335,15 +304,9 @@ local check_make_4way_animation_from_spritesheet = V.signature("make_4way_animat
 ---
 ---Creates an `Animation4Way` object using the given `animation`, parsing the `line_length`
 ---and `frame_count` fields to slice a sprite sheet into direction-based `Animation` objects.
----
----### Parameters
----@param animation VerticallyOrientableAnimation|Animation # The animation object to create the 4-way animation from.
----
----### Returns
+---@param animation VerticallyOrientableAnimation|Animation The animation object to create the 4-way animation from.
 ---@return Animation4Way|Sprite4Way # The 4-way animation object created from `animation`.
----
----### Exceptions
----*@throws* `string` — Thrown when `animation` does not name the artwork it is cut from.
+---@throws Thrown when `animation` does not name the artwork it is cut from.
 ---@nodiscard
 function _sprites.make_4way_animation_from_spritesheet(animation)
 	check_make_4way_animation_from_spritesheet(animation)
@@ -361,13 +324,18 @@ local check_make_4way_working_visualisations_from_spritesheet =
 ---sheet referenced by its `animation` field into direction-based `north_animation`,
 ---`east_animation`, `south_animation`, and `west_animation` fields.
 ---
----### Remarks
 ---Internally delegates to `make_4way_animation_from_spritesheet` to slice `visualisations.animation`,
 ---so the same `vertically_oriented`, `run_mode`, and `frame_sequence` handling applies.
 ---
 ---`visualisations` is not modified.
 ---
----### Examples
+---#### Parameters
+---@param visualisations WorkingVisualisation The working visualisation object to create the 4-way working visualisation from. Must contain an `animation` field.
+---
+---#### Returns
+---@return WorkingVisualisation # A copy of `visualisations` with `animation` replaced by the direction-based animation fields.
+---
+---#### Examples
 ---```lua
 ---local working_visualisations = _sprites.make_4way_working_visualisations_from_spritesheet({
 ---    always_draw = true,
@@ -381,12 +349,6 @@ local check_make_4way_working_visualisations_from_spritesheet =
 ---    },
 ---})
 ---```
----
----### Parameters
----@param visualisations WorkingVisualisation # The working visualisation object to create the 4-way working visualisation from. Must contain an `animation` field.
----
----### Returns
----@return WorkingVisualisation # A copy of `visualisations` with `animation` replaced by the direction-based animation fields.
 ---@nodiscard
 function _sprites.make_4way_working_visualisations_from_spritesheet(visualisations)
 	check_make_4way_working_visualisations_from_spritesheet(visualisations)
@@ -417,7 +379,14 @@ local check_make_rotated_animation_variations_from_spritesheet =
 ---Each variation is assumed to occupy the same vertical span on the sheet, derived from
 ---`frame_count`, `line_length`, and `direction_count` on the source animation layer.
 ---
----### Examples
+---#### Parameters
+---@param variation_count integer The number of variations to slice from `sheet`.
+---@param sheet RotatedAnimation The source animation referencing a sprite sheet with all variations stacked vertically.
+---
+---#### Returns
+---@return RotatedAnimationVariations # An array of `RotatedAnimation` objects, one per variation.
+---
+---#### Examples
 ---```lua
 ---local variations = _sprites.make_rotated_animation_variations_from_spritesheet(4, {
 ---    filename = "__mod-name__/graphics/entity/prototype/prototype.png",
@@ -428,13 +397,6 @@ local check_make_rotated_animation_variations_from_spritesheet =
 ---    frame_count = 1,
 ---})
 ---```
----
----### Parameters
----@param variation_count integer # The number of variations to slice from `sheet`.
----@param sheet RotatedAnimation # The source animation referencing a sprite sheet with all variations stacked vertically.
----
----### Returns
----@return RotatedAnimationVariations # An array of `RotatedAnimation` objects, one per variation.
 ---@nodiscard
 function _sprites.make_rotated_animation_variations_from_spritesheet(variation_count, sheet)
 	check_make_rotated_animation_variations_from_spritesheet(variation_count, sheet)
@@ -496,15 +458,14 @@ local excluded_fields = {
 
 ---Rescales the given prototype in place.
 ---
----The working half of `rescale_prototype`, without the validation. It recurses
----into every nested table, so validating here would re-check the same
----prototype once per node of it.
----@param entity_prototype table # The prototype to rescale.
----@param scalar double # The scale factor to resize the prototype by.
+---Performs the work of `rescale_prototype`, recursing into every nested table. Arguments are not
+---validated.
+---@param entity_prototype table The prototype to rescale.
+---@param scalar double The scale factor to resize the prototype by.
 local function apply_rescale(entity_prototype, scalar)
 	---Recursively scales all numeric values in the given `table`, regardless of depth.
 	---@generic T
-	---@param table T # The table to rescale.
+	---@param table T The table to rescale.
 	---@return T # The rescaled table.
 	local function rescale_table_recursively(table)
 		for key, value in pairs(table) do
@@ -554,11 +515,11 @@ end
 
 ---Returns a rescaled copy of the given prototype.
 ---
----The working half of `get_rescaled_prototype`, without the validation.
+---Performs the work of `get_rescaled_prototype`. Arguments are not validated.
 ---@generic T
----@param entity_prototype T # The prototype to rescale.
----@param scalar double # The scale factor to resize the prototype by.
----@return T # A rescaled copy.
+---@param entity_prototype T The prototype to rescale.
+---@param scalar double The scale factor to resize the prototype by.
+---@return T # A rescaled copy of `entity_prototype`.
 ---@nodiscard
 local function rescaled_copy(entity_prototype, scalar)
 	local entity_prototype_copy = util.copy(entity_prototype)
@@ -577,11 +538,12 @@ local check_rescale_prototype = V.signature("rescale_prototype", {
 ---Recursively iterates through the given `prototype` and applies the given `scalar` to all the numeric values
 ---in the fields listed in `included_fields`.
 ---
----### Remarks
 ---`scalar` is recommended to be the ratio of the new tile and the original tile size.
 ---For example, if rescaling a 5 x 5 tile entity to a 3 x 3 tile entity, `scalar` should be `3 / 5`.
+---@param entity_prototype any The entity prototype to rescale.
+---@param scalar double The scale factor to resize the prototype by.
 ---
----### Examples
+---#### Examples
 ---```lua
 ----- Rescale the "big-electric-pole" by a factor of 2.
 ----- The resulting entity will have a 4 x 4 tile footprint, and sprite to match.
@@ -591,10 +553,6 @@ local check_rescale_prototype = V.signature("rescale_prototype", {
 ----- The resulting entity will have a 3 x 3 tile footprint, and sprite to match.
 ---_sprites.rescale_prototype(data.raw["assembling-machine"]["oil-refinery"], 3 / 5)
 ---```
----
----### Parameters
----@param entity_prototype any # The entity prototype to rescale.
----@param scalar double # The scale factor to resize the prototype by.
 function _sprites.rescale_prototype(entity_prototype, scalar)
 	check_rescale_prototype(entity_prototype, scalar)
 
@@ -611,13 +569,16 @@ local check_get_rescaled_prototype = V.signature("get_rescaled_prototype", {
 ---Recursively iterates through a copy of the given `prototype` and applies the given `scalar` to all
 ---the numeric values in the fields listed in `included_fields`.
 ---
----### Remarks
 ---`scalar` is recommended to be the ratio of the new tile and the original tile size.
 ---For example, if rescaling a 5 x 5 tile entity to a 3 x 3 tile entity, `scalar` should be `3 / 5`.
 ---
 ---`prototype` is not modified.
+---@generic T
+---@param entity_prototype T The entity prototype to rescale.
+---@param scalar double The scale factor to resize the prototype by.
+---@return T # A rescaled copy of `entity_prototype`.
 ---
----### Examples
+---#### Examples
 ---```lua
 ----- Get a rescaled copy of the "big-electric-pole" by a factor of 2.
 ----- The resulting entity will have a 4 x 4 tile footprint, and sprite to match.
@@ -627,16 +588,6 @@ local check_get_rescaled_prototype = V.signature("get_rescaled_prototype", {
 ----- The resulting entity will have a 3 x 3 tile footprint, and sprite to match.
 ---local rescaled = _sprites.get_rescaled_prototype(data.raw["assembling-machine"]["oil-refinery"], 3 / 5)
 ---```
----
----### Parameters
----@generic T
----@param entity_prototype T # The entity prototype to rescale.
----@param scalar double # The scale factor to resize the prototype by.
----
----### Returns
----@return T # A rescaled copy of `entity_prototype`.
----
----### See Also
 ---@see Sprites.rescale_prototype
 ---@nodiscard
 function _sprites.get_rescaled_prototype(entity_prototype, scalar)
@@ -646,8 +597,6 @@ function _sprites.get_rescaled_prototype(entity_prototype, scalar)
 end
 
 local check_rescale_remnants_of_prototype = V.signature("rescale_remnants_of_prototype", {
-	-- Optional: a prototype that is not there is a no-op rather than a fault,
-	-- so callers may hand over whatever a lookup gave them.
 	{ "prototype", V.table():optional() },
 	{ "scalar", Common.positive_number },
 })
@@ -656,26 +605,22 @@ local check_rescale_remnants_of_prototype = V.signature("rescale_remnants_of_pro
 ---`scalar`, and assigns the rescaled copy to `prototype`. The name of the rescaled copy is
 ---prefixed with "rescaled-".
 ---
----### Remarks
 ---`scalar` is recommended to be the ratio of the new tile and the original tile size.
 ---For example, if rescaling a 5 x 5 tile entity to a 3 x 3 tile entity, `scalar` should be `3 / 5`.
+---@param prototype EntityWithHealthPrototype? The entity with the remnants to rescale. A `nil` prototype is a no-op.
+---@param scalar double The scale factor to resize the prototype by.
 ---
----### Examples
+---#### Examples
 ---```lua
 ----- Rescale the remnants of the "big-electric-pole" by a factor of 2.
 ----- The resulting entity will have a 4 x 4 tile footprint, and sprite to match.
 ---_sprites.rescale_remnants_of_prototype(data.raw["electric-pole"]["big-electric-pole"], 2)
 ---```
----
----### Parameters
----@param prototype EntityWithHealthPrototype # The entity with the remnants to rescale.
----@param scalar double # The scale factor to resize the prototype by.
----
----### See Also
 ---@see Sprites.rescale_prototype
 function _sprites.rescale_remnants_of_prototype(prototype, scalar)
 	check_rescale_remnants_of_prototype(prototype, scalar)
 
+	-- FIXME: Permitting a nil prototype and failing quietly predates the decision to harden the API and should be revisited.
 	if not prototype then
 		return
 	end
