@@ -406,6 +406,68 @@ function _icons.scale_icon(icon_data, scalar, defaults_type)
 	return icon_data_copy
 end
 
+local check_minify_icon = V.signature("minify_icon", {
+	{ "icon_data", Common.icon_data },
+	{ "scalar", Common.positive_number:less_than(1) },
+	{ "defaults_type", Common.icon_defaults_type:optional() },
+})
+
+---
+---Shrinks the given `icon_data` by the given `scalar`, keeping the icon at its full footprint.
+---
+---A transparent full-size layer sits beneath the shrunk artwork. The game resizes the final icon so
+---that all of its layers fit the target slot, so the base layer is what holds the footprint open and
+---leaves the artwork drawn smaller within it.
+---
+---### Remarks
+---- The first layer of the shrunk artwork has `draw_background` set, so the artwork draws the outline
+---  that the transparent base layer would otherwise draw.
+---- Missing icon fields are set to default values as appropriate.
+---- `icon_data` is not modified.
+---
+---### Examples
+---```lua
+------@type IconData[]
+---local icon_data = {
+---    {
+---        icon = "__base__/graphics/icons/assembling-machine-1.png",
+---        icon_size = 64,
+---    },
+---}
+---
+----- Draw the icon at 80% of its size, within a full-size icon slot.
+---icon_data = _icons.minify_icon(icon_data, 0.8)
+---```
+---
+---### Parameters
+---@param icon_data IconData[] # An array of `IconData` objects to shrink.
+---@param scalar double # The scalar to shrink the icon by. Must be greater than `0` and less than `1`.
+---@param defaults_type? IconDefaultsType # The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---
+---### Returns
+---@return SafeIconData[] # A copy of `icon_data` shrunk by the given `scalar`, layered over a full-size transparent base.
+---
+---### Exceptions
+---*@throws* `string` — Thrown when `icon_data` is `nil` or empty.\
+---*@throws* `string` — Thrown when `icon_data[n].icon` is not an absolute file path with a valid extension.\
+---*@throws* `string` — Thrown when `icon_data[n].icon_size` is not a positive integer.\
+---*@throws* `string` — Thrown when `scalar` is not a number greater than `0` and less than `1`.
+---
+---### See Also
+---@see Icons.scale_icon
+---@nodiscard
+function _icons.minify_icon(icon_data, scalar, defaults_type)
+	check_minify_icon(icon_data, scalar, defaults_type)
+
+	local minified = _icons.compose_icons(defaults_type, {
+		icon = "__reskins-sprite-utils__/graphics/icons/minified-empty.png",
+		icon_size = 1,
+		scale = resolve_expected_icon_size(defaults_type) / 2,
+	}, _icons.scale_icon(icon_data, scalar, defaults_type))
+
+	return outline_in_place(minified)
+end
+
 ---
 ---Clears the icon fields from the given `prototype` object.
 ---

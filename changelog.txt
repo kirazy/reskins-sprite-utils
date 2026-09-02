@@ -38,6 +38,7 @@ Date: ????
     - Added `utils` module with `utils.array_concat`, concatenating any number of arrays into one
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`
     - Added `icons.get_expected_icon_size`
+    - Added `icons.minify_icon` to arbitrarily shrink an icon below it's nominal scale for GUI display, while retaining the outline that would otherwise display.
     - Added `options` (`IconAssignmentOptions`) field to `DeferrableIconData` and `DeferrableIconDatum`, controlling which related prototypes are assigned; supports strict assignment and assignment to only some prototype kinds, such as recipes
   Changes:
     - A tint applied through an icon source, `icons.create_icons_from_sources`, `icons.add_icons_from_sources_to_icons`, the `icons.add_icons_from_prototype_to_*` methods, or the positional form of `icons.transform_icon(s)` no longer replaces a tint with an alpha of zero, which the game renders additively
