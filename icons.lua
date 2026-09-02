@@ -1889,12 +1889,19 @@ function _icons.transform_icons(icon_data, transform, defaults_type, ...)
 
 		check_transform_icons_positional(icon_data, scale, shift, tint, positional_defaults_type)
 
-		return apply_icons_transform(icon_data, { scale = scale, shift = shift, tint = tint }, positional_defaults_type)
+		return apply_icons_transform(icon_data, {
+			scale = scale --[[@as double?]],
+			shift = shift --[[@as Vector?]],
+			tint = tint --[[@as Color?]],
+		}, positional_defaults_type --[[@as IconDefaultsType?]])
 	end
 
 	check_transform_icons(icon_data, transform, defaults_type)
 
-	return apply_icons_transform(icon_data, { scale = transform.scale, shift = transform.shift }, defaults_type)
+	return apply_icons_transform(icon_data, {
+		scale = transform.scale,
+		shift = transform.shift,
+	}, defaults_type)
 end
 
 local check_convert_icon_defaults_type = V.signature("convert_icon_defaults_type", {
