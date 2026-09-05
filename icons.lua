@@ -966,8 +966,8 @@ local function resolve_icon_assignment_options(options)
 end
 
 ---Gets the entity name carried by an `EntityID` or an `ExplosionDefinition`.
----@param definition string|{ name: string? }|nil The definition to read a name from.
----@return string? # The entity name, or `nil` if the definition does not carry one.
+---@param definition ExplosionDefinition|ExplosionDefinition[]|nil The definition to read a name from.
+---@return EntityID? # The entity name, or `nil` if the definition does not carry one.
 ---@nodiscard
 local function get_explosion_name(definition)
 	if type(definition) == "string" then
@@ -977,6 +977,132 @@ local function get_explosion_name(definition)
 	end
 
 	return nil
+end
+
+---Gets the prototype with the given `name` and `type_name`, if `type_name` is given and is not a
+---related prototype type; otherwise, returns `nil`.
+---@param name EntityID The name of the prototype.
+---@param type_name? string The type name of the prototype.
+---@return PrototypeWithIcons? # The prototype, or `nil`.
+---@nodiscard
+local function resolve_target_prototype(name, type_name)
+	if type_name and not related_prototypes[type_name] then
+		return data.raw[type_name][name]
+	end
+
+	return nil
+end
+
+---Gets the `item` and `item-with-entity-data` prototypes with the given `name`, if found.
+---@param name ItemID The name of the prototype.
+---@return PrototypeWithIcons[] # The item prototypes that exist, in that order.
+---@nodiscard
+local function resolve_related_items(name)
+	local items = {}
+	for _, item_type in pairs({ "item", "item-with-entity-data" }) do
+		local item = data.raw[item_type][name]
+		if item ~= nil then
+			items[#items + 1] = item
+		end
+	end
+
+	return items
+end
+
+---Gets the recipe with the given `name` whose only result is the prototype of the same name, if
+---found.
+---@param name RecipeID The name of the prototype.
+---@return RecipePrototype? # The recipe, or `nil` if there is none.
+---@nodiscard
+local function resolve_related_recipe(name)
+	local recipe = data.raw["recipe"][name]
+	if recipe and recipe.results and #recipe.results == 1 and recipe.results[1].name == name then
+		return recipe
+	end
+
+	return nil
+end
+
+---Gets the explosion prototypes related to the given entity prototype: the explosion its
+---`dying_explosion` names, and when `by_convention` is `true`, the explosions named
+---`{name}-explosion` and `ar-{name}-explosion`.
+---@param prototype PrototypeWithIcons The entity prototype.
+---@param name string The name of the prototype.
+---@param by_convention boolean? Whether explosions named by convention are included.
+---@return PrototypeWithIcons[] # The explosion prototypes that exist.
+---@nodiscard
+local function resolve_related_explosions(prototype, name, by_convention)
+	---@cast prototype EntityWithHealthPrototype
+	local dying_explosion = prototype.dying_explosion
+	local dying_explosion_name = get_explosion_name(dying_explosion)
+		or (type(dying_explosion) == "table" and get_explosion_name(dying_explosion[1]))
+		or nil
+
+	local names = {}
+	if by_convention then
+		names[name .. "-explosion"] = true
+		names["ar-" .. name .. "-explosion"] = true
+	end
+
+	if dying_explosion_name then
+		names[dying_explosion_name] = true
+	end
+
+	local explosions = {}
+	for explosion_name in pairs(names) do
+		local explosion = data.raw["explosion"][explosion_name]
+		if explosion ~= nil then
+			explosions[#explosions + 1] = explosion
+		end
+	end
+
+	return explosions
+end
+
+---Gets the corpse prototypes related to the given entity prototype: the corpse its `corpse`
+---field names, and when `by_convention` is `true`, the corpses named `{name}-remnants` and
+---`ar-{name}-remnants`.
+---@param prototype PrototypeWithIcons The entity prototype.
+---@param name string The name of the prototype.
+---@param by_convention boolean? Whether corpses named by convention are included.
+---@return CorpsePrototype[] # The corpse prototypes that exist.
+---@nodiscard
+local function resolve_related_corpses(prototype, name, by_convention)
+	---@cast prototype EntityWithHealthPrototype
+	local corpse_name
+	if type(prototype.corpse) == "string" then
+		corpse_name = prototype.corpse
+	elseif type(prototype.corpse) == "table" and type(prototype.corpse[1]) == "string" then
+		corpse_name = prototype.corpse[1]
+	end
+
+	local names = {}
+	if by_convention then
+		names[name .. "-remnants"] = true
+		names["ar-" .. name .. "-remnants"] = true
+	end
+
+	if corpse_name then
+		names[corpse_name] = true
+	end
+
+	local corpses = {}
+	for remnants_name in pairs(names) do
+		local remnants = data.raw["corpse"][remnants_name]
+		if remnants ~= nil then
+			corpses[#corpses + 1] = remnants
+		end
+	end
+
+	return corpses
+end
+
+---Replaces the icon of the given `prototype` with the given `icon_data`.
+---@param prototype PrototypeWithIcons The prototype.
+---@param icon_data SafeIconData[] The icon, with missing fields set to default values.
+local function set_icon_on_prototype(prototype, icon_data)
+	_icons.clear_icon_from_prototype(prototype)
+	prototype.icons = icon_data
 end
 
 local check_assign_icons_to_prototype_and_related_prototypes =
@@ -1051,110 +1177,45 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 
 	local icon_data_copy = apply_icons_defaults(icon_data, type_name)
 
-	local prototype = (type_name and not related_prototypes[type_name]) and data.raw[type_name][name] or nil
+	local prototype = resolve_target_prototype(name, type_name)
 
 	-- Exclude technologies and recipes from related-prototype updates.
-	if type_name ~= "technology" and type_name ~= "recipe" then
-		if resolved_options.infer_item then
-			local item = data.raw["item"][name]
-			if item ~= nil then
-				_icons.clear_icon_from_prototype(item)
-				item.icons = icon_data_copy
-				item.pictures = pictures
-			end
+	local cascades = type_name ~= "technology" and type_name ~= "recipe"
 
-			local item_with_entity_data = data.raw["item-with-entity-data"][name]
-			if item_with_entity_data ~= nil then
-				_icons.clear_icon_from_prototype(item_with_entity_data)
-				item_with_entity_data.icons = icon_data_copy
+	if cascades and resolved_options.infer_item then
+		for _, item in pairs(resolve_related_items(name)) do
+			set_icon_on_prototype(item, icon_data_copy)
 
-				-- The pictures field is ignored as of 1.0, this has been left active
-				-- in the hopes the default behavior is adjusted.
-				item_with_entity_data.pictures = pictures
-			end
+			-- Note: item-with-entity-data ignores the field.
+			item.pictures = pictures
 		end
+	end
 
-		-- Clear out recipes of the same name so that the item icon is inherited properly.
-		-- Possibly a dangerous assumption that all recipes with the same name as the item
-		-- are intended to inherit the icon directly and do not use a custom icon.
-		if resolved_options.infer_recipe then
-			local recipe = data.raw["recipe"][name]
-			if recipe and recipe.results and #recipe.results == 1 and recipe.results[1].name == name then
-				_icons.clear_icon_from_prototype(recipe)
+	if cascades and resolved_options.infer_recipe then
+		local recipe = resolve_related_recipe(name)
+		if recipe then
+			-- Clear the icon so that it is inherited from the product.
+			_icons.clear_icon_from_prototype(recipe)
 
-				-- icon is required if the recipe does not have a main product.
-				if not recipe.main_product then
-					recipe.icons = icon_data_copy
-				end
+			-- An icon is required when the recipe does not have a main product.
+			if not recipe.main_product then
+				recipe.icons = icon_data_copy
 			end
 		end
 	end
 
 	if prototype then
-		_icons.clear_icon_from_prototype(prototype)
-		prototype.icons = icon_data_copy
+		set_icon_on_prototype(prototype, icon_data_copy)
 
-		-- Technologies and recipes have no dying_explosion or corpse. The naming-convention lookups
-		-- below apply to entity-like prototypes only.
-		if type_name ~= "technology" and type_name ~= "recipe" then
-			if resolved_options.infer_explosion then
-				-- Try to grab the explosion name from the prototype directly, to ensure it is picked up in the
-				-- event it does not follow the expected pattern.
-				--
-				-- `dying_explosion` is an `EntityID`, an `ExplosionDefinition`, or an array of either.
-				local dying_explosion = prototype.dying_explosion
-				local dying_explosion_name = get_explosion_name(dying_explosion)
-					or (type(dying_explosion) == "table" and get_explosion_name(dying_explosion[1]))
-					or nil
-
-				local explosion_names = {}
-
-				if resolved_options.explosion_by_convention then
-					explosion_names[name .. "-explosion"] = true
-					explosion_names["ar-" .. name .. "-explosion"] = true
-				end
-
-				if dying_explosion_name then
-					explosion_names[dying_explosion_name] = true
-				end
-
-				for explosion_name, _ in pairs(explosion_names) do
-					local explosion = data.raw["explosion"][explosion_name]
-					if explosion ~= nil then
-						_icons.clear_icon_from_prototype(explosion)
-						explosion.icons = icon_data_copy
-					end
-				end
+		if cascades and resolved_options.infer_explosion then
+			for _, explosion in pairs(resolve_related_explosions(prototype, name, resolved_options.explosion_by_convention)) do
+				set_icon_on_prototype(explosion, icon_data_copy)
 			end
+		end
 
-			if resolved_options.infer_corpse then
-				-- Try to grab the corpse name from the prototype directly, to ensure it is picked up in the
-				-- event it does not follow the expected pattern.
-				local corpse_name
-				if type(prototype.corpse) == "string" then
-					corpse_name = prototype.corpse
-				elseif type(prototype.corpse) == "table" and type(prototype.corpse[1]) == "string" then
-					corpse_name = prototype.corpse[1]
-				end
-
-				local remnants_names = {}
-
-				if resolved_options.corpse_by_convention then
-					remnants_names[name .. "-remnants"] = true
-					remnants_names["ar-" .. name .. "-remnants"] = true
-				end
-
-				if corpse_name then
-					remnants_names[corpse_name] = true
-				end
-
-				for remnants_name, _ in pairs(remnants_names) do
-					local remnants = data.raw["corpse"][remnants_name]
-					if remnants ~= nil then
-						_icons.clear_icon_from_prototype(remnants)
-						remnants.icons = icon_data_copy
-					end
-				end
+		if cascades and resolved_options.infer_corpse then
+			for _, corpse in pairs(resolve_related_corpses(prototype, name, resolved_options.corpse_by_convention)) do
+				set_icon_on_prototype(corpse, icon_data_copy)
 			end
 		end
 	end
