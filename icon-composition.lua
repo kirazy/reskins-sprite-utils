@@ -4,10 +4,14 @@
 
 local V = require("validation")
 local Common = require("validation.common")
+local _colors = require("colors")
 local _defines = require("defines")
 local _icons = require("icons")
 local _sprites = require("sprites")
 local _utils = require("utils")
+
+---The number of pixels in one tile. The `shift` of a sprite is measured in tiles.
+local TILE_SIZE = 32
 
 ---Maps each stratum to its position in the stack. The lowest stratum has position `1`.
 ---@type table<IconCompositionStratum, integer>
@@ -54,18 +58,6 @@ local LABEL_GROUP = { name = "label", stratum = "label", tintable = false }
 ---@type IconCompositionGroup
 local MINIFY_FOOTPRINT_GROUP = { name = "minify-footprint", stratum = "backdrop", tintable = false }
 
----Marks the given sprite layers as light layers, in place.
----@param layers Sprite[] The sprite layers of the light group.
----@return Sprite[] # The given layers.
-local function lower_light_layers(layers)
-	for _, sprite_layer in pairs(layers) do
-		sprite_layer.draw_as_light = true
-		sprite_layer.flags = { "icon", "light" }
-	end
-
-	return layers
-end
-
 ---The group `add_light` adds content to. Light content is left out of the icon, and is drawn as
 ---light in the pictures.
 ---@type IconCompositionGroup
@@ -74,8 +66,34 @@ local LIGHT_GROUP = {
 	stratum = "canvas",
 	order = 1,
 	tintable = false,
-	projections = { icon = false, pictures = { rewrite = lower_light_layers } },
+	projections = { icon = false },
 }
+
+---Applies the given `transform` to the given sprite layer, in place. The `scale` of `transform`
+---multiplies the scale and shift of the sprite. The `shift` of `transform`, in pixels, is divided
+---by the tile size and added to the shift of the sprite.
+---@param sprite Sprite The sprite layer.
+---@param transform Transform The scale and shift to apply.
+---@return Sprite # `sprite`.
+local function transform_sprite(sprite, transform)
+	local scale = transform.scale or 1
+	sprite.scale = (sprite.scale or 1) * scale
+
+	---@type Vector?
+	local shift = sprite.shift and util.mul_shift(sprite.shift, scale) or nil
+	if transform.shift then
+		local offset = util.mul_shift(transform.shift, 1 / TILE_SIZE) --[[@as { [1]: double, [2]: double }]]
+		if shift then
+			---@cast shift { [1]: double, [2]: double }
+			shift = { shift[1] + offset[1], shift[2] + offset[2] }
+		else
+			shift = offset
+		end
+	end
+	sprite.shift = shift
+
+	return sprite
+end
 
 ---Represents content added to a composition, with the group it was added to and its placement. A
 ---contribution is not modified after it is created, and may be shared by multiple compositions.
@@ -85,9 +103,12 @@ local LIGHT_GROUP = {
 ---@field sequence integer
 ---The group definition stored by the composition when the content was added.
 ---@field group IconCompositionGroup
----The layers of the content, converted to the icon defaults type of the composition.
----@field content IconData[]
----The placement of the layers. `nil` for label content.
+---The layers of the content, converted to the icon defaults type of the composition. The field
+---is `nil` when the contribution holds a sprite.
+---@field content? IconData[]
+---The sprite layer of the content. The field is `nil` when the contribution holds layers.
+---@field sprite? Sprite
+---The placement of the content. The field is `nil` for label content.
 ---@field placement? Transform
 
 ---Represents an operation recorded on a composition that is applied when the composition is built.
@@ -213,6 +234,12 @@ local composition_content = V.any_of(
 ):describe_as(
 	"an IconData object, an array of IconData objects, an IconSource, a prototype defining an icon, or an IconComposition"
 )
+
+---A validator that checks that a value is a `Sprite` whose `filename` is a mod-relative file path.
+---Other fields are not validated.
+local sprite_layer = V.shape({
+	filename = Common.mod_file_path,
+}):describe_as("a Sprite")
 
 ---A function that returns the group a layer of an icon belongs to.
 ---@alias IconLayerClassifier fun(icon_datum: IconData, index: integer): IconCompositionGroup
@@ -351,10 +378,10 @@ end
 ---@param projected_contributions IconCompositionProjectedContribution[] The projected contributions, in drawing order.
 local function apply_outline(projected_contributions)
 	-- The stack is outlined as one icon: its layers are joined, outlined, and returned to the
-	-- contributions they came from.
+	-- contributions they came from. A sprite contribution has no layers and is not outlined.
 	local stack = {}
 	for _, projected in pairs(projected_contributions) do
-		if OUTLINED_STACK_STRATA[projected.group.stratum] then
+		if projected.layers and OUTLINED_STACK_STRATA[projected.group.stratum] then
 			stack = _utils.array_concat(stack, projected.layers)
 		end
 	end
@@ -363,7 +390,7 @@ local function apply_outline(projected_contributions)
 		local outlined = _icons.outline_icons(stack)
 		local cursor = 1
 		for _, projected in pairs(projected_contributions) do
-			if OUTLINED_STACK_STRATA[projected.group.stratum] then
+			if projected.layers and OUTLINED_STACK_STRATA[projected.group.stratum] then
 				local layers = {}
 				for index = 1, #projected.layers do
 					layers[index] = outlined[cursor]
@@ -376,7 +403,7 @@ local function apply_outline(projected_contributions)
 	end
 
 	for _, projected in pairs(projected_contributions) do
-		if projected.group.stratum == "overlay" then
+		if projected.layers and projected.group.stratum == "overlay" then
 			projected.layers = _icons.outline_icons(projected.layers)
 		end
 	end
@@ -413,11 +440,43 @@ local function apply_minify(projected_contributions, scalar, defaults_type)
 
 	for _, projected in pairs(projected_contributions) do
 		if projected.group.stratum == "canvas" then
-			projected.layers = _icons.scale_icon(projected.layers, scalar, defaults_type)
+			if projected.sprite then
+				transform_sprite(projected.sprite, { scale = scalar })
+			elseif projected.layers then
+				projected.layers = _icons.scale_icon(projected.layers, scalar, defaults_type)
+			end
 		end
 	end
 
 	apply_outline(projected_contributions)
+end
+
+---Applies the given `operation` to the sprite layer of the given projected contribution, subject
+---to the stratum and `tintable` setting of its group. A `float`, `remove_floating`, `outline`, or
+---`remove_outline` operation does not modify the sprite.
+---@param projected IconCompositionProjectedContribution The projected contribution. It holds a sprite.
+---@param operation IconCompositionOperation The operation to apply.
+local function apply_operation_to_sprite(projected, operation)
+	local sprite = projected.sprite --[[@as Sprite]]
+	local is_artwork = ARTWORK_STRATA[projected.group.stratum] == true
+	local is_tintable = projected.group.tintable ~= false
+	local kind = operation.kind
+
+	if kind == "transform" and is_artwork then
+		transform_sprite(sprite, operation.transform --[[@as Transform]])
+	elseif kind == "set_tint" and is_tintable then
+		sprite.tint = util.copy(operation.tint)
+	elseif kind == "blend_tint" and is_tintable then
+		local existing = _colors.normalize(sprite.tint or { 1, 1, 1, 1 })
+		if existing.a > 0 then
+			local incoming = _colors.normalize(operation.tint --[[@as Color]])
+			if operation.blender then
+				sprite.tint = _colors.normalize(operation.blender(existing, incoming)) --[[@as Color]]
+			else
+				sprite.tint = _colors.blend(existing --[[@as Color]], incoming --[[@as Color]], operation.weight or 0.5)--[[@as Color]]
+			end
+		end
+	end
 end
 
 ---Applies the given `operation` to the layers of the given projected contribution, subject to the
@@ -428,7 +487,7 @@ end
 ---@return SafeIconData[] # The layers with the operation applied.
 ---@nodiscard
 local function apply_operation_to_contribution(projected, operation, defaults_type)
-	local layers = projected.layers
+	local layers = projected.layers --[[@as SafeIconData[] ]]
 	local is_artwork = ARTWORK_STRATA[projected.group.stratum] == true
 	local is_tintable = projected.group.tintable ~= false
 	local kind = operation.kind
@@ -461,11 +520,11 @@ end
 ---operations applied, and scale and shift converted to the icon defaults type `to`.
 ---@param self IconComposition The composition.
 ---@param projection IconCompositionProjection<any> The projection.
----@param to? IconDefaultsType The icon defaults type to convert the layers to. If `nil`, the layers are not converted.
+---@param to_defaults_type? IconDefaultsType The icon defaults type to convert the layers to. If `nil`, the layers are not converted.
 ---@param is_embedding boolean Whether the composition is being embedded in another composition.
 ---@return IconCompositionProjectedContribution[] # The projected contributions. Empty if no contribution is included.
 ---@nodiscard
-local function get_projected_contributions(self, projection, to, is_embedding)
+local function get_projected_contributions(self, projection, to_defaults_type, is_embedding)
 	local sorted = {}
 	for index = 1, #self.contributions do
 		sorted[index] = self.contributions[index]
@@ -478,13 +537,23 @@ local function get_projected_contributions(self, projection, to, is_embedding)
 		local group = contribution.group
 
 		if is_group_in_projection(group, projection, is_embedding) then
-			local layers = _icons.add_missing_icons_defaults(contribution.content, self.defaults_type)
-			if contribution.placement then
-				layers = _icons.transform_icons(layers, contribution.placement, self.defaults_type)
-			end
-
 			local entry = group.projections and group.projections[projection.name] or nil
-			projected_contributions[#projected_contributions + 1] = { group = group, layers = layers, entry = entry or nil }
+
+			if contribution.sprite then
+				local sprite = util.copy(contribution.sprite)
+				if contribution.placement then
+					transform_sprite(sprite, contribution.placement)
+				end
+
+				projected_contributions[#projected_contributions + 1] = { group = group, sprite = sprite, entry = entry or nil }
+			else
+				local layers = _icons.add_missing_icons_defaults(contribution.content, self.defaults_type)
+				if contribution.placement then
+					layers = _icons.transform_icons(layers, contribution.placement, self.defaults_type)
+				end
+
+				projected_contributions[#projected_contributions + 1] = { group = group, layers = layers, entry = entry or nil }
+			end
 		end
 	end
 
@@ -497,14 +566,26 @@ local function get_projected_contributions(self, projection, to, is_embedding)
 			apply_minify(projected_contributions, operation.scalar --[[@as double]], self.defaults_type)
 		else
 			for _, projected in pairs(projected_contributions) do
-				projected.layers = apply_operation_to_contribution(projected, operation, self.defaults_type)
+				if projected.sprite then
+					apply_operation_to_sprite(projected, operation)
+				else
+					projected.layers = apply_operation_to_contribution(projected, operation, self.defaults_type)
+				end
 			end
 		end
 	end
 
-	if to and _icons.get_expected_icon_size(to) ~= _icons.get_expected_icon_size(self.defaults_type) then
+	if
+		to_defaults_type
+		and _icons.get_expected_icon_size(to_defaults_type) ~= _icons.get_expected_icon_size(self.defaults_type)
+	then
+		local ratio = _icons.get_expected_icon_size(to_defaults_type) / _icons.get_expected_icon_size(self.defaults_type)
 		for _, projected in pairs(projected_contributions) do
-			projected.layers = _icons.convert_icons_defaults_type(projected.layers, self.defaults_type, to)
+			if projected.sprite then
+				transform_sprite(projected.sprite, { scale = ratio })
+			elseif projected.layers then
+				projected.layers = _icons.convert_icons_defaults_type(projected.layers, self.defaults_type, to_defaults_type)
+			end
 		end
 	end
 
@@ -518,7 +599,7 @@ local icon_projection = {
 	lower = function(contributions)
 		local icon_data = {}
 		for _, contribution in pairs(contributions) do
-			for _, layer in pairs(contribution.layers) do
+			for _, layer in pairs(contribution.layers or {}) do
 				icon_data[#icon_data + 1] = layer
 			end
 		end
@@ -700,6 +781,65 @@ local function remove_contributions_from_group(composition, name)
 	composition.contributions = kept
 end
 
+---Gets the definition of the given `group` stored by the given composition, or a copy of `group`
+---if the composition has none.
+---@param self IconComposition The composition.
+---@param group IconCompositionGroup The group definition.
+---@param function_name string The name of the calling method. Error messages report it.
+---@return IconCompositionGroup # The stored definition.
+---@throws Thrown when the composition stores a different definition under the name of `group`.
+---@nodiscard
+local function adopt_group(self, group, function_name)
+	local adopted = self.groups[group.name]
+	if not adopted then
+		return util.copy(group)
+	end
+
+	if not are_group_definitions_equal(adopted, group) then
+		error(
+			string.format(
+				"%s(): parameter 'group': '%s' is already defined in this composition with a different definition",
+				function_name,
+				group.name
+			),
+			4
+		)
+	end
+
+	return adopted
+end
+
+---Creates a copy of the given composition with the given `sprite` added to the given `group` as
+---a sprite contribution. Arguments are not validated.
+---@generic S : IconComposition
+---@param self S The composition to copy.
+---@param group IconCompositionGroup The group definition.
+---@param sprite Sprite The sprite layer to add.
+---@param placement? Transform The placement of the sprite.
+---@param function_name string The name of the calling method. Error messages report it.
+---@return S # The copy.
+---@nodiscard
+local function add_sprite_to_group(self, group, sprite, placement, function_name)
+	local adopted = adopt_group(self, group, function_name)
+
+	local derived = copy_composition_for_step(self)
+	derived.groups[adopted.name] = adopted
+
+	if adopted.unique then
+		remove_contributions_from_group(derived, adopted.name)
+	end
+
+	derived.contributions[#derived.contributions + 1] = {
+		sequence = derived.next_sequence,
+		group = adopted,
+		sprite = util.copy(sprite),
+		placement = placement and util.copy(placement) or nil,
+	}
+	derived.next_sequence = derived.next_sequence + 1
+
+	return derived
+end
+
 ---Creates a copy of the given composition with the given `content` added to the given `group`.
 ---Arguments are not validated.
 ---@generic S : IconComposition
@@ -708,25 +848,11 @@ end
 ---@param content IconCompositionContent The content to add.
 ---@param placement? Transform The placement of the content.
 ---@param replacing boolean Whether existing content in the group is removed.
----@param function_name string The name of the calling method, used in error messages.
+---@param function_name string The name of the calling method. Error messages report it.
 ---@return S # The copy.
 ---@nodiscard
 local function add_content_to_group(self, group, content, placement, replacing, function_name)
-	local adopted = self.groups[group.name]
-	if adopted then
-		if not are_group_definitions_equal(adopted, group) then
-			error(
-				string.format(
-					"%s(): parameter 'group': '%s' is already defined in this composition with a different definition",
-					function_name,
-					group.name
-				),
-				3
-			)
-		end
-	else
-		adopted = util.copy(group)
-	end
+	local adopted = adopt_group(self, group, function_name)
 
 	local layers = get_layers_from_content(self, content)
 	if #layers == 0 then
@@ -1259,38 +1385,49 @@ function IconComposition.minify(self, scalar)
 end
 
 local check_add_light = V.signature("IconComposition:add_light", {
-	{ "icon_datum", Common.icon_datum },
+	{ "sprite", sprite_layer },
+	{ "placement", Common.transform:optional() },
 })
 
 ---
----Creates a copy of the composition with the given `icon_datum` added as a light layer.
+---Creates a copy of the composition with the given `sprite` added as a light layer.
 ---
----- The layer is added to the light group, `IconComposition.light_group`, in the `canvas` stratum
----  with an `order` of `1`. The layer is drawn over canvas content of the default order, and is
----  shrunk by `minify` with it. It is left out of the icon, and is drawn as light in the pictures,
----  stacked as any other layer of its stratum. Light layers are drawn in the order they were added.
----- The tint of `icon_datum` is kept; `set_tint` and `blend_tint` do not modify light layers.
----- `icon_datum` is copied when added, and is not modified.
+---- The sprite is added to the light group, `IconComposition.light_group`, in the `canvas` stratum
+---  with an `order` of `1`, with `draw_as_light` set. The sprite is drawn over canvas content of
+---  the default order, and is shrunk by `minify` with it. It is not included in the icon. It is
+---  included in the pictures in drawing order, with its fields as given.
+---- The `mipmap_count`, `flags`, and other fields of `sprite` are kept. `transform`, `minify`, and
+---  `placement` scale the sprite and its shift. The `shift` of a transform or placement, in
+---  pixels, is divided by the tile size and added to the shift of the sprite. `float`,
+---  `remove_floating`, `outline`, and `remove_outline` do not modify the sprite.
+---- `set_tint` and `blend_tint` do not modify the tint of `sprite`.
+---- `sprite` is copied when added, and is not modified.
 ---
 ---#### Parameters
 ---@generic S : IconComposition
 ---@param self S The composition.
----@param icon_datum IconData The light artwork.
+---@param sprite Sprite The sprite to add as a light.
+---@param placement? Transform The scale and shift to apply to the sprite.
 ---
 ---#### Returns
 ---@return S # A copy of the composition with the light layer added.
 ---
 ---#### Examples
 ---```lua
----local icon_data, pictures = composition:add_light({ icon = light_icon, icon_size = 64, tint = tint }):build()
+---local light = { filename = light_file, size = 64, mipmap_count = 4, scale = 0.5, flags = { "icon", "light" }, tint = tint }
+---local icon_data, pictures = composition:add_light(light):build()
 ---```
----@throws Thrown when `icon_datum` is not a valid `IconData` object.
+---@throws Thrown when `sprite` is not a `Sprite` naming a mod-relative file.
+---@throws Thrown when `placement` is not a `Transform`.
 ---@see IconComposition.build
 ---@nodiscard
-function IconComposition.add_light(self, icon_datum)
-	check_add_light(icon_datum)
+function IconComposition.add_light(self, sprite, placement)
+	check_add_light(sprite, placement)
 
-	return add_content_to_group(self, LIGHT_GROUP, icon_datum, nil, false, "IconComposition:add_light")
+	local light = util.copy(sprite)
+	light.draw_as_light = true
+
+	return add_sprite_to_group(self, LIGHT_GROUP, light, placement, "IconComposition:add_light")
 end
 
 local check_project = V.signature("IconComposition:project", {
@@ -1356,6 +1493,10 @@ local check_build = V.signature("IconComposition:build", {
 local function are_pictures_a_conversion_of_icon(self)
 	for _, contribution in pairs(self.contributions) do
 		local group = contribution.group
+
+		if contribution.sprite then
+			return false
+		end
 		local in_icon = is_group_in_projection(group, icon_projection, false)
 		local in_pictures = is_group_in_projection(group, pictures_projection, false)
 
@@ -1814,8 +1955,8 @@ IconComposition.label_group = LABEL_GROUP
 
 ---
 ---The group `add_light` adds content to. The group is named `light`, is in the `canvas` stratum
----with an `order` of `1`, is not tintable, is left out of the `icon` projection, and is drawn as
----light in the `pictures` projection. The group must not be modified.
+---with an `order` of `1`, is not tintable, and is left out of the `icon` projection. The group
+---must not be modified.
 ---@type IconCompositionGroup
 IconComposition.light_group = LIGHT_GROUP
 
@@ -1848,8 +1989,12 @@ pictures_projection = {
 
 		for _, contribution in pairs(contributions) do
 			local lowered = {}
-			for index, layer in pairs(contribution.layers) do
-				lowered[index] = _sprites.create_sprite_from_icon(layer)
+			if contribution.sprite then
+				lowered[1] = contribution.sprite
+			else
+				for index, layer in pairs(contribution.layers or {}) do
+					lowered[index] = _sprites.create_sprite_from_icon(layer)
+				end
 			end
 
 			local entry = contribution.entry
@@ -1897,9 +2042,11 @@ pictures_projection = {
 ---  as the `pictures` field of an item. Label content is not included unless its group has a
 ---  `pictures` entry. An entry may define a `rewrite` function, which receives the sprite layers of
 ---  the group and returns the layers to use in place of them, and optionally an array of layers to
----  draw after all groups. Light content added with `add_light` is drawn as light, in its place.
+---  draw after all groups. A light added with `add_light` is included as the sprite it was given,
+---  in drawing order.
 ---- A projection is a table with a `name`, an `includes_labels` flag, and a `lower` function. A
----  custom projection may be passed to `project`.
+---  custom projection may be passed to `project`. A contribution holds either `layers` or a
+---  `sprite`.
 ---
 ---#### Examples
 ---```lua

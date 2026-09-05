@@ -193,14 +193,18 @@
 ---projection; a table is passed to the projection as the entry of the group.
 ---@field projections? table<string, table|false>
 
----The content of one group as passed to a projection, with missing icon fields set to default
----values, placements applied, and the recorded operations applied.
+---Represents the content of one group as passed to a projection. Missing icon fields are set to
+---default values, the placement is applied, and the recorded operations are applied. A
+---contribution holds either `layers` or a `sprite`.
 ---@class IconCompositionProjectedContribution
 ---The group the content belongs to.
 ---@field group IconCompositionGroup
 ---The layers of the content, converted to the icon defaults type given by the build options, if
----any.
----@field layers SafeIconData[]
+---any. The field is `nil` when the contribution holds a sprite.
+---@field layers? SafeIconData[]
+---The sprite layer of the content, such as a light. The field is `nil` when the contribution
+---holds layers.
+---@field sprite? Sprite
 ---The entry of the group for the projection, if the group defines one.
 ---@field entry? table
 
