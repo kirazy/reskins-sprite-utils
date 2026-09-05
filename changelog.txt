@@ -56,6 +56,7 @@ Date: ????
   Deprecated:
     - Deprecated the positional call form of `icons.transform_icon` and `icons.transform_icons` (`scale, shift, tint, defaults_type`); use a `Transform` for scale and shift, and `icons.set_icon_tint` or `icons.set_icons_tint` for tint
     - Deprecated `colors.from_argb`; the Factorio Modding Tool Kit now uses EmmyLua in place of sumneko, which correctly handles RGBA color strings
+    - Deprecated `icons.store_icon_for_deferred_assignment_in_stage` and `icons.assign_icons_deferred_to_stage`; use `icons.assign_deferrable_icon` in the stage the icon belongs to
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
 Date: 2026-06-07

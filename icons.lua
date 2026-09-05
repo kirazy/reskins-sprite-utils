@@ -1313,6 +1313,7 @@ end
 ---@throws Thrown when `deferrable_icon.type_name` is `nil` or an empty string.
 ---@throws Thrown when both `deferrable_icon.icon_data` and `deferrable_icon.icon_datum` is `nil`, or `deferrable_icon.icon_data` is not an array of `IconData` objects, or the `IconData` objects are invalid.
 ---@see Icons.assign_icons_deferred_to_stage
+---@deprecated Deferred assignment is being removed; assign the icon using `assign_deferrable_icon` in the target stage directly.
 function _icons.store_icon_for_deferred_assignment_in_stage(deferred_icon_store, stage, deferrable_icon)
 	-- stylua: ignore start
 	assert(deferred_icon_store, "Invalid parameter: 'deferred_icon_store' must not be nil.")
@@ -1355,6 +1356,7 @@ end
 ---@throws Thrown when a deferred icon's `icon_data[n].icon_size` field is not a positive integer.
 ---@see Icons.store_icon_for_deferred_assignment_in_stage
 ---@see Icons.assign_deferrable_icon
+---@deprecated Deferred assignment is being removed; assign the icon using `assign_deferrable_icon` in the target stage directly.
 function _icons.assign_icons_deferred_to_stage(deferred_icon_store, stage)
 	if not deferred_icon_store[stage] then
 		return
