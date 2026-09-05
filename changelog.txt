@@ -49,6 +49,7 @@ Date: ????
     - Fixed that `icons.add_missing_icon_defaults` returned `shift` and `tint` by reference, so icons built from the same source shared those tables
     - Fixed that `icons.assign_deferrable_icon` preferred `icon_datum` over `icon_data` when both were set, contrary to the game's preference for `icons` over `icon`, and dropped `pictures` in that case
     - Fixed that `colors.rgba_to_hsva` returned a saturation of `NaN` for black, which the HSVA conversion methods then rejected as invalid
+    - Fixed that `colors.normalize` defaulted a missing alpha before dividing by 255, so a color given on the 0-255 scale without an alpha was nearly transparent
     - Fixed that `sprites.create_sprite_from_icon` and `sprites.create_sprite_from_icons` applied `scale` to each layer's artwork but not its shift, resulting in misaligned layered icons at any scale other than 1
     - Fixed that `icons.transform_icon` and `icons.transform_icons` left an existing shift unscaled when given a scale and no shift of their own
     - Fixed that prototypes whose scale was determined by `tile_width` and `tile_height` were not correctly rescaled when using the rescale prototype methods

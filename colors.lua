@@ -70,19 +70,26 @@ end
 ---@return NormalizedColor # A copy of `tint` with all channels normalized and defined.
 ---@nodiscard
 local function normalize_color(tint)
+	local alpha = tint.a or tint[4]
 	local n = {
 		r = math.max(tint.r or tint[1] or 0, 0),
 		g = math.max(tint.g or tint[2] or 0, 0),
 		b = math.max(tint.b or tint[3] or 0, 0),
-		a = math.max(tint.a or tint[4] or 1, 0),
+		a = alpha and math.max(alpha, 0) or nil,
 	}
 
-	if math.max(n.r, n.g, n.b, n.a) > 1 then
+	-- Normalize to 0-1 before assigning a missing alpha.
+	if math.max(n.r, n.g, n.b, n.a or 0) > 1 then
 		for key, value in pairs(n) do
 			n[key] = clamp(value / 255)
 		end
 	end
-	return n
+
+	if n.a == nil then
+		n.a = 1
+	end
+
+	return n --[[@as NormalizedColor]]
 end
 
 local check_normalize = V.signature("normalize", {
