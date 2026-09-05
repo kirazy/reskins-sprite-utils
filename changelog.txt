@@ -2,45 +2,20 @@
 Version: 0.1.2
 Date: ????
   Features:
-    - Added `validation` module for defining reusable argument validators
-      - Primitives (`string`, `number`, `integer`, `boolean`, `func`, `table`, `any`), collections (`array`, `map`, `shape`, `tuple`), and combinators (`any_of`, `all_of`, `one_of`, `literal`, `custom`, `lazy`)
-      - `validator:parse` returns the validated value with its type; `validator:assert` throws and returns nothing
-      - `validator:validate` returns every failure with its path, such as `icon_data[3].icon_size`; `validator:is_valid` returns a boolean without throwing, and narrows the type when used in a condition
-      - Failures are reported against the line that called the validated function, whether thrown or logged
-      - `validation.signature` checks a full argument list in one call, reports every invalid argument at once, and accepts rules that span multiple arguments
-      - Builder methods return a new validator; narrowing a shared validator does not modify the original
-    - Added `validation.common`, a catalog of validators for icons, colors, vectors, mod-relative file paths, sprite sizes, and prototype references
+    - Added `validation` module for defining reusable argument validators, and `validation.common`, a catalog of validators for icons, colors, vectors, mod-relative file paths, sprite sizes, and prototype references
     - Added hidden startup setting `reskins-sprite-utils-validation-behavior`, selecting whether an invalid argument throws, is logged, or is ignored
-    - Added `Transform`, a scale and a shift applied together; used by the `transform` field of an icon source, `icons.transform_icon(s)`, and compositions
-      - Added `defines.icon_transforms` presets: `corners` (four corners, scale 0.5) and `compass` (eight positions, scale 0.4375)
-      - When `transform` is set on a source, `scale` and `shift` on the same source are ignored; `tint` and `floating` are separate source fields
-      - `floating` applies to every layer of the sourced icon; a layer that already sets it keeps its value
-      - The first layer of a sourced icon is always given `draw_background = true`
-    - Added icon functions, each with a single-layer form taking an `IconData` object and a layered form taking an array of them
-      - `icons.transform_icon` and `icons.transform_icons` accept a `Transform` for scale and shift; the positional form is retained for backwards compatibility but is deprecated and will be removed in future
-      - `icons.convert_icon_defaults_type` and `icons.convert_icons_defaults_type` recompute an icon's `scale` and `shift` for the expected icon size of another icon defaults type; `icon_size` is unchanged
-      - `icons.float_icon(s)` set `floating`; `icons.remove_floating_from_icon(s)` clear it
-      - `icons.outline_icon(s)` set `draw_background` on the first layer that is not a spacer; `icons.remove_outline_from_icon(s)` set `draw_background = false` on every layer
-      - `icons.set_icon(s)_tint` set the tint; `icons.blend_icon(s)_tint` blend a tint into each layer's existing tint (white when absent) using `colors.blend` at the given weight, or a caller-supplied blending function
-      - The tint functions do not modify a layer whose tint has an alpha of zero, which the game renders additively
+    - Added `Transform`, a scale and a shift applied together, and the `defines.icon_transforms` presets `corners` and `compass`
+    - Added the `transform` field to `IconSource`
+    - Added icon functions, each with a single-layer form and a layered form: `icons.convert_icon_defaults_type(s)`, `icons.float_icon(s)`, `icons.remove_floating_from_icon(s)`, `icons.outline_icon(s)`, `icons.remove_outline_from_icon(s)`, `icons.set_icon(s)_tint`, and `icons.blend_icon(s)_tint`
     - Added `icon-composition` module, the `IconComposition` class, for assembling an icon from named groups of layers
-      - `IconComposition:from_icon`, `from_icons`, `from_source`, `from_prototype`, and `from_named_prototype` create a composition containing the given content in one group; `:add`, `:replace`, and `:remove` add and remove content by group, and every method returns a new composition without modifying the original
-      - `IconComposition:from_classified_icons` creates a composition from an icon by assigning each layer to the group a classifier function returns for it; consecutive layers assigned to the same group are added as one content
-      - Groups are assigned to one of four strata, `backdrop`, `canvas`, `overlay`, and `annotation`, drawn in that order; within a stratum, groups are ordered by `order`, then by name, then by insertion order
-      - The `backdrop`, `canvas`, and `overlay` strata accept a placement per content and are scaled and shifted together by `:transform`; `annotation` content is positioned relative to the finished icon, is not transformed or floated, and is omitted when a composition is embedded in another
-      - `:set_tint`, `:blend_tint`, `:float`, `:remove_floating`, `:outline`, and `:remove_outline` are recorded and applied at build to all content, including content added after the call; groups with `tintable = false` are excluded from `:set_tint` and `:blend_tint`
-      - `:build` returns the icon; the `to` option converts `scale` and `shift` to the expected icon size of another icon defaults type
-      - `:project` builds the composition with a projection; `IconComposition.projections.icon` and `IconComposition.projections.pictures` are provided. A group's `projections` entry excludes it from a projection (`false`) or supplies a `rewrite` function to the pictures projection
-      - Content may be an `IconData` object, an array of them, an `IconSource`, a prototype defining an icon, or another composition; content with a different icon defaults type has its `scale` and `shift` converted to the icon defaults type of the composition
-      - `IconComposition.define_group` validates a group definition and returns a copy; `IconComposition.is_icon_composition` indicates whether a value is a composition
     - Added `defines.icon_composition_strata`, the strata of an icon composition in drawing order
     - Added `validation.common.icon_composition_group` and `validation.common.icon_composition_projection`
-    - Added `colors.are_equal`, comparing two colors channel by channel after normalizing both; channels within a tolerance are treated as equal, default half an 8-bit step
+    - Added `colors.are_equal`, comparing two colors channel by channel after normalizing both
     - Added `utils` module with `utils.array_concat`, concatenating any number of arrays into one
     - Added `sprites.make_4way_working_visualisations_from_spritesheet`
     - Added `icons.get_expected_icon_size`
-    - Added `icons.minify_icon` to arbitrarily shrink an icon below it's nominal scale for GUI display, while retaining the outline that would otherwise display.
-    - Added `options` (`IconAssignmentOptions`) field to `DeferrableIconData` and `DeferrableIconDatum`, controlling which related prototypes are assigned; supports strict assignment and assignment to only some prototype kinds, such as recipes
+    - Added `icons.minify_icon`, shrinking an icon below its nominal scale for GUI display while keeping the outline
+    - Added `options` (`IconAssignmentOptions`) field to `DeferrableIconData` and `DeferrableIconDatum`, controlling which related prototypes are assigned
   Changes:
     - A tint applied through an icon source, `icons.create_icons_from_sources`, `icons.add_icons_from_sources_to_icons`, the `icons.add_icons_from_prototype_to_*` methods, or the positional form of `icons.transform_icon(s)` no longer replaces a tint with an alpha of zero, which the game renders additively
     - Improved types of `prototype` parameters to `icons.clear_icon_from_prototype` and `icons.add_icons_from_prototype_to_icons` to include all prototypes that may have an icon

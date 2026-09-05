@@ -9,7 +9,7 @@ local _icons = require("icons")
 local _sprites = require("sprites")
 local _utils = require("utils")
 
----The position of each stratum in the stack, lowest first.
+---Maps each stratum to its position in the stack. The lowest stratum has position `1`.
 ---@type table<IconCompositionStratum, integer>
 local STRATUM_INDEX = {}
 for index, stratum in pairs(_defines.icon_composition_strata) do
@@ -19,7 +19,63 @@ end
 
 ---The strata that hold artwork.
 ---@type table<IconCompositionStratum, boolean>
-local ARTWORK_STRATA = { backdrop = true, canvas = true, overlay = true }
+local ARTWORK_STRATA = { backdrop = true, canvas = true, overlay = true, symbol = true }
+
+---The strata whose layers form the stack the outline is drawn on.
+---@type table<IconCompositionStratum, boolean>
+local OUTLINED_STACK_STRATA = { backdrop = true, canvas = true }
+
+---The transparent 1x1 pixel that `minify` adds as backdrop content. The pixel is scaled to cover
+---the icon.
+local MINIFY_FOOTPRINT_ICON = "__reskins-sprite-utils__/graphics/icons/minified-empty.png"
+
+---The group `add_backdrop` adds content to.
+---@type IconCompositionGroup
+local BACKDROP_GROUP = { name = "backdrop", stratum = "backdrop" }
+
+---The group content is added to when a constructor is given no group, and `add_canvas` adds
+---content to.
+---@type IconCompositionGroup
+local CANVAS_GROUP = { name = "canvas", stratum = "canvas" }
+
+---The group `add_overlay` adds content to.
+---@type IconCompositionGroup
+local OVERLAY_GROUP = { name = "overlay", stratum = "overlay", tintable = false }
+
+---The group `add_symbol` adds content to.
+---@type IconCompositionGroup
+local SYMBOL_GROUP = { name = "symbol", stratum = "symbol", tintable = false }
+
+---The group `add_label` adds content to.
+---@type IconCompositionGroup
+local LABEL_GROUP = { name = "label", stratum = "label", tintable = false }
+
+---The group `minify` adds the footprint layer to when the composition holds no backdrop content.
+---@type IconCompositionGroup
+local MINIFY_FOOTPRINT_GROUP = { name = "minify-footprint", stratum = "backdrop", tintable = false }
+
+---Marks the given sprite layers as light layers, in place.
+---@param layers Sprite[] The sprite layers of the light group.
+---@return Sprite[] # The given layers.
+local function lower_light_layers(layers)
+	for _, sprite_layer in pairs(layers) do
+		sprite_layer.draw_as_light = true
+		sprite_layer.flags = { "icon", "light" }
+	end
+
+	return layers
+end
+
+---The group `add_light` adds content to. Light content is left out of the icon, and is drawn as
+---light in the pictures.
+---@type IconCompositionGroup
+local LIGHT_GROUP = {
+	name = "light",
+	stratum = "canvas",
+	order = 1,
+	tintable = false,
+	projections = { icon = false, pictures = { rewrite = lower_light_layers } },
+}
 
 ---Represents content added to a composition, with the group it was added to and its placement. A
 ---contribution is not modified after it is created, and may be shared by multiple compositions.
@@ -31,54 +87,74 @@ local ARTWORK_STRATA = { backdrop = true, canvas = true, overlay = true }
 ---@field group IconCompositionGroup
 ---The layers of the content, converted to the icon defaults type of the composition.
 ---@field content IconData[]
----The placement of the layers. `nil` for annotation content.
+---The placement of the layers. `nil` for label content.
 ---@field placement? Transform
 
 ---Represents an operation recorded on a composition that is applied when the composition is built.
 ---@class IconCompositionOperation
----@field kind "transform"|"set_tint"|"blend_tint"|"float"|"remove_floating"|"outline"|"remove_outline"
+---The kind of operation, which determines the other fields that are set.
+---@field kind "transform"|"set_tint"|"blend_tint"|"float"|"remove_floating"|"outline"|"remove_outline"|"minify"
+---The scale and shift to apply. Set for a `transform` operation.
 ---@field transform? Transform
+---The tint to set or blend. Set for a `set_tint` or `blend_tint` operation.
 ---@field tint? Color
+---The weight of the tint in the blend. Set for a `blend_tint` operation.
 ---@field weight? float
+---The function to blend the tints with. Set for a `blend_tint` operation.
 ---@field blender? IconTintBlender
+---The scalar to shrink the canvas by. Set for a `minify` operation.
+---@field scalar? double
 
 ---
----An icon assembled from named groups of layers.
+---Represents an icon assembled from named groups of layers.
+---
 ---
 ---Methods that change a composition return a new composition; the original is not modified.
----Content is read when the composition is built, and is not copied when added.
+---Content is copied when it is added, and the composition is built from the copy.
 ---
----- Content is drawn by stratum, `backdrop` beneath `canvas` beneath `overlay` beneath `annotation`.
----  Within a stratum, groups are drawn by `order`, then by name; within a group, in the order the
----  content was added.
----- `backdrop`, `canvas`, and `overlay` content is artwork, and is placed and transformed together.
----  `annotation` content is positioned relative to the finished icon, is not transformed or
----  floated, and is omitted when the composition is embedded in another.
+---- Content is drawn by stratum, `backdrop` beneath `canvas` beneath `overlay` beneath `symbol`
+---  beneath `label`. Within a stratum, groups are drawn by `order`, then by name; within a group,
+---  in the order the content was added.
+---- `backdrop`, `canvas`, `overlay`, and `symbol` content is artwork, and is placed and
+---  transformed together. `label` content is positioned relative to the finished icon, is not
+---  placed, transformed, or floated, and is omitted when the composition is embedded in another.
 ---- Operations are applied when the composition is built, in the order they were recorded, to all
 ---  content, including content added after the operation was recorded.
+---- Each stratum has a group of its own name. `add_backdrop`, `add_canvas`, `add_overlay`,
+---  `add_symbol`, and `add_label` add content to it. The `backdrop` and `canvas` groups are
+---  tintable; the other groups are not.
+---
+--- |                                    | `backdrop`                                    | `canvas`                                      | `overlay`                                        | `symbol`      | `label`                      |
+--- |------------------------------------|-----------------------------------------------|-----------------------------------------------|--------------------------------------------------|---------------|------------------------------|
+--- | Placement given to `add`           | yes                                           | yes                                           | yes                                              | yes           | no                           |
+--- | `transform`, `float`               | yes                                           | yes                                           | yes                                              | yes           | no                           |
+--- | `minify`                           | holds the footprint                           | shrunk                                        | no                                               | no            | no                           |
+--- | `set_tint`, `blend_tint`           | if `tintable`                                 | if `tintable`                                 | if `tintable`                                    | if `tintable` | if `tintable`                |
+--- | `outline`                          | first layer of the stack that is not a spacer | first layer of the stack that is not a spacer | first layer of each content that is not a spacer | no            | no                           |
+--- | Embedded in another composition    | yes                                           | yes                                           | yes                                              | yes           | no                           |
+--- | In `pictures`                      | yes                                           | yes                                           | yes                                              | yes           | only with a `pictures` entry |
+--- | Converted by the `to` build option | yes                                           | yes                                           | yes                                              | yes           | yes                          |
 ---
 ---#### Examples
 ---```lua
 ---local IconComposition = require("__reskins-sprite-utils__.icon-composition")
 ---local _defines = require("__reskins-sprite-utils__.defines")
 ---
----local ARTWORK = { name = "artwork", stratum = "canvas" }
----local SYMBOL = { name = "symbol", stratum = "overlay", unique = true }
----
------ Create the base composition once.
+----- Create the base composition once. Content given to a constructor without a group is held in
+----- the canvas group.
 ---local machine = IconComposition
----    :from_named_prototype("assembling-machine-1", "assembling-machine", ARTWORK)
+---    :from_named_prototype("assembling-machine-1", "assembling-machine")
 ---    :outline()
 ---
 ----- Extend the base composition for each member; the base composition is not modified.
 ---for name, symbol in pairs(symbols_by_name) do
 ---    local icon_data = machine
----        :add(SYMBOL, symbol, _defines.icon_transforms.corners.northeast)
+---        :add_symbol(symbol, _defines.icon_transforms.corners.northeast)
 ---        :build()
 ---end
 ---
------ Define a subclass with additional methods.
----local BADGE = { name = "badge", stratum = "annotation", tintable = false, unique = true }
+----- Define a subclass with additional methods, over a group of its own.
+---local BADGE = { name = "badge", stratum = "label", tintable = false, unique = true }
 ---
 ------@class BadgedIconComposition : IconComposition
 ---local BadgedIconComposition = {}
@@ -92,7 +168,7 @@ local ARTWORK_STRATA = { backdrop = true, canvas = true, overlay = true }
 ---    return self:add(BADGE, badge)
 ---end
 ---
----local icon_data = BadgedIconComposition:from_icons(icon_data, ARTWORK):add_badge(badge):build()
+---local icon_data = BadgedIconComposition:from_icons(icon_data):add_badge(badge):build()
 ---```
 ---@class IconComposition
 ---The name of the type-specific icon defaults used by the composition. Read-only.
@@ -126,7 +202,7 @@ end
 local icon_composition = V.custom(is_icon_composition, "an IconComposition"):describe_as("an IconComposition")
 
 ---A validator that checks that content being added to a composition is one of the supported
----shapes: an `IconData` object, an array of them, an `IconSource`, a prototype defining an icon,
+---kinds: an `IconData` object, an array of them, an `IconSource`, a prototype defining an icon,
 ---or an `IconComposition`.
 local composition_content = V.any_of(
 	Common.icon_datum,
@@ -244,9 +320,9 @@ local function is_contribution_drawn_beneath(a, b)
 end
 
 ---Indicates whether the content of the given `group` is included in the given `projection`. A
----`false` entry for the projection in the `projections` of the group excludes it. Annotation
----content is excluded when the composition is being embedded, and otherwise is included only if
----the projection includes annotations or the group has an entry for the projection.
+---`false` entry for the projection in the `projections` of the group excludes it. Label content
+---is excluded when the composition is being embedded, and otherwise is included only if the
+---projection includes labels or the group has an entry for the projection.
 ---@param group IconCompositionGroup The group.
 ---@param projection IconCompositionProjection<any> The projection.
 ---@param is_embedding boolean Whether the composition is being embedded in another composition.
@@ -258,37 +334,90 @@ local function is_group_in_projection(group, projection, is_embedding)
 		return false
 	end
 
-	if group.stratum == "annotation" then
+	if group.stratum == "label" then
 		if is_embedding then
 			return false
 		end
 
-		return projection.includes_annotations or entry ~= nil
+		return projection.includes_labels or entry ~= nil
 	end
 
 	return true
 end
 
----Gets the contribution that receives the outline: the first contribution in the `canvas` or
----`overlay` strata, or if there is none, the first contribution in the `backdrop` stratum.
+---Sets `draw_background` on the first layer that is not a spacer of the stack the `backdrop` and
+---`canvas` contributions form, and on the first such layer of each `overlay` contribution.
+---`symbol` and `label` contributions are not modified. The contributions are modified in place.
 ---@param projected_contributions IconCompositionProjectedContribution[] The projected contributions, in drawing order.
----@return IconCompositionProjectedContribution? # The contribution to outline, or `nil` if there is no artwork.
----@nodiscard
-local function get_contribution_carrying_outline(projected_contributions)
-	local backdrop
-
+local function apply_outline(projected_contributions)
+	-- The stack is outlined as one icon: its layers are joined, outlined, and returned to the
+	-- contributions they came from.
+	local stack = {}
 	for _, projected in pairs(projected_contributions) do
-		local stratum = projected.group.stratum
-		if stratum == "canvas" or stratum == "overlay" then
-			return projected
-		end
-
-		if stratum == "backdrop" and not backdrop then
-			backdrop = projected
+		if OUTLINED_STACK_STRATA[projected.group.stratum] then
+			stack = _utils.array_concat(stack, projected.layers)
 		end
 	end
 
-	return backdrop
+	if #stack > 0 then
+		local outlined = _icons.outline_icons(stack)
+		local cursor = 1
+		for _, projected in pairs(projected_contributions) do
+			if OUTLINED_STACK_STRATA[projected.group.stratum] then
+				local layers = {}
+				for index = 1, #projected.layers do
+					layers[index] = outlined[cursor]
+					cursor = cursor + 1
+				end
+
+				projected.layers = layers
+			end
+		end
+	end
+
+	for _, projected in pairs(projected_contributions) do
+		if projected.group.stratum == "overlay" then
+			projected.layers = _icons.outline_icons(projected.layers)
+		end
+	end
+end
+
+---Shrinks the `canvas` contributions by `scalar` within the footprint of the icon, and draws the
+---outline. When no contribution is in the `backdrop` stratum, a transparent pixel scaled to cover
+---the icon is added beneath the contributions to hold the footprint. The contributions are
+---modified in place.
+---@param projected_contributions IconCompositionProjectedContribution[] The projected contributions, in drawing order.
+---@param scalar double The scalar to shrink the canvas by.
+---@param defaults_type? IconDefaultsType The icon defaults type of the composition.
+local function apply_minify(projected_contributions, scalar, defaults_type)
+	local has_backdrop = false
+	for _, projected in pairs(projected_contributions) do
+		if projected.group.stratum == "backdrop" then
+			has_backdrop = true
+			break
+		end
+	end
+
+	if not has_backdrop then
+		local footprint = {
+			icon = MINIFY_FOOTPRINT_ICON,
+			icon_size = 1,
+			scale = _icons.get_expected_icon_size(defaults_type) / 2,
+		}
+
+		table.insert(projected_contributions, 1, {
+			group = MINIFY_FOOTPRINT_GROUP,
+			layers = _icons.add_missing_icons_defaults({ footprint }, defaults_type),
+		})
+	end
+
+	for _, projected in pairs(projected_contributions) do
+		if projected.group.stratum == "canvas" then
+			projected.layers = _icons.scale_icon(projected.layers, scalar, defaults_type)
+		end
+	end
+
+	apply_outline(projected_contributions)
 end
 
 ---Applies the given `operation` to the layers of the given projected contribution, subject to the
@@ -363,10 +492,9 @@ local function get_projected_contributions(self, projection, to, is_embedding)
 	-- at its turn, so a `remove_outline` before or after it affects the same layers.
 	for _, operation in pairs(self.operations) do
 		if operation.kind == "outline" then
-			local target = get_contribution_carrying_outline(projected_contributions)
-			if target then
-				target.layers = _icons.outline_icons(target.layers)
-			end
+			apply_outline(projected_contributions)
+		elseif operation.kind == "minify" then
+			apply_minify(projected_contributions, operation.scalar --[[@as double]], self.defaults_type)
 		else
 			for _, projected in pairs(projected_contributions) do
 				projected.layers = apply_operation_to_contribution(projected, operation, self.defaults_type)
@@ -386,7 +514,7 @@ end
 ---@type IconCompositionProjection<SafeIconData[]>
 local icon_projection = {
 	name = "icon",
-	includes_annotations = true,
+	includes_labels = true,
 	lower = function(contributions)
 		local icon_data = {}
 		for _, contribution in pairs(contributions) do
@@ -399,8 +527,12 @@ local icon_projection = {
 	end,
 }
 
+---The projection that builds a `Sprite`.
+---@type IconCompositionProjection<Sprite>
+local pictures_projection
+
 ---Gets the artwork layers of the given composition, converted to the given `defaults_type`, for
----embedding in another composition. Annotation content is not included.
+---embedding in another composition. Label content is not included.
 ---@param inner IconComposition The composition to embed.
 ---@param defaults_type? IconDefaultsType The icon defaults type of the composition to embed in.
 ---@return IconData[] # The layers. Empty if the composition has no artwork.
@@ -464,7 +596,7 @@ local function get_layers_from_source(source, defaults_type)
 end
 
 ---Gets the layers of the given `content`, converted to the icon defaults type of the given
----composition.
+---composition. The layers share nothing with `content`.
 ---@param self IconComposition The composition the content is added to.
 ---@param content IconCompositionContent The content.
 ---@return IconData[] # The layers. Empty only if `content` is a composition with no artwork.
@@ -497,7 +629,7 @@ local function get_layers_from_content(self, content)
 	---@cast content -PrototypeWithIcons
 	if content.icon then
 		---@cast content IconData
-		return { content }
+		return { util.copy(content) }
 	end
 
 	if content.icon_datum or content.icon_data or content.name then
@@ -506,7 +638,7 @@ local function get_layers_from_content(self, content)
 	end
 
 	---@cast content IconData[]
-	return content
+	return util.copy(content)
 end
 
 ---Creates a shallow copy of the given composition. The `groups`, `contributions`, and `operations`
@@ -600,7 +732,7 @@ local function add_content_to_group(self, group, content, placement, replacing, 
 	if #layers == 0 then
 		error(
 			string.format(
-				"%s(): parameter 'content': the composition has no artwork; annotation content is not embedded",
+				"%s(): parameter 'content': the composition has no artwork; label content is not embedded",
 				function_name
 			),
 			3
@@ -625,15 +757,15 @@ local function add_content_to_group(self, group, content, placement, replacing, 
 	return derived
 end
 
----A signature rule that checks that `placement` is `nil` when `group` is an annotation group.
+---A signature rule that checks that `placement` is `nil` when `group` is a label group.
 ---@type Reskins.SpriteUtils.Validation.SignatureRule[]
 local placement_only_for_artwork = {
 	{
 		parameter = "placement",
 		arguments = { "group", "placement" },
 		check = function(group, placement)
-			if placement ~= nil and group.stratum == "annotation" then
-				return false, "must be absent for an annotation group, whose content is not placed"
+			if placement ~= nil and group.stratum == "label" then
+				return false, "must be absent for a label group, whose content is not placed"
 			end
 
 			return true
@@ -657,11 +789,12 @@ local check_add = V.signature("IconComposition:add", {
 ---- `content` may be an `IconData` object, an array of `IconData` objects, an `IconSource`, a
 ---  prototype defining an icon, or an `IconComposition`. An `IconSource` or a prototype is resolved
 ---  to layers when added, and `draw_background` is set on the first layer. An `IconComposition` is
----  built to its artwork layers when added; its annotation content is not included. Layers with a
+---  built to its artwork layers when added; its label content is not included. Layers with a
 ---  different icon defaults type are converted to the icon defaults type of this composition.
 ---- `placement` is applied to the layers in addition to any scale and shift they define. A
----  placement is not permitted for an annotation group.
----- `content` is not modified. It is read when the composition is built, and is not copied.
+---  placement is not permitted for a label group.
+---- `content` is copied when added, and is not modified. A change to `content` afterwards does not
+---  change the composition.
 ---
 ---#### Parameters
 ---@generic S : IconComposition
@@ -679,7 +812,7 @@ local check_add = V.signature("IconComposition:add", {
 ---```
 ---@throws Thrown when `group` is not a valid `IconCompositionGroup`, or is not equal to the stored definition of the group with the same name.
 ---@throws Thrown when `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
----@throws Thrown when `placement` is not a `Transform`, or is given for an annotation group.
+---@throws Thrown when `placement` is not a `Transform`, or is given for a label group.
 ---@see IconComposition.replace
 ---@see IconComposition.remove
 ---@nodiscard
@@ -699,9 +832,12 @@ local check_replace = V.signature("IconComposition:replace", {
 ---Creates a copy of the composition with the given `content` replacing the existing content of the
 ---given `group`.
 ---
----- Behaves as `add`, except that existing content in the group is removed whether or not the
----  group is `unique`.
----- `content` is not modified.
+---- The definition of `group` is stored the first time content is added to a group with its name.
+---  A later definition with the same name must be equal to the stored definition.
+---- Existing content in the group is removed, whether or not the group is `unique`.
+---- `placement` is applied to the layers in addition to any scale and shift they define. A
+---  placement is not permitted for a label group.
+---- `content` is copied when added, and is not modified.
 ---
 ---#### Parameters
 ---@generic S : IconComposition
@@ -714,13 +850,160 @@ local check_replace = V.signature("IconComposition:replace", {
 ---@return S # A copy of the composition with the content replaced.
 ---@throws Thrown when `group` is not a valid `IconCompositionGroup`, or is not equal to the stored definition of the group with the same name.
 ---@throws Thrown when `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
----@throws Thrown when `placement` is not a `Transform`, or is given for an annotation group.
+---@throws Thrown when `placement` is not a `Transform`, or is given for a label group.
 ---@see IconComposition.add
 ---@nodiscard
 function IconComposition.replace(self, group, content, placement)
 	check_replace(group, content, placement)
 
 	return add_content_to_group(self, group, content, placement, true, "IconComposition:replace")
+end
+
+---Creates the signature check of a method adding placed content to the group of a stratum.
+---@param method_name string The name of the method, for error messages.
+---@return fun(content: any, placement: any)
+---@nodiscard
+local function placed_content_signature(method_name)
+	return V.signature(method_name, {
+		{ "content", composition_content },
+		{ "placement", Common.transform:optional() },
+	})
+end
+
+local check_add_backdrop = placed_content_signature("IconComposition:add_backdrop")
+local check_add_canvas = placed_content_signature("IconComposition:add_canvas")
+local check_add_overlay = placed_content_signature("IconComposition:add_overlay")
+local check_add_symbol = placed_content_signature("IconComposition:add_symbol")
+
+---
+---Creates a copy of the composition with the given `content` added to the backdrop group,
+---`IconComposition.backdrop_group`, by `add`.
+---
+---#### Parameters
+---@generic S : IconComposition
+---@param self S The composition.
+---@param content IconCompositionContent The content to add.
+---@param placement? Transform The scale and shift to apply to the content.
+---
+---#### Returns
+---@return S # A copy of the composition with the content added.
+---@throws Thrown when `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws Thrown when `placement` is not a `Transform`.
+---@see IconComposition.add
+---@nodiscard
+function IconComposition.add_backdrop(self, content, placement)
+	check_add_backdrop(content, placement)
+
+	return self:add(BACKDROP_GROUP, content, placement)
+end
+
+---
+---Creates a copy of the composition with the given `content` added to the canvas group,
+---`IconComposition.canvas_group`, by `add`.
+---
+---- Content given to a constructor without a group is in the same group, and is drawn beneath
+---  the added content.
+---
+---#### Parameters
+---@generic S : IconComposition
+---@param self S The composition.
+---@param content IconCompositionContent The content to add.
+---@param placement? Transform The scale and shift to apply to the content.
+---
+---#### Returns
+---@return S # A copy of the composition with the content added.
+---@throws Thrown when `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws Thrown when `placement` is not a `Transform`.
+---@see IconComposition.add
+---@nodiscard
+function IconComposition.add_canvas(self, content, placement)
+	check_add_canvas(content, placement)
+
+	return self:add(CANVAS_GROUP, content, placement)
+end
+
+---
+---Creates a copy of the composition with the given `content` added to the overlay group,
+---`IconComposition.overlay_group`, by `add`.
+---
+---- The group is not tintable. `set_tint` and `blend_tint` do not modify its content, and
+---  `outline` outlines each content on its own.
+---
+---#### Parameters
+---@generic S : IconComposition
+---@param self S The composition.
+---@param content IconCompositionContent The content to add.
+---@param placement? Transform The scale and shift to apply to the content.
+---
+---#### Returns
+---@return S # A copy of the composition with the content added.
+---
+---#### Examples
+---```lua
+---local recipe_icon = IconComposition:from_named_prototype("iron-gear-wheel", "item")
+---    :add_overlay({ name = "iron-plate", type_name = "item" }, _defines.icon_transforms.corners.southwest)
+---    :outline()
+---    :build()
+---```
+---@throws Thrown when `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws Thrown when `placement` is not a `Transform`.
+---@see IconComposition.add
+---@nodiscard
+function IconComposition.add_overlay(self, content, placement)
+	check_add_overlay(content, placement)
+
+	return self:add(OVERLAY_GROUP, content, placement)
+end
+
+---
+---Creates a copy of the composition with the given `content` added to the symbol group,
+---`IconComposition.symbol_group`, by `add`.
+---
+---- The group is not tintable. `set_tint`, `blend_tint`, and `outline` do not modify its content.
+---
+---#### Parameters
+---@generic S : IconComposition
+---@param self S The composition.
+---@param content IconCompositionContent The content to add.
+---@param placement? Transform The scale and shift to apply to the content.
+---
+---#### Returns
+---@return S # A copy of the composition with the content added.
+---@throws Thrown when `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws Thrown when `placement` is not a `Transform`.
+---@see IconComposition.add
+---@nodiscard
+function IconComposition.add_symbol(self, content, placement)
+	check_add_symbol(content, placement)
+
+	return self:add(SYMBOL_GROUP, content, placement)
+end
+
+local check_add_label = V.signature("IconComposition:add_label", {
+	{ "content", composition_content },
+})
+
+---
+---Creates a copy of the composition with the given `content` added to the label group,
+---`IconComposition.label_group`, by `add`.
+---
+---- The group is not tintable. Its content is positioned relative to the finished icon, and a
+---  placement is not accepted.
+---
+---#### Parameters
+---@generic S : IconComposition
+---@param self S The composition.
+---@param content IconCompositionContent The content to add.
+---
+---#### Returns
+---@return S # A copy of the composition with the content added.
+---@throws Thrown when `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@see IconComposition.add
+---@nodiscard
+function IconComposition.add_label(self, content)
+	check_add_label(content)
+
+	return self:add(LABEL_GROUP, content)
 end
 
 local check_remove = V.signature("IconComposition:remove", {
@@ -733,9 +1016,13 @@ local check_remove = V.signature("IconComposition:remove", {
 ---- The stored definition of the group is removed, so a group with the same name and a different
 ---  definition may be added afterwards.
 ---- If there is no group with the given `name`, the composition is returned unmodified.
+---
+---#### Parameters
 ---@generic S : IconComposition
 ---@param self S The composition.
 ---@param name string The name of the group to remove.
+---
+---#### Returns
 ---@return S # A copy of the composition without the group.
 ---@throws Thrown when `name` is not a non-empty string.
 ---@see IconComposition.has_group
@@ -782,18 +1069,23 @@ local check_transform = V.signature("IconComposition:transform", {
 ---Creates a copy of the composition that applies the given `transform` to its artwork when built.
 ---
 ---- The transform is applied to all artwork content together, after the placement of each content.
----  Annotation content is not transformed.
+---  Label content is not transformed.
+---
+---#### Parameters
 ---@generic S : IconComposition
 ---@param self S The composition.
 ---@param transform Transform The scale and shift to apply.
+---
+---#### Returns
 ---@return S # A copy of the composition with the transform recorded.
 ---
 ---#### Examples
 ---```lua
------ Shrink the artwork into the lower half of the icon. Annotation content is not moved.
+----- Shrink the artwork into the lower half of the icon. Label content is not moved.
 ---local shrunk = composition:transform({ scale = 0.5, shift = { 0, 8 } })
 ---```
 ---@throws Thrown when `transform` is not a `Transform`.
+---@see IconComposition.minify
 ---@nodiscard
 function IconComposition.transform(self, transform)
 	check_transform(transform)
@@ -809,10 +1101,14 @@ local check_set_tint = V.signature("IconComposition:set_tint", {
 ---Creates a copy of the composition that sets the given `tint` on its content when built.
 ---
 ---- The tint is set on every layer of every group with `tintable` not equal to `false`. A layer
----  whose tint has an alpha of zero is not modified, as the game renders such a layer additively.
+---  whose tint has an alpha of zero is not modified.
+---
+---#### Parameters
 ---@generic S : IconComposition
 ---@param self S The composition.
 ---@param tint Color The tint to set.
+---
+---#### Returns
 ---@return S # A copy of the composition with the tint recorded.
 ---@throws Thrown when `tint` is not a `Color`.
 ---@see IconComposition.blend_tint
@@ -835,8 +1131,8 @@ local check_blend_tint = V.signature("IconComposition:blend_tint", {
 ---built.
 ---
 ---- The tint is blended into the tint of every layer of every group with `tintable` not equal to
----  `false`. A layer whose tint has an alpha of zero is not modified, as the game renders such a
----  layer additively. A layer without a tint is blended as if its tint were white.
+---  `false`. A layer whose tint has an alpha of zero is not modified. A layer without a tint is
+---  blended as if its tint were white.
 ---- The tints are blended with `colors.blend` at the given `weight`. If `blender` is given, it is
 ---  used instead, and `weight` is ignored.
 ---
@@ -894,12 +1190,14 @@ function IconComposition.remove_floating(self)
 end
 
 ---
----Creates a copy of the composition that sets `draw_background` on its first artwork layer when
----built.
+---Creates a copy of the composition that draws the outline of the icon when built.
 ---
----- `draw_background` is set on the first layer of the first group in the `canvas` or `overlay`
----  strata, or if there is none, of the first group in the `backdrop` stratum. Layers whose file
----  name ends in `empty.png` are skipped. Annotation content is not modified.
+---- `draw_background` is set on the first layer that is not a spacer of the stack the `backdrop`
+---  and `canvas` content forms, in drawing order, and on the first such layer of each content in
+---  the `overlay` stratum. Each `overlay` content is outlined on its own. A spacer is a layer
+---  whose file name ends in `empty.png` with an `icon_size` of `1`.
+---- `symbol` and `label` content is not modified. To outline a symbol, set `draw_background` on
+---  its content.
 ---- Only groups included in the projection are considered.
 ---@generic S : IconComposition
 ---@param self S The composition.
@@ -924,6 +1222,77 @@ function IconComposition.remove_outline(self)
 	return copy_composition_with_operation(self, { kind = "remove_outline" })
 end
 
+local check_minify = V.signature("IconComposition:minify", {
+	{ "scalar", Common.positive_number:less_than(1) },
+})
+
+---
+---Creates a copy of the composition that draws its `canvas` content smaller within the icon when
+---built.
+---
+---- The `canvas` content is scaled by `scalar`, and the outline is drawn as `outline` draws it. If
+---  no content is in the `backdrop` stratum, a transparent pixel scaled to cover the icon is added
+---  beneath the content to hold the footprint of the icon; otherwise, the backdrop holds it.
+---  Content in the other strata is not scaled.
+---
+---#### Parameters
+---@generic S : IconComposition
+---@param self S The composition.
+---@param scalar double The scalar to shrink the canvas by. Must be greater than `0` and less than `1`.
+---
+---#### Returns
+---@return S # A copy of the composition with the operation recorded.
+---
+---#### Examples
+---```lua
+----- Draw the artwork at 80% of its size; the icon keeps its full size.
+---local icon_data = composition:minify(0.8):build()
+---```
+---@throws Thrown when `scalar` is not a number greater than `0` and less than `1`.
+---@see IconComposition.transform
+---@see Icons.minify_icon
+---@nodiscard
+function IconComposition.minify(self, scalar)
+	check_minify(scalar)
+
+	return copy_composition_with_operation(self, { kind = "minify", scalar = scalar })
+end
+
+local check_add_light = V.signature("IconComposition:add_light", {
+	{ "icon_datum", Common.icon_datum },
+})
+
+---
+---Creates a copy of the composition with the given `icon_datum` added as a light layer.
+---
+---- The layer is added to the light group, `IconComposition.light_group`, in the `canvas` stratum
+---  with an `order` of `1`. The layer is drawn over canvas content of the default order, and is
+---  shrunk by `minify` with it. It is left out of the icon, and is drawn as light in the pictures,
+---  stacked as any other layer of its stratum. Light layers are drawn in the order they were added.
+---- The tint of `icon_datum` is kept; `set_tint` and `blend_tint` do not modify light layers.
+---- `icon_datum` is copied when added, and is not modified.
+---
+---#### Parameters
+---@generic S : IconComposition
+---@param self S The composition.
+---@param icon_datum IconData The light artwork.
+---
+---#### Returns
+---@return S # A copy of the composition with the light layer added.
+---
+---#### Examples
+---```lua
+---local icon_data, pictures = composition:add_light({ icon = light_icon, icon_size = 64, tint = tint }):build()
+---```
+---@throws Thrown when `icon_datum` is not a valid `IconData` object.
+---@see IconComposition.build
+---@nodiscard
+function IconComposition.add_light(self, icon_datum)
+	check_add_light(icon_datum)
+
+	return add_content_to_group(self, LIGHT_GROUP, icon_datum, nil, false, "IconComposition:add_light")
+end
+
 local check_project = V.signature("IconComposition:project", {
 	{ "projection", Common.icon_composition_projection },
 	{ "options", build_options:optional() },
@@ -934,16 +1303,20 @@ local check_project = V.signature("IconComposition:project", {
 ---
 ---- The content of each included group is processed in drawing order: missing icon fields are set
 ---  to default values, placements are applied, and the recorded operations are applied. If
----  `options.to` is given, the scale and shift of every layer, including annotation layers, are
+---  `options.to` is given, the scale and shift of every layer, including label layers, are
 ---  converted to that icon defaults type.
----- A group is included unless its `projections` entry for the projection is `false`. An
----  annotation group is included in a projection that does not include annotations only if it has
----  an entry for the projection.
+---- A group is included unless its `projections` entry for the projection is `false`. A label
+---  group is included in a projection that does not include labels only if it has an entry for
+---  the projection.
 ---- The `lower` function of the projection receives the projected contributions and returns the
 ---  output. The layers it receives are copies.
+---
+---#### Parameters
 ---@generic T
 ---@param projection IconCompositionProjection<T> The projection to build with.
 ---@param options? IconCompositionBuildOptions The build options.
+---
+---#### Returns
 ---@return T # The output of the projection.
 ---@throws Thrown when `projection` is not an `IconCompositionProjection`.
 ---@throws Thrown when `options` is not an `IconCompositionBuildOptions`.
@@ -974,31 +1347,83 @@ local check_build = V.signature("IconComposition:build", {
 	{ "options", build_options:optional() },
 })
 
+---Indicates whether the `pictures` projection of the given composition draws the same layers as
+---`sprites.create_sprite_from_icons` would draw from its icon: every group takes part in both
+---projections, or neither, and no group rewrites its layers.
+---@param self IconComposition The composition.
+---@return boolean # `true` if the pictures are a conversion of the icon; otherwise, `false`.
+---@nodiscard
+local function are_pictures_a_conversion_of_icon(self)
+	for _, contribution in pairs(self.contributions) do
+		local group = contribution.group
+		local in_icon = is_group_in_projection(group, icon_projection, false)
+		local in_pictures = is_group_in_projection(group, pictures_projection, false)
+
+		if in_icon ~= in_pictures then
+			return false
+		end
+
+		local entry = group.projections and group.projections.pictures
+		if in_pictures and type(entry) == "table" and entry.rewrite then
+			return false
+		end
+	end
+
+	return true
+end
+
 ---
----Builds the icon from the composition.
+---Gets the icon built from the composition, and the pictures if they differ from the icon.
 ---
----- Equivalent to `project` with the `icon` projection. The layers of every included group are
----  returned as one array, in drawing order. Missing icon fields are set to default values as
+---- The icon is the output of `project` with the `icon` projection: the layers of every included
+---  group as one array, in drawing order, with missing icon fields set to default values as
 ---  appropriate.
----- If `options.to` is given, the scale and shift of every layer, including annotation layers, are
+---- The pictures are the output of `project` with the `pictures` projection, returned only when
+---  they differ from the sprite `sprites.create_sprite_from_icons` would create from the icon:
+---  a group takes part in one projection and not the other, such as a label group without a
+---  `pictures` entry or the light group, or a group rewrites its layers. Otherwise, or when no
+---  content takes part in the pictures, the second value is `nil`.
+---- If `options.to` is given, the scale and shift of every layer, including label layers, are
 ---  converted to that icon defaults type.
 ---- The returned layers are copies. Building the same composition again returns an equal result.
+---
+---#### Parameters
 ---@param options? IconCompositionBuildOptions The build options.
+---
+---#### Returns
 ---@return SafeIconData[] # An array of `IconData` objects.
+---@return Sprite? # The pictures, when they differ from the icon; otherwise, `nil`.
 ---
 ---#### Examples
 ---```lua
 ---local icon_data = composition:build()
 ---local technology_icon_data = composition:build({ to = "technology" })
+---
+---local icon_data, pictures = composition:add_light(light_layer):build()
+---prototype.icons = icon_data
+---prototype.pictures = pictures or _sprites.create_sprite_from_icons(icon_data)
 ---```
 ---@throws Thrown when `options` is not an `IconCompositionBuildOptions`.
 ---@throws Thrown when no content is included in the icon.
 ---@see IconComposition.project
+---@see IconComposition.add_light
 ---@nodiscard
 function IconComposition:build(options)
 	check_build(options)
 
-	return self:project(icon_projection, options)
+	local icon_data = self:project(icon_projection, options)
+	if are_pictures_a_conversion_of_icon(self) then
+		return icon_data, nil
+	end
+
+	local to = options and options.to or nil
+	local projected_contributions = get_projected_contributions(self, pictures_projection, to, false)
+	if #projected_contributions == 0 then
+		return icon_data, nil
+	end
+
+	return icon_data,
+		pictures_projection.lower(projected_contributions, { defaults_type = to or self.defaults_type, composition = self })
 end
 
 ---Creates an empty composition with the given `defaults_type`.
@@ -1019,22 +1444,23 @@ end
 
 local check_from_icon = V.signature("IconComposition:from_icon", {
 	{ "icon_datum", Common.icon_datum },
-	{ "group", Common.icon_composition_group },
+	{ "group", Common.icon_composition_group:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
 ---
 ---Creates a composition containing the given `icon_datum` in the given `group`.
 ---
+---- If `group` is `nil`, the icon is added to the canvas group, `IconComposition.canvas_group`.
 ---- `defaults_type` determines the default values of missing icon fields, and the expected icon
----  size that placements and annotation content are measured against.
----- `icon_datum` is not modified. It is read when the composition is built, and is not copied.
+---  size that placements and label content are measured against.
+---- `icon_datum` is copied when added, and is not modified.
 ---
 ---#### Parameters
 ---@generic S : IconComposition
 ---@param self S The class to create an instance of. May be a subclass.
 ---@param icon_datum IconData An `IconData` object.
----@param group IconCompositionGroup The group to add the icon to.
+---@param group? IconCompositionGroup The group to add the icon to. Default `IconComposition.canvas_group`.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---#### Returns
@@ -1048,31 +1474,38 @@ local check_from_icon = V.signature("IconComposition:from_icon", {
 function IconComposition.from_icon(self, icon_datum, group, defaults_type)
 	check_from_icon(icon_datum, group, defaults_type)
 
-	return new_composition(self, defaults_type):add(group, icon_datum)
+	return new_composition(self, defaults_type):add(group or CANVAS_GROUP, icon_datum)
 end
 
 local check_from_icons = V.signature("IconComposition:from_icons", {
 	{ "icon_data", Common.icon_data },
-	{ "group", Common.icon_composition_group },
+	{ "group", Common.icon_composition_group:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
 ---
 ---Creates a composition containing the given `icon_data` in the given `group`.
 ---
+---- If `group` is `nil`, the icon is added to the canvas group, `IconComposition.canvas_group`.
 ---- `defaults_type` determines the default values of missing icon fields, and the expected icon
----  size that placements and annotation content are measured against.
----- `icon_data` is not modified. It is read when the composition is built, and is not copied.
+---  size that placements and label content are measured against.
+---- `icon_data` is copied when added, and is not modified.
 ---
 ---#### Parameters
 ---@generic S : IconComposition
 ---@param self S The class to create an instance of. May be a subclass.
 ---@param icon_data IconData[] An array of `IconData` objects.
----@param group IconCompositionGroup The group to add the icon to.
+---@param group? IconCompositionGroup The group to add the icon to. Default `IconComposition.canvas_group`.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---#### Returns
 ---@return S # A composition containing the icon in the given group.
+---
+---#### Examples
+---```lua
+---local composition = IconComposition:from_icons(icon_data)
+---local technology = IconComposition:from_icons(icon_data, nil, "technology")
+---```
 ---@throws Thrown when `icon_data` is not a non-empty array of valid `IconData` objects.
 ---@throws Thrown when `group` is not a valid `IconCompositionGroup`.
 ---@throws Thrown when `defaults_type` is not a non-empty string.
@@ -1083,18 +1516,19 @@ local check_from_icons = V.signature("IconComposition:from_icons", {
 function IconComposition.from_icons(self, icon_data, group, defaults_type)
 	check_from_icons(icon_data, group, defaults_type)
 
-	return new_composition(self, defaults_type):add(group, icon_data)
+	return new_composition(self, defaults_type):add(group or CANVAS_GROUP, icon_data)
 end
 
 local check_from_source = V.signature("IconComposition:from_source", {
 	{ "source", Common.icon_source },
-	{ "group", Common.icon_composition_group },
+	{ "group", Common.icon_composition_group:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
 ---
 ---Creates a composition containing the icon from the given `source` in the given `group`.
 ---
+---- If `group` is `nil`, the icon is added to the canvas group, `IconComposition.canvas_group`.
 ---- The source is resolved to layers when the composition is created. Layers with a different icon
 ---  defaults type are converted to `defaults_type`.
 ---- `source` is not modified.
@@ -1103,7 +1537,7 @@ local check_from_source = V.signature("IconComposition:from_source", {
 ---@generic S : IconComposition
 ---@param self S The class to create an instance of. May be a subclass.
 ---@param source IconSource The `IconSource` to resolve.
----@param group IconCompositionGroup The group to add the icon to.
+---@param group? IconCompositionGroup The group to add the icon to. Default `IconComposition.canvas_group`.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---#### Returns
@@ -1111,7 +1545,7 @@ local check_from_source = V.signature("IconComposition:from_source", {
 ---
 ---#### Examples
 ---```lua
----local composition = IconComposition:from_source({ name = "iron-plate", type_name = "item" }, ARTWORK)
+---local composition = IconComposition:from_source({ name = "iron-plate", type_name = "item" })
 ---```
 ---@throws Thrown when `source` is not a valid `IconSource`, or names a prototype that does not exist.
 ---@throws Thrown when `group` is not a valid `IconCompositionGroup`.
@@ -1122,18 +1556,19 @@ local check_from_source = V.signature("IconComposition:from_source", {
 function IconComposition.from_source(self, source, group, defaults_type)
 	check_from_source(source, group, defaults_type)
 
-	return new_composition(self, defaults_type):add(group, source)
+	return new_composition(self, defaults_type):add(group or CANVAS_GROUP, source)
 end
 
 local check_from_prototype = V.signature("IconComposition:from_prototype", {
 	{ "prototype", Common.prototypes.prototype_with_icons },
-	{ "group", Common.icon_composition_group },
+	{ "group", Common.icon_composition_group:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
 ---
 ---Creates a composition containing the icon of the given `prototype` in the given `group`.
 ---
+---- If `group` is `nil`, the icon is added to the canvas group, `IconComposition.canvas_group`.
 ---- The icon is read with `icons.get_icon_from_prototype` when the composition is created, and
 ---  `draw_background` is set on its first layer. Layers with a different icon defaults type are
 ---  converted to `defaults_type`.
@@ -1143,7 +1578,7 @@ local check_from_prototype = V.signature("IconComposition:from_prototype", {
 ---@generic S : IconComposition
 ---@param self S The class to create an instance of. May be a subclass.
 ---@param prototype PrototypeWithIcons The prototype to read the icon from.
----@param group IconCompositionGroup The group to add the icon to.
+---@param group? IconCompositionGroup The group to add the icon to. Default `IconComposition.canvas_group`.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---#### Returns
@@ -1157,13 +1592,13 @@ local check_from_prototype = V.signature("IconComposition:from_prototype", {
 function IconComposition.from_prototype(self, prototype, group, defaults_type)
 	check_from_prototype(prototype, group, defaults_type)
 
-	return new_composition(self, defaults_type):add(group, prototype)
+	return new_composition(self, defaults_type):add(group or CANVAS_GROUP, prototype)
 end
 
 local check_from_named_prototype = V.signature("IconComposition:from_named_prototype", {
 	{ "name", Common.prototype_name },
 	{ "type_name", Common.prototype_type_name },
-	{ "group", Common.icon_composition_group },
+	{ "group", Common.icon_composition_group:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
@@ -1171,14 +1606,17 @@ local check_from_named_prototype = V.signature("IconComposition:from_named_proto
 ---Creates a composition containing the icon of the prototype with the given `name` and `type_name`
 ---in the given `group`.
 ---
----- Equivalent to `from_source({ name = name, type_name = type_name }, group, defaults_type)`.
+---- If `group` is `nil`, the icon is added to the canvas group, `IconComposition.canvas_group`.
+---- The icon of the prototype is read when the composition is created, and `draw_background` is
+---  set on its first layer. Layers with a different icon defaults type are converted to
+---  `defaults_type`.
 ---
 ---#### Parameters
 ---@generic S : IconComposition
 ---@param self S The class to create an instance of. May be a subclass.
 ---@param name string The name of the prototype.
 ---@param type_name string The type name of the prototype.
----@param group IconCompositionGroup The group to add the icon to.
+---@param group? IconCompositionGroup The group to add the icon to. Default `IconComposition.canvas_group`.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
 ---
 ---#### Returns
@@ -1186,7 +1624,7 @@ local check_from_named_prototype = V.signature("IconComposition:from_named_proto
 ---
 ---#### Examples
 ---```lua
----local composition = IconComposition:from_named_prototype("iron-plate", "item", ARTWORK)
+---local composition = IconComposition:from_named_prototype("iron-plate", "item")
 ---```
 ---@throws Thrown when `name` or `type_name` is not a non-empty string, or no such prototype exists.
 ---@throws Thrown when `group` is not a valid `IconCompositionGroup`.
@@ -1197,7 +1635,39 @@ local check_from_named_prototype = V.signature("IconComposition:from_named_proto
 function IconComposition.from_named_prototype(self, name, type_name, group, defaults_type)
 	check_from_named_prototype(name, type_name, group, defaults_type)
 
-	return new_composition(self, defaults_type):add(group, { name = name, type_name = type_name })
+	return new_composition(self, defaults_type):add(group or CANVAS_GROUP, { name = name, type_name = type_name })
+end
+
+local check_from_composition = V.signature("IconComposition:from_composition", {
+	{ "composition", icon_composition },
+})
+
+---
+---Creates a composition of the calling class holding the groups, content, operations, and icon
+---defaults type of the given `composition`.
+---
+---- The methods of the calling class are available on the new composition.
+---- `composition` is not modified. A later method call on either composition does not modify the
+---  other.
+---
+---#### Parameters
+---@generic S : IconComposition
+---@param self S The class to create an instance of. May be a subclass.
+---@param composition IconComposition The composition to take the state of.
+---
+---#### Returns
+---@return S # A composition of the calling class with the same state.
+---
+---#### Examples
+---```lua
+---local badged = BadgedIconComposition:from_composition(composition):add_badge(badge)
+---```
+---@throws Thrown when `composition` is not an `IconComposition`.
+---@nodiscard
+function IconComposition.from_composition(self, composition)
+	check_from_composition(composition)
+
+	return setmetatable(copy_composition_for_step(composition), self)
 end
 
 local check_from_classified_icons = V.signature("IconComposition:from_classified_icons", {
@@ -1214,8 +1684,7 @@ local check_from_classified_icons = V.signature("IconComposition:from_classified
 ---  are added to the group as one content, in order. A later run of layers assigned to the same
 ---  group is added after the earlier run.
 ---- Every definition `classify` returns for one group name must be equal, as for `add`.
----- `icon_data` is not modified. Its layers are read when the composition is built, and are not
----  copied.
+---- `icon_data` is copied when added, and is not modified.
 ---
 ---#### Parameters
 ---@generic S : IconComposition
@@ -1290,10 +1759,8 @@ local check_define_group = V.signature("IconComposition.define_group", {
 })
 
 ---
----Validates the given group definition and returns a copy of it.
+---Creates a validated copy of the given group definition.
 ---
----- A group definition may be used without calling this function. `add` validates the definition
----  in any case.
 ---@param group IconCompositionGroup The group definition to validate.
 ---@return IconCompositionGroup # A copy of `group`.
 ---
@@ -1301,7 +1768,7 @@ local check_define_group = V.signature("IconComposition.define_group", {
 ---```lua
 ---local BADGE = IconComposition.define_group({
 ---    name = "badge",
----    stratum = "annotation",
+---    stratum = "label",
 ---    tintable = false,
 ---    unique = true,
 ---})
@@ -1313,6 +1780,44 @@ function IconComposition.define_group(group)
 
 	return util.copy(group)
 end
+
+---
+---The group `add_backdrop` adds content to. The group is named `backdrop`, is in the `backdrop`
+---stratum, and is tintable. The group must not be modified.
+---@type IconCompositionGroup
+IconComposition.backdrop_group = BACKDROP_GROUP
+
+---
+---The group content is added to when a constructor is given no group, and `add_canvas` adds
+---content to. The group is named `canvas`, is in the `canvas` stratum, and is tintable. The group
+---must not be modified.
+---@type IconCompositionGroup
+IconComposition.canvas_group = CANVAS_GROUP
+
+---
+---The group `add_overlay` adds content to. The group is named `overlay`, is in the `overlay`
+---stratum, and is not tintable. The group must not be modified.
+---@type IconCompositionGroup
+IconComposition.overlay_group = OVERLAY_GROUP
+
+---
+---The group `add_symbol` adds content to. The group is named `symbol`, is in the `symbol`
+---stratum, and is not tintable. The group must not be modified.
+---@type IconCompositionGroup
+IconComposition.symbol_group = SYMBOL_GROUP
+
+---
+---The group `add_label` adds content to. The group is named `label`, is in the `label` stratum,
+---and is not tintable. The group must not be modified.
+---@type IconCompositionGroup
+IconComposition.label_group = LABEL_GROUP
+
+---
+---The group `add_light` adds content to. The group is named `light`, is in the `canvas` stratum
+---with an `order` of `1`, is not tintable, is left out of the `icon` projection, and is drawn as
+---light in the `pictures` projection. The group must not be modified.
+---@type IconCompositionGroup
+IconComposition.light_group = LIGHT_GROUP
 
 ---
 ---Indicates whether the given `value` is an `IconComposition`.
@@ -1335,10 +1840,9 @@ local pictures_entry = V.shape({
 
 local sprite_layers = V.array(V.table()):describe_as("an array of sprite layers")
 
----@type IconCompositionProjection<Sprite>
-local pictures_projection = {
+pictures_projection = {
 	name = "pictures",
-	includes_annotations = false,
+	includes_labels = false,
 	lower = function(contributions)
 		local layers, trailing = {}, {}
 
@@ -1373,7 +1877,7 @@ local pictures_projection = {
 		layers = _utils.array_concat(layers, trailing)
 
 		if #layers == 0 then
-			error("IconComposition:project(): projection 'pictures' was left with no layers to draw", 2)
+			error("IconComposition:project(): projection 'pictures' has no layers to draw", 2)
 		end
 
 		if #layers == 1 then
@@ -1387,15 +1891,15 @@ local pictures_projection = {
 ---
 ---The projections provided by `IconComposition`.
 ---
----- `icon` builds an array of `IconData` objects, and is the projection used by `build`. Annotation
+---- `icon` builds an array of `IconData` objects, and is the projection used by `build`. Label
 ---  content is included.
 ---- `pictures` builds a `Sprite` as `sprites.create_sprite_from_icons` would from the icon, for use
----  as the `pictures` field of an item. Annotation content is not included unless its group has a
+---  as the `pictures` field of an item. Label content is not included unless its group has a
 ---  `pictures` entry. An entry may define a `rewrite` function, which receives the sprite layers of
 ---  the group and returns the layers to use in place of them, and optionally an array of layers to
----  draw after all groups.
----- A projection is a table with a `name`, an `includes_annotations` flag, and a `lower` function.
----  A custom projection may be passed to `project`.
+---  draw after all groups. Light content added with `add_light` is drawn as light, in its place.
+---- A projection is a table with a `name`, an `includes_labels` flag, and a `lower` function. A
+---  custom projection may be passed to `project`.
 ---
 ---#### Examples
 ---```lua

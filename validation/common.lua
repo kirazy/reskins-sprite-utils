@@ -281,7 +281,7 @@ _common.icon_composition_group = V.shape({
 ---@type ShapeValidator<IconCompositionProjection<unknown>>
 _common.icon_composition_projection = V.shape({
 	name = _common.non_empty_string,
-	includes_annotations = V.boolean(),
+	includes_labels = V.boolean(),
 	lower = V.func(),
 })
 	:strict()

@@ -161,15 +161,16 @@
 
 ---A stratum of an icon composition. Content is drawn by stratum, in the order listed.
 ---
----`backdrop`, `canvas`, and `overlay` hold artwork, which placements and the `transform` of the
----composition scale and shift together. `annotation` holds content positioned relative to the
----finished icon, which is not placed, transformed, or floated, and is not included when the
----composition is embedded in another composition.
+---`backdrop`, `canvas`, `overlay`, and `symbol` hold artwork, which placements and the
+---`transform` of the composition scale and shift together. `label` holds content positioned
+---relative to the finished icon, which is not placed, transformed, or floated, and is not included
+---when the composition is embedded in another composition.
 ---@alias IconCompositionStratum
----| "backdrop" # Artwork drawn beneath the subject of the icon, such as a plate or a box.
----| "canvas" # The subject of the icon.
----| "overlay" # Artwork drawn over the subject of the icon, such as a symbol or a sourced icon.
----| "annotation" # Content positioned relative to the finished icon, such as a badge in a corner.
+---| "backdrop" # Artwork drawn beneath the icon, such as a box or a crate. Holds the footprint `minify` shrinks the canvas against.
+---| "canvas" # The icon's own artwork.
+---| "overlay" # Icons composed onto the icon, such as the ingredients of a recipe. Each is outlined on its own.
+---| "symbol" # Marks drawn on the icon, such as a symbol or a letter. Never outlined.
+---| "label" # Content about the prototype rather than the picture, such as a badge in a corner. Positioned on the finished icon.
 
 ---Defines a named group of content in an icon composition.
 ---
@@ -214,9 +215,9 @@
 ---@class IconCompositionProjection<T>
 ---The name of the projection, used as the key of group `projections` entries.
 ---@field name string
----Whether `annotation` content is included. When `false`, annotation content is included only if
----its group has an entry for the projection.
----@field includes_annotations boolean
+---Whether `label` content is included. When `false`, label content is included only if its group
+---has an entry for the projection.
+---@field includes_labels boolean
 ---Builds the output from the projected contributions, given in drawing order.
 ---@field lower fun(contributions: IconCompositionProjectedContribution[], context: IconCompositionProjectionContext): T
 
@@ -229,7 +230,7 @@
 ---Options for building or projecting an icon composition.
 ---@class IconCompositionBuildOptions
 ---The name of the type-specific icon defaults to convert the output to. The scale and shift of
----every layer, including annotation layers, are converted. If `nil`, the output is not converted.
+---every layer, including label layers, are converted. If `nil`, the output is not converted.
 ---@field to? IconDefaultsType
 
 ---Content that may be added to an icon composition: an `IconData` object, an array of `IconData`

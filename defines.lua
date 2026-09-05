@@ -104,10 +104,10 @@ _defines.icon_transforms = {
 ---
 ---- Content in an earlier stratum is drawn beneath content in a later stratum, regardless of the
 ---  order the content was added in.
----- `backdrop`, `canvas`, and `overlay` hold artwork, which placements and the `transform` of the
----  composition scale and shift together. `annotation` holds content positioned relative to the
----  finished icon, which is not scaled or shifted.
+---- `backdrop`, `canvas`, `overlay`, and `symbol` hold artwork, which placements and the
+---  `transform` of the composition scale and shift together. `label` holds content positioned
+---  relative to the finished icon, which is not scaled or shifted.
 ---@type IconCompositionStratum[]
-_defines.icon_composition_strata = { "backdrop", "canvas", "overlay", "annotation" }
+_defines.icon_composition_strata = { "backdrop", "canvas", "overlay", "symbol", "label" }
 
 return _defines
