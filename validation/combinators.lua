@@ -33,7 +33,7 @@ local AnyOfValidator = Validator.subclass("any_of")
 ---
 ---When no validator accepts the value, the failure message lists the requirement of each validator
 ---and why the value did not satisfy it.
----@generic T
+---@generic const T
 ---@param ... Validator<T> The branches to try, in order.
 ---@return Validator<any>
 ---
@@ -41,11 +41,11 @@ local AnyOfValidator = Validator.subclass("any_of")
 ---```lua
 ---local Vector = V.any_of(V.tuple(V.number(), V.number()), V.shape({ x = V.number(), y = V.number() }))
 ---```
----@overload fun<A>(a: Validator<A>): Validator<A>
----@overload fun<A, B>(a: Validator<A>, b: Validator<B>): Validator<A|B>
----@overload fun<A, B, C>(a: Validator<A>, b: Validator<B>, c: Validator<C>): Validator<A|B|C>
----@overload fun<A, B, C, D>(a: Validator<A>, b: Validator<B>, c: Validator<C>, d: Validator<D>): Validator<A|B|C|D>
----@overload fun<A, B, C, D, E>(a: Validator<A>, b: Validator<B>, c: Validator<C>, d: Validator<D>, e: Validator<E>): Validator<A|B|C|D|E>
+---@overload fun<const A>(a: Validator<A>): Validator<A>
+---@overload fun<const A, const B>(a: Validator<A>, b: Validator<B>): Validator<A|B>
+---@overload fun<const A, const B, const C>(a: Validator<A>, b: Validator<B>, c: Validator<C>): Validator<A|B|C>
+---@overload fun<const A, const B, const C, const D>(a: Validator<A>, b: Validator<B>, c: Validator<C>, d: Validator<D>): Validator<A|B|C|D>
+---@overload fun<const A, const B, const C, const D, const E>(a: Validator<A>, b: Validator<B>, c: Validator<C>, d: Validator<D>, e: Validator<E>): Validator<A|B|C|D|E>
 ---@overload fun(...): Validator<any>
 ---@nodiscard
 function _combinators.any_of(...)
@@ -216,14 +216,17 @@ end
 
 -- Escape hatches
 
+---@class CustomValidator<T> : Validator<T>
 local CustomValidator = Validator.subclass("custom")
 
 ---Creates a validator from the given predicate function.
----@param predicate fun(value: any): boolean A function that returns `true` if the value is acceptable.
+---@generic T
+---@param _type_name `T`
+---@param predicate fun(value: unknown): TypeGuard<T> A function that returns `true` if the value is acceptable.
 ---@param message string What the value must be, phrased to follow `must be`.
----@return Validator<any>
+---@return CustomValidator<T>
 ---@nodiscard
-function _combinators.custom(predicate, message)
+function _combinators.custom(_type_name, predicate, message)
 	return Validator.instance(CustomValidator):satisfies(predicate, message)
 end
 

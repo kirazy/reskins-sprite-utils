@@ -31,24 +31,6 @@ local _defines = require("defines")
 ---@class Common
 local _common = {}
 
----Merges groups of shape fields into one table, left to right.
----@param ... table<string, Validator<any>> The groups to merge.
----@return table<string, Validator<any>>
----@nodiscard
-local function fields(...)
-	local merged = {}
-
-	-- Counted so that a nil group does not truncate the list.
-	local groups = table.pack(...)
-	for index = 1, groups.n do
-		for name, validator in pairs(groups[index] or {}) do
-			merged[name] = validator
-		end
-	end
-
-	return merged
-end
-
 -- Scalars
 
 ---A number greater than zero.
@@ -86,7 +68,7 @@ _common.mod_file_path = V.string()
 _common.sprite_size = V.integer():in_range(1, 8192):describe_as("a sprite size in pixels")
 
 ---A single component of a color.
-local color_component = V.number():finite():non_negative()
+local color_component = V.any_of(_common.unit_interval, V.integer():in_range(0, 255))
 
 ---A [Color](https://lua-api.factorio.com/latest/types/Color.html), as either named
 ---components or an array of three to four numbers.
@@ -149,8 +131,7 @@ _common.icon_defaults_type = V.string():not_empty():describe_as("an icon default
 
 ---A validator that checks that a value is an [IconData](https://lua-api.factorio.com/latest/types/IconData.html)
 ---object. Unknown fields are permitted; call `:strict()` to reject them.
----@type ShapeValidator<IconData>
-_common.icon_datum = V.shape({
+_common.icon_datum = V.shape_of("IconData", {
 	icon = _common.mod_file_path,
 	icon_size = _common.sprite_size:optional(),
 	scale = _common.positive_number:optional(),
@@ -170,37 +151,44 @@ _common.icon_datum = V.shape({
 ---An icon expressed as an array of `IconData` objects.
 _common.icon_data = V.array(_common.icon_datum):not_empty():describe_as("an array of IconData objects")
 
+---A validator that checks that a value is an `IconData` object or an array of `IconData` objects.
+_common.icon = V.any_of(_common.icon_datum, _common.icon_data)
+
+---A validator that checks that a value is an `IconComposition`.
+_common.icon_composition = V.custom("IconComposition", function(value)
+	local IconComposition = require("__reskins-sprite-utils__.icon-composition")
+	return IconComposition.is_icon_composition(value)
+end, "an IconComposition")
+
 ---A validator that checks that a value is a `Transform` with no unknown fields.
----@type ShapeValidator<Transform>
-_common.transform = V.shape({
+_common.transform = V.shape_of("Transform", {
 	scale = _common.positive_number:optional(),
 	shift = _common.vector:optional(),
 })
 	:strict()
 	:describe_as("a Transform")
 
----The transformation fields every icon source shares.
-local transformable = {
+---An icon source providing a single `IconData` object.
+_common.icon_datum_source = V.shape_of("IconDatumSource", {
+	icon_datum = _common.icon_datum,
+	defaults_type = _common.icon_defaults_type:optional(),
 	scale = _common.positive_number:optional(),
 	shift = _common.vector:optional(),
 	tint = _common.color:optional(),
 	floating = V.boolean():optional(),
 	transform = _common.transform:optional(),
-}
-
----An icon source providing a single `IconData` object.
----@type ShapeValidator<IconDatumSource>
-_common.icon_datum_source = V.shape(fields(transformable, {
-	icon_datum = _common.icon_datum,
-	defaults_type = _common.icon_defaults_type:optional(),
-})):describe_as("an IconDatumSource")
+}):describe_as("an IconDatumSource")
 
 ---An icon source providing an array of `IconData` objects.
----@type ShapeValidator<IconDataSource>
-_common.icon_data_source = V.shape(fields(transformable, {
+_common.icon_data_source = V.shape_of("IconDataSource", {
 	icon_data = _common.icon_data,
 	defaults_type = _common.icon_defaults_type:optional(),
-})):describe_as("an IconDataSource")
+	scale = _common.positive_number:optional(),
+	shift = _common.vector:optional(),
+	tint = _common.color:optional(),
+	floating = V.boolean():optional(),
+	transform = _common.transform:optional(),
+}):describe_as("an IconDataSource")
 
 ---The name of a prototype.
 _common.prototype_name = V.string():not_empty():describe_as("a prototype name")
@@ -209,20 +197,22 @@ _common.prototype_name = V.string():not_empty():describe_as("a prototype name")
 _common.prototype_type_name = V.string():not_empty():describe_as("a prototype type name")
 
 ---An icon source naming the prototype to take the icon from.
----@type ShapeValidator<PrototypeIconSource>
-_common.prototype_icon_source = V.shape(fields(transformable, {
+_common.prototype_icon_source = V.shape_of("PrototypeIconSource", {
 	name = _common.prototype_name,
 	type_name = _common.prototype_type_name,
-})):describe_as("a PrototypeIconSource")
+	scale = _common.positive_number:optional(),
+	shift = _common.vector:optional(),
+	tint = _common.color:optional(),
+	floating = V.boolean():optional(),
+	transform = _common.transform:optional(),
+}):describe_as("a PrototypeIconSource")
 
 ---Any of the three forms an icon source may take.
----@type Validator<IconSource>
 _common.icon_source = V.any_of(_common.icon_datum_source, _common.icon_data_source, _common.prototype_icon_source)
 	:describe_as("an IconSource")
 
 ---A validator that checks that a value is an `IconAssignmentOptions` object with no unknown fields.
----@type ShapeValidator<IconAssignmentOptions>
-_common.icon_assignment_options = V.shape({
+_common.icon_assignment_options = V.shape_of("IconAssignmentOptions", {
 	infer_item = V.boolean():optional(),
 	infer_recipe = V.boolean():optional(),
 	infer_explosion = V.boolean():optional(),
@@ -235,8 +225,7 @@ _common.icon_assignment_options = V.shape({
 	:describe_as("an IconAssignmentOptions")
 
 ---An icon held for deferred assignment to a named prototype.
----@type ShapeValidator<DeferrableIconData>
-_common.deferrable_icon_data = V.shape({
+_common.deferrable_icon_data = V.shape_of("DeferrableIconData", {
 	name = _common.prototype_name,
 	type_name = _common.prototype_type_name,
 	icon_data = _common.icon_data,
@@ -245,8 +234,7 @@ _common.deferrable_icon_data = V.shape({
 }):describe_as("a DeferrableIconData")
 
 ---A single-object icon held for deferred assignment to a named prototype.
----@type ShapeValidator<DeferrableIconDatum>
-_common.deferrable_icon_datum = V.shape({
+_common.deferrable_icon_datum = V.shape_of("DeferrableIconDatum", {
 	name = _common.prototype_name,
 	type_name = _common.prototype_type_name,
 	icon_datum = _common.icon_datum,
@@ -256,7 +244,6 @@ _common.deferrable_icon_datum = V.shape({
 -- Icon compositions
 
 ---A validator that checks that a value is an icon composition stratum.
----@type Validator<IconCompositionStratum>
 _common.icon_composition_stratum = V.one_of(_defines.icon_composition_strata):describe_as("an icon composition stratum")
 
 ---A validator that checks that a value is a group `projections` entry: `false`, or a table of
@@ -265,8 +252,7 @@ local group_projection_entry = V.any_of(V.literal(false), V.table())
 	:describe_as("false or a table of settings for the projection")
 
 ---A validator that checks that a value is an `IconCompositionGroup` with no unknown fields.
----@type ShapeValidator<IconCompositionGroup>
-_common.icon_composition_group = V.shape({
+_common.icon_composition_group = V.shape_of("IconCompositionGroup", {
 	name = _common.non_empty_string,
 	stratum = _common.icon_composition_stratum,
 	order = V.number():finite():optional(),
@@ -278,8 +264,7 @@ _common.icon_composition_group = V.shape({
 	:describe_as("an IconCompositionGroup")
 
 ---A validator that checks that a value is an `IconCompositionProjection` with no unknown fields.
----@type ShapeValidator<IconCompositionProjection<unknown>>
-_common.icon_composition_projection = V.shape({
+_common.icon_composition_projection = V.shape_of("IconCompositionProjection", {
 	name = _common.non_empty_string,
 	includes_labels = V.boolean(),
 	lower = V.func(),
@@ -351,7 +336,7 @@ _common.prototypes.is_registered_type = _common.prototype_type_name
 
 ---Creates a validator accepting the name of a prototype that exists in `data.raw`.
 ---@param type_name string The prototype type to look the name up in.
----@return Validator<any>
+---@return StringValidator
 ---
 ---#### Examples
 ---```lua
@@ -371,12 +356,14 @@ end
 
 ---A validator that checks that a value is a prototype with a `type` field that defines an icon
 ---through either its `icon` or its `icons` field.
----@type ShapeValidator<PrototypeWithIcons>
-_common.prototypes.prototype_with_icons = V.shape({ type = _common.prototype_type_name })
+_common.prototypes.prototype_with_icons = V.shape({
+	name = _common.prototype_name,
+	type = _common.prototype_type_name,
+	icon = _common.mod_file_path:optional(),
+	icons = _common.icon_data:optional(),
+})
 	:where(function(value)
-		-- `icons` is checked first, as the engine uses it when both are set. An empty array does not
-		-- count as present.
-		return (value.icons ~= nil and value.icons[1] ~= nil) or value.icon ~= nil
+		return value.icons ~= nil or value.icon ~= nil
 	end, "must define an icon through either the 'icon' or the 'icons' field")
 	:describe_as("a prototype defining an icon")
 

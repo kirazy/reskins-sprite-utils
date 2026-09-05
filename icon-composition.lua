@@ -202,8 +202,8 @@ local IconComposition = {}
 IconComposition.__index = IconComposition
 
 ---Indicates whether the given `value` is an `IconComposition`.
----@param value any The value to check.
----@return boolean # `true` if `value` is an `IconComposition`; otherwise, `false`.
+---@param value unknown The value to check.
+---@return TypeGuard<IconComposition> # `true` if `value` is an `IconComposition`; otherwise, `false`.
 ---@nodiscard
 local function is_icon_composition(value)
 	local class = getmetatable(value)
@@ -219,9 +219,6 @@ local function is_icon_composition(value)
 	return false
 end
 
----A validator that checks that a value is an `IconComposition`.
-local icon_composition = V.custom(is_icon_composition, "an IconComposition"):describe_as("an IconComposition")
-
 ---A validator that checks that content being added to a composition is one of the supported
 ---kinds: an `IconData` object, an array of them, an `IconSource`, a prototype defining an icon,
 ---or an `IconComposition`.
@@ -230,7 +227,7 @@ local composition_content = V.any_of(
 	Common.icon_data,
 	Common.icon_source,
 	Common.prototypes.prototype_with_icons,
-	icon_composition
+	Common.icon_composition
 ):describe_as(
 	"an IconData object, an array of IconData objects, an IconSource, a prototype defining an icon, or an IconComposition"
 )
@@ -1780,7 +1777,7 @@ function IconComposition.from_named_prototype(self, name, type_name, group, defa
 end
 
 local check_from_composition = V.signature("IconComposition:from_composition", {
-	{ "composition", icon_composition },
+	{ "composition", Common.icon_composition },
 })
 
 ---
@@ -1964,10 +1961,10 @@ IconComposition.light_group = LIGHT_GROUP
 ---Indicates whether the given `value` is an `IconComposition`.
 ---
 ---#### Parameters
----@param value any The value to check.
+---@param value unknown The value to check.
 ---
 ---#### Returns
----@return boolean # `true` if `value` is an `IconComposition`; otherwise, `false`.
+---@return TypeGuard<IconComposition> # `true` if `value` is an `IconComposition`; otherwise, `false`.
 ---@nodiscard
 function IconComposition.is_icon_composition(value)
 	return is_icon_composition(value)

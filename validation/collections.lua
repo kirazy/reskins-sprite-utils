@@ -128,18 +128,16 @@ end
 ---Creates a copy of this validator that tolerates gaps and non-index keys.
 ---
 ---Elements still present are validated; missing positions are skipped.
----@param self ArrayValidator<T>
----@return ArrayValidator<T>
+---@return self
 ---@nodiscard
-function ArrayValidator.allow_holes(self)
-	return ArrayValidator.without(self, "array.sequence")
+function ArrayValidator:allow_holes()
+	return self:without("array.sequence")
 end
 
 ---Requires the array to hold at least one element.
----@param self ArrayValidator<T>
----@return ArrayValidator<T>
+---@return self
 ---@nodiscard
-function ArrayValidator.not_empty(self)
+function ArrayValidator:not_empty()
 	return self:extend({
 		id = "array.not_empty",
 		describe = "not empty",
@@ -154,11 +152,10 @@ function ArrayValidator.not_empty(self)
 end
 
 ---Requires the array to hold at least `min_length` elements.
----@param self ArrayValidator<T>
 ---@param min_length integer The fewest elements allowed.
----@return ArrayValidator<T>
+---@return self
 ---@nodiscard
-function ArrayValidator.min_length(self, min_length)
+function ArrayValidator:min_length(min_length)
 	return self:extend({
 		id = "array.min_length",
 		describe = string.format("at least %d elements", min_length),
@@ -174,11 +171,10 @@ function ArrayValidator.min_length(self, min_length)
 end
 
 ---Requires the array to hold at most `max_length` elements.
----@param self ArrayValidator<T>
 ---@param max_length integer The most elements allowed.
----@return ArrayValidator<T>
+---@return self
 ---@nodiscard
-function ArrayValidator.max_length(self, max_length)
+function ArrayValidator:max_length(max_length)
 	return self:extend({
 		id = "array.max_length",
 		describe = string.format("at most %d elements", max_length),
@@ -194,11 +190,10 @@ function ArrayValidator.max_length(self, max_length)
 end
 
 ---Requires the array to hold exactly `length` elements.
----@param self ArrayValidator<T>
 ---@param length integer The number of elements required.
----@return ArrayValidator<T>
+---@return self
 ---@nodiscard
-function ArrayValidator.length(self, length)
+function ArrayValidator:length(length)
 	return self:extend({
 		id = "array.length",
 		describe = string.format("exactly %d elements", length),
@@ -214,10 +209,9 @@ function ArrayValidator.length(self, length)
 end
 
 ---Requires no two elements of the array to be equal.
----@param self ArrayValidator<T>
----@return ArrayValidator<T>
+---@return self
 ---@nodiscard
-function ArrayValidator.unique(self)
+function ArrayValidator:unique()
 	return self:extend({
 		id = "array.unique",
 		describe = "free of duplicates",
@@ -250,11 +244,10 @@ end
 ---Requires the array's elements to be in order.
 ---
 ---#### Parameters
----@param self ArrayValidator<T>
 ---@param compare (fun(a: T, b: T): boolean)? A function that returns `true` if `a` may precede `b`. Default `a <= b`.
----@return ArrayValidator<T>
+---@return self
 ---@nodiscard
-function ArrayValidator.sorted(self, compare)
+function ArrayValidator:sorted(compare)
 	compare = compare or function(a, b)
 		return a <= b
 	end
@@ -357,10 +350,9 @@ function _collections.map(key, value)
 end
 
 ---Requires the map to hold at least one entry.
----@param self MapValidator<K, V>
----@return MapValidator<K, V>
+---@return self
 ---@nodiscard
-function MapValidator.not_empty(self)
+function MapValidator:not_empty()
 	return self:extend({
 		id = "map.not_empty",
 		describe = "not empty",
@@ -375,11 +367,10 @@ function MapValidator.not_empty(self)
 end
 
 ---Requires the map to hold at least `min_count` entries.
----@param self MapValidator<K, V>
 ---@param min_count integer The fewest entries allowed.
----@return MapValidator<K, V>
+---@return self
 ---@nodiscard
-function MapValidator.min_count(self, min_count)
+function MapValidator:min_count(min_count)
 	return self:extend({
 		id = "map.min_count",
 		describe = string.format("at least %d entries", min_count),
@@ -395,11 +386,10 @@ function MapValidator.min_count(self, min_count)
 end
 
 ---Requires the map to hold at most `max_count` entries.
----@param self MapValidator<K, V>
 ---@param max_count integer The most entries allowed.
----@return MapValidator<K, V>
+---@return self
 ---@nodiscard
-function MapValidator.max_count(self, max_count)
+function MapValidator:max_count(max_count)
 	return self:extend({
 		id = "map.max_count",
 		describe = string.format("at most %d entries", max_count),
@@ -420,6 +410,10 @@ end
 ---The validator for each named field.
 ---@field fields table<string, Validator<any>>
 local ShapeValidator = Validator.subclass("shape")
+
+---The validators for the fields of `T`, keyed by field name. Each validator must validate the
+---type of the field it is keyed by.
+---@alias ShapeFields<T> { [K in keyof T]: Validator<T[K]> }
 
 ---Creates a validator accepting a table whose named fields satisfy their validators.
 ---
@@ -471,11 +465,35 @@ function _collections.shape(fields)
 	}) --[[@as ShapeValidator<{ [K in keyof F]: any }>]]
 end
 
----Creates a copy of this validator that rejects keys it does not describe.
----@param self ShapeValidator<TValidated>
----@return ShapeValidator<TValidated>
+---Creates a validator accepting a table of the named class, whose fields satisfy their validators.
+---
+---The class is named in full, including its namespace; `@using` does not apply to the name.
+---Each field validator is checked against the type of the class field it is keyed by, and a
+---required field of the class that is given no validator is reported. Otherwise the validator
+---behaves as one created by `shape`.
+---
+---#### Parameters
+---@generic T
+---@param _type_name `T` The name of the class the validator validates.
+---@param fields ShapeFields<T> The validator for each named field.
+---@return ShapeValidator<T>
+---
+---#### Examples
+---```lua
+---local Transform = V.shape_of("Reskins.SpriteUtils.Transform", {
+---    scale = V.number():positive():optional(),
+---    shift = Vector:optional(),
+---})
+---```
 ---@nodiscard
-function ShapeValidator.strict(self)
+function _collections.shape_of(_type_name, fields)
+	return _collections.shape(fields) --[[@as ShapeValidator<T>]]
+end
+
+---Creates a copy of this validator that rejects keys it does not describe.
+---@return self
+---@nodiscard
+function ShapeValidator:strict()
 	local fields = self.fields
 
 	return self:extend({
@@ -505,10 +523,9 @@ end
 ---Creates a copy of this validator with an additional rule spanning several fields.
 ---
 ---#### Parameters
----@param self ShapeValidator<TValidated>
 ---@param predicate fun(value: TValidated): boolean A function that returns `true` if the table is acceptable.
 ---@param message string The complete failure message, phrased to follow the path.
----@return ShapeValidator<TValidated>
+---@return self
 ---
 ---#### Examples
 ---```lua
@@ -517,7 +534,7 @@ end
 ---           "must define one of 'icon' or 'icons'")
 ---```
 ---@nodiscard
-function ShapeValidator.where(self, predicate, message)
+function ShapeValidator:where(predicate, message)
 	return self:extend({
 		id = "shape.where",
 		describe = message,

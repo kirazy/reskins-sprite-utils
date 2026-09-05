@@ -118,7 +118,7 @@ end
 ---#### Parameters
 ---@param expected_type type The `type()` name required.
 ---@param article string? How to describe the type, such as `"an array"`. Defaults to the type name.
----@return ValidationRule<any>
+---@return ValidationRule<unknown>
 ---@nodiscard
 function Validator.type_gate(expected_type, article)
 	local described = article or ("a " .. expected_type)
@@ -144,13 +144,12 @@ end
 ---
 ---The copy is of the same class as the original, so a copy of a `ShapeValidator`
 ---still offers `:strict()`.
----@generic S : Validator<any>
----@param self S
----@return S
+---@return self
 ---@nodiscard
-function Validator.clone(self)
+function Validator:clone()
 	local copy = {}
 	for key, value in pairs(self) do
+		---@diagnostic disable-next-line: assign-type-mismatch
 		copy[key] = value
 	end
 
@@ -164,12 +163,10 @@ function Validator.clone(self)
 end
 
 ---Creates a copy of this validator with an additional rule.
----@generic S : Validator<any>
----@param self S
 ---@param rule ValidationRule<TValidated> The rule to append.
----@return S
+---@return self
 ---@nodiscard
-function Validator.extend(self, rule)
+function Validator:extend(rule)
 	local copy = self:clone()
 	copy.rules[#copy.rules + 1] = rule
 
@@ -177,12 +174,10 @@ function Validator.extend(self, rule)
 end
 
 ---Creates a copy of this validator with the identified rule removed.
----@generic S : Validator<any>
----@param self S
 ---@param rule_id string The `id` of the rule to drop.
----@return S
+---@return self
 ---@nodiscard
-function Validator.without(self, rule_id)
+function Validator:without(rule_id)
 	local copy = self:clone()
 
 	local rules = {}
@@ -199,11 +194,12 @@ end
 ---Creates a copy of this validator that accepts `nil`.
 ---
 ---When the value is `nil` no rule is evaluated.
----@generic S : Validator<any>
----@param self S
----@return S
+---
+---The copy is typed as a plain `Validator` of the nullable type, so builder methods of a subclass
+---are not available on it. Call `optional` last.
+---@return Validator<TValidated?>
 ---@nodiscard
-function Validator.optional(self)
+function Validator:optional()
 	local copy = self:clone()
 	copy.presence = "optional"
 
@@ -211,11 +207,9 @@ function Validator.optional(self)
 end
 
 ---Creates a copy of this validator that rejects `nil`. The default.
----@generic S : Validator<any>
----@param self S
----@return S
+---@return self
 ---@nodiscard
-function Validator.required(self)
+function Validator:required()
 	local copy = self:clone()
 	copy.presence = "required"
 
@@ -226,12 +220,10 @@ end
 ---
 ---Used to give a composed validator a name a reader will recognize, such as
 ---`"an IconData object"`, in place of a description assembled from its rules.
----@generic S : Validator<any>
----@param self S
 ---@param text string The description to use.
----@return S
+---@return self
 ---@nodiscard
-function Validator.describe_as(self, text)
+function Validator:describe_as(text)
 	local copy = self:clone()
 	copy.description = text
 
@@ -241,13 +233,11 @@ end
 ---Creates a copy of this validator with an additional predicate rule.
 ---
 ---#### Parameters
----@generic S : Validator<any>
----@param self S
 ---@param predicate fun(value: TValidated): boolean A function that returns `true` if the value is acceptable.
 ---@param message string What the value must be, phrased to follow `must be`, such as `a power of two`.
----@return S
+---@return self
 ---@nodiscard
-function Validator.satisfies(self, predicate, message)
+function Validator:satisfies(predicate, message)
 	return self:extend({
 		id = "custom",
 		describe = message,
@@ -349,19 +339,19 @@ function Validator:validate(value, opts)
 end
 
 ---Runs the validation and reports any failure. Returns the value in either case.
----@param self Validator<any>
----@param value any
+---@param validator Validator<any>
+---@param value unknown
 ---@param param_name string?
 ---@param function_name string?
----@return any
-local function report_failure(self, value, param_name, function_name)
+---@return unknown
+local function report_failure(validator, value, param_name, function_name)
 	if _config.get_behavior() == "off" then
 		return value
 	end
 
 	param_name = param_name or "value"
 
-	local result = self:validate(value, { path = param_name })
+	local result = validator:validate(value, { path = param_name })
 	if result.ok then
 		return value
 	end
@@ -389,12 +379,10 @@ end
 ---    source.icon_size = 64 -- source is an IconData here
 ---end
 ---```
----@generic T
----@param self Validator<TValidated>
----@param value any The value to check.
+---@param value unknown The value to check.
 ---@return TypeGuard<TValidated>
 ---@nodiscard
-function Validator.is_valid(self, value)
+function Validator:is_valid(value)
 	return self:validate(value).ok
 end
 
@@ -409,14 +397,12 @@ end
 ---value is returned unchanged either way.
 ---
 ---#### Parameters
----@generic T
----@param self Validator<TValidated>
 ---@param value unknown The value to check.
 ---@param param_name string? The parameter name, used in the message. Defaults to `"value"`.
 ---@param function_name string? The function name, used in the message. Detected from the stack when omitted, except under a tail call; pass it explicitly there.
 ---
 ---#### Returns
----@return T # The given `value`, unchanged.
+---@return TValidated # The given `value`, unchanged.
 ---
 ---#### Examples
 ---```lua
@@ -427,7 +413,7 @@ end
 ---end
 ---```
 ---@throws Thrown when the value is invalid and the behavior is `"throw"`.
-function Validator.parse(self, value, param_name, function_name)
+function Validator:parse(value, param_name, function_name)
 	-- Not a tail call. A tail call would discard this frame and mark the next as tail-called,
 	-- which is the signal used to detect a tail call by the caller.
 	local checked = report_failure(self, value, param_name, function_name)

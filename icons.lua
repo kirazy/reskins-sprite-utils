@@ -1371,10 +1371,6 @@ local check_compose_icons = V.signature("compose_icons", {
 	{ "defaults_type", Common.icon_defaults_type:optional() },
 })
 
----A validator that checks that a value is an `IconData` object or an array of `IconData` objects.
-local composable_icon = V.any_of(Common.icon_datum, Common.icon_data)
-	:describe_as("an IconData object or an array of IconData objects")
-
 ---
 ---Composes the given set of icons defined by `IconData` objects or arrays of `IconData` objects
 ---into a single icon, with the first icon at the base of the stack and the last icon at the top.
@@ -1399,7 +1395,7 @@ function _icons.compose_icons(defaults_type, ...)
 	-- Keyed by position rather than counted, since a nil argument is absent from the packed table.
 	-- Offset by one for the leading `defaults_type`.
 	for position, input_icon in pairs({ ... }) do
-		composable_icon:assert(input_icon, string.format("argument %d", position + 1), "compose_icons")
+		Common.icon:assert(input_icon, string.format("argument %d", position + 1), "compose_icons")
 
 		if input_icon.icon then
 			-- It's an IconData object.

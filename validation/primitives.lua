@@ -89,7 +89,7 @@ end
 
 ---Requires the string to be at least `min_length` characters long.
 ---@param min_length integer The fewest characters allowed.
----@return StringValidator
+---@return self
 ---@nodiscard
 function StringValidator:min_length(min_length)
 	return self:extend({
@@ -107,7 +107,7 @@ end
 
 ---Requires the string to be at most `max_length` characters long.
 ---@param max_length integer The most characters allowed.
----@return StringValidator
+---@return self
 ---@nodiscard
 function StringValidator:max_length(max_length)
 	return self:extend({
@@ -126,7 +126,7 @@ end
 ---Requires the string's length to fall within the given inclusive range.
 ---@param min_length integer The fewest characters allowed.
 ---@param max_length integer The most characters allowed.
----@return StringValidator
+---@return self
 ---@nodiscard
 function StringValidator:length_in_range(min_length, max_length)
 	return self:extend({
@@ -143,7 +143,7 @@ function StringValidator:length_in_range(min_length, max_length)
 end
 
 ---Requires the string to contain at least one character.
----@return StringValidator
+---@return self
 ---@nodiscard
 function StringValidator:not_empty()
 	return self:extend({
@@ -160,7 +160,7 @@ function StringValidator:not_empty()
 end
 
 ---Requires the string to contain no characters.
----@return StringValidator
+---@return self
 ---@nodiscard
 function StringValidator:is_empty()
 	return self:extend({
@@ -179,7 +179,7 @@ end
 ---Requires the string to match the given Lua pattern.
 ---@param pattern string The Lua pattern to match.
 ---@param description string? How to describe the requirement, in place of the raw pattern.
----@return StringValidator
+---@return self
 ---@nodiscard
 function StringValidator:matches(pattern, description)
 	local described = description or string.format("a match for the pattern '%s'", pattern)
@@ -201,7 +201,7 @@ end
 ---
 ---The prefix is compared literally; pattern magic characters carry no meaning.
 ---@param prefix string The required prefix.
----@return StringValidator
+---@return self
 ---@nodiscard
 function StringValidator:starts_with(prefix)
 	return self:extend({
@@ -221,7 +221,7 @@ end
 ---
 ---The suffix is compared literally; pattern magic characters carry no meaning.
 ---@param suffix string The required suffix.
----@return StringValidator
+---@return self
 ---@nodiscard
 function StringValidator:ends_with(suffix)
 	return self:extend({
@@ -241,7 +241,7 @@ end
 ---
 ---The substring is compared literally; pattern magic characters carry no meaning.
 ---@param substring string The required substring.
----@return StringValidator
+---@return self
 ---@nodiscard
 function StringValidator:contains(substring)
 	return self:extend({
@@ -259,14 +259,15 @@ end
 
 -- Number
 
----@class NumberValidator : Validator<number>
+---`T` is `number` or `integer`, the kind of number accepted.
+---@class NumberValidator<T> : Validator<T>
 local NumberValidator = Validator.subclass("number")
 
 ---Rejects values that are not whole numbers.
 ---
 ---`nan` and the infinities fail as a side effect: neither yields zero from the
 ---modulo, which is the behavior wanted here.
----@type ValidationRule<number>
+---@type ValidationRule<integer>
 local INTEGER_GATE = {
 	id = "number.integer",
 	describe = "an integer",
@@ -281,18 +282,18 @@ local INTEGER_GATE = {
 }
 
 ---Creates a validator accepting numbers.
----@return NumberValidator
+---@return NumberValidator<number>
 ---@nodiscard
 function _primitives.number()
 	return Validator.instance(NumberValidator, {
 		rules = {
 			Validator.type_gate("number"),
 		},
-	})
+	}) --[[@as NumberValidator<number>]]
 end
 
 ---Creates a validator accepting whole numbers.
----@return NumberValidator
+---@return NumberValidator<integer>
 ---@nodiscard
 function _primitives.integer()
 	return Validator.instance(NumberValidator, {
@@ -300,11 +301,11 @@ function _primitives.integer()
 			Validator.type_gate("number"),
 			INTEGER_GATE,
 		},
-	})
+	}) --[[@as NumberValidator<integer>]]
 end
 
 ---Requires the number to be greater than zero.
----@return NumberValidator
+---@return self
 ---@nodiscard
 function NumberValidator:positive()
 	return self:extend({
@@ -321,7 +322,7 @@ function NumberValidator:positive()
 end
 
 ---Requires the number to be less than zero.
----@return NumberValidator
+---@return self
 ---@nodiscard
 function NumberValidator:negative()
 	return self:extend({
@@ -338,7 +339,7 @@ function NumberValidator:negative()
 end
 
 ---Requires the number to be zero or greater.
----@return NumberValidator
+---@return self
 ---@nodiscard
 function NumberValidator:non_negative()
 	return self:extend({
@@ -355,7 +356,7 @@ function NumberValidator:non_negative()
 end
 
 ---Requires the number to be anything other than zero.
----@return NumberValidator
+---@return self
 ---@nodiscard
 function NumberValidator:not_zero()
 	return self:extend({
@@ -374,7 +375,7 @@ end
 ---Requires the number to fall within the given inclusive range.
 ---@param min number The smallest value allowed.
 ---@param max number The largest value allowed.
----@return NumberValidator
+---@return self
 ---@nodiscard
 function NumberValidator:in_range(min, max)
 	return self:extend({
@@ -400,7 +401,7 @@ end
 ---
 ---The inclusive counterpart of `greater_than`, and the one-sided form of `in_range`.
 ---@param min number The smallest value allowed.
----@return NumberValidator
+---@return self
 ---@nodiscard
 function NumberValidator:at_least(min)
 	return self:extend({
@@ -420,7 +421,7 @@ end
 ---
 ---The inclusive counterpart of `less_than`, and the one-sided form of `in_range`.
 ---@param max number The largest value allowed.
----@return NumberValidator
+---@return self
 ---@nodiscard
 function NumberValidator:at_most(max)
 	return self:extend({
@@ -438,7 +439,7 @@ end
 
 ---Requires the number to exceed the given value.
 ---@param min number The value the number must exceed.
----@return NumberValidator
+---@return self
 ---@nodiscard
 function NumberValidator:greater_than(min)
 	return self:extend({
@@ -456,7 +457,7 @@ end
 
 ---Requires the number to fall below the given value.
 ---@param max number The value the number must fall below.
----@return NumberValidator
+---@return self
 ---@nodiscard
 function NumberValidator:less_than(max)
 	return self:extend({
@@ -473,7 +474,7 @@ function NumberValidator:less_than(max)
 end
 
 ---Requires the number to be neither infinite nor `nan`.
----@return NumberValidator
+---@return self
 ---@nodiscard
 function NumberValidator:finite()
 	return self:extend({

@@ -45,6 +45,7 @@ _validation.table = _primitives.table
 _validation.array = _collections.array
 _validation.map = _collections.map
 _validation.shape = _collections.shape
+_validation.shape_of = _collections.shape_of
 _validation.tuple = _collections.tuple
 
 -- Combinators.
