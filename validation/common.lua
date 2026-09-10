@@ -354,6 +354,54 @@ function _common.prototypes.existing_prototype(type_name)
 		:describe_as(string.format("the name of an existing '%s' prototype", type_name))
 end
 
+---@type table<string, StringValidator>
+local existing_prototype_validators = {}
+
+---Indicates whether the given `name` is the name of a prototype of the given `type_name`. The
+---validator for each type name is cached.
+---@param name string The prototype name to check.
+---@param type_name string The registered prototype type to look the name up in.
+---@return boolean # `true` if the prototype exists; otherwise, `false`.
+---@return string? # A description of the expected value, if the prototype does not exist.
+local function name_exists_under_type(name, type_name)
+	local validator = existing_prototype_validators[type_name]
+
+	if not validator then
+		validator = _common.prototypes.existing_prototype(type_name)
+		existing_prototype_validators[type_name] = validator
+	end
+
+	local result = validator:validate(name, { path = "name" })
+
+	return result.ok, result.errors[1] and result.errors[1].message
+end
+
+---Creates a signature rule that checks that the argument named `name_parameter` is the name of a
+---prototype of the type given by the argument named `type_parameter`. A failure is reported
+---against `name_parameter`.
+---@param name_parameter? string The name of the parameter that carries the prototype name. Defaults to `"name"`.
+---@param type_parameter? string The name of the parameter that carries the prototype type. Defaults to `"type_name"`.
+---@return SignatureRule
+---
+---#### Examples
+---```lua
+---local check_args = V.signature("get_icon_from_named_prototype", {
+---    { "name", Common.prototype_name },
+---    { "type_name", Common.prototypes.is_registered_type },
+---}, { Common.prototypes.names_an_existing_prototype() })
+---```
+---@nodiscard
+function _common.prototypes.names_an_existing_prototype(name_parameter, type_parameter)
+	name_parameter = name_parameter or "name"
+	type_parameter = type_parameter or "type_name"
+
+	return {
+		parameter = name_parameter,
+		arguments = { name_parameter, type_parameter },
+		check = name_exists_under_type,
+	}
+end
+
 ---A validator that checks that a value is a prototype with a `type` field that defines an icon
 ---through either its `icon` or its `icons` field.
 _common.prototypes.prototype_with_icons = V.shape({

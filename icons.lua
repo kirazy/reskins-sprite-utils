@@ -15,34 +15,6 @@ local V = require("validation")
 local Common = require("validation.common")
 local Colors = require("colors")
 
----@type table<string, Reskins.SpriteUtils.Validation.Validator<any>>
-local existing_prototype_validators = {}
-
----Indicates whether the given `name` is the name of a prototype of the given `type_name`. The
----validator for each type name is cached.
----@param name string The prototype name to check.
----@param type_name string The registered prototype type to look the name up in.
----@return boolean # `true` if the prototype exists; otherwise, `false`.
----@return string? # A description of the expected value, if the prototype does not exist.
-local function name_exists_under_type(name, type_name)
-	local validator = existing_prototype_validators[type_name]
-
-	if not validator then
-		validator = Common.prototypes.existing_prototype(type_name)
-		existing_prototype_validators[type_name] = validator
-	end
-
-	local result = validator:validate(name, { path = "name" })
-
-	return result.ok, result.errors[1] and result.errors[1].message
-end
-
----The cross-argument rule shared by every guard that takes a name and a type.
----@type Reskins.SpriteUtils.Validation.SignatureRule[]
-local names_an_existing_prototype = {
-	{ parameter = "name", arguments = { "name", "type_name" }, check = name_exists_under_type },
-}
-
 ---The expected icon size for `SpaceLocationPrototype::starmap_icon`, keyed as `"starmap"`.
 local STARMAP_ICON_SIZE = 512
 
@@ -711,7 +683,7 @@ end
 local check_get_icon_from_named_prototype = V.signature("get_icon_from_named_prototype", {
 	{ "name", Common.prototype_name },
 	{ "type_name", Common.prototypes.is_registered_type },
-}, names_an_existing_prototype)
+}, { Common.prototypes.names_an_existing_prototype() })
 
 ---
 ---Gets the icon as an array of `IconData` objects from the prototype with the given `name` and `type_name`.\
@@ -1549,7 +1521,7 @@ local check_add_icons_from_prototype_to_icons_by_name = V.signature("add_icons_f
 	{ "scale", Common.positive_number:optional() },
 	{ "shift", Common.vector:optional() },
 	{ "tint", Common.color:optional() },
-}, names_an_existing_prototype)
+}, { Common.prototypes.names_an_existing_prototype() })
 
 ---
 ---Adds the icon from the prototype with the given `name` and `type_name` a copy the given
@@ -1590,7 +1562,7 @@ local check_add_icons_from_prototype_to_icon_by_name = V.signature("add_icons_fr
 	{ "scale", Common.positive_number:optional() },
 	{ "shift", Common.vector:optional() },
 	{ "tint", Common.color:optional() },
-}, names_an_existing_prototype)
+}, { Common.prototypes.names_an_existing_prototype() })
 
 ---
 ---Adds the icon from the prototype with the given `name` and `type_name` to a new `IconData[]`
