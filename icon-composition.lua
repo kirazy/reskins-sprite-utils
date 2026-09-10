@@ -605,8 +605,8 @@ local icon_projection = {
 	end,
 }
 
----The projection that builds a `Sprite`.
----@type IconCompositionProjection<Sprite>
+---The projection that builds the pictures, a `SpriteVariations` with a single layered sprite.
+---@type IconCompositionProjection<SpriteVariations>
 local pictures_projection
 
 ---Gets the artwork layers of the given composition, converted to the given `defaults_type`, for
@@ -1530,7 +1530,7 @@ end
 ---
 ---#### Returns
 ---@return SafeIconData[] # An array of `IconData` objects.
----@return Sprite? # The pictures, when they differ from the icon; otherwise, `nil`.
+---@return SpriteVariations? # The pictures, when they differ from the icon; otherwise, `nil`.
 ---
 ---#### Examples
 ---```lua
@@ -2035,7 +2035,7 @@ pictures_projection = {
 ---
 ---- `icon` builds an array of `IconData` objects, and is the projection used by `build`. Label
 ---  content is included.
----- `pictures` builds a `Sprite` as `sprites.create_sprite_from_icons` would from the icon, for use
+---- `pictures` builds a `SpriteVariations` as `sprites.create_sprite_from_icons` would from the icon, for use
 ---  as the `pictures` field of an item. Label content is not included unless its group has a
 ---  `pictures` entry. An entry may define a `rewrite` function, which receives the sprite layers of
 ---  the group and returns the layers to use in place of them, and optionally an array of layers to
@@ -2069,7 +2069,7 @@ pictures_projection = {
 ---The projection that builds an array of `IconData` objects.
 ---@field icon IconCompositionProjection<SafeIconData[]>
 ---The projection that builds a `Sprite`.
----@field pictures IconCompositionProjection<Sprite>
+---@field pictures IconCompositionProjection<SpriteVariations>
 IconComposition.projections = {
 	icon = icon_projection,
 	pictures = pictures_projection,
