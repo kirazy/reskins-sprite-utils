@@ -199,7 +199,7 @@ end
 
 ---Requires the string to begin with the given prefix.
 ---
----The prefix is compared literally; pattern magic characters carry no meaning.
+---The prefix is compared literally; pattern magic characters have no special meaning.
 ---@param prefix string The required prefix.
 ---@return self
 ---@nodiscard
@@ -219,7 +219,7 @@ end
 
 ---Requires the string to end with the given suffix.
 ---
----The suffix is compared literally; pattern magic characters carry no meaning.
+---The suffix is compared literally; pattern magic characters have no special meaning.
 ---@param suffix string The required suffix.
 ---@return self
 ---@nodiscard
@@ -239,7 +239,7 @@ end
 
 ---Requires the string to contain the given substring.
 ---
----The substring is compared literally; pattern magic characters carry no meaning.
+---The substring is compared literally; pattern magic characters have no special meaning.
 ---@param substring string The required substring.
 ---@return self
 ---@nodiscard

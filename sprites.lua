@@ -31,7 +31,7 @@ local function convert_icon_layer_to_sprite_layer(icon_layer, scale)
 
 	-- One unit of icon shift is one rendered pixel of the icon at its default scale, and a sprite
 	-- draws one source pixel per 1/32 tile, so shifts and artwork convert to tiles by the same
-	-- factor. The given `scale` scales the shifts as well, as `icons.scale_icon` does.
+	-- factor.
 	local converted_shift = icon_copy.shift and util.mul_shift(icon_copy.shift, (scale or 1) / TILE_SIZE) or nil
 
 	---@type Sprite

@@ -379,8 +379,8 @@ end
 ---Creates a signature rule that checks that the argument named `name_parameter` is the name of a
 ---prototype of the type given by the argument named `type_parameter`. A failure is reported
 ---against `name_parameter`.
----@param name_parameter? string The name of the parameter that carries the prototype name. Defaults to `"name"`.
----@param type_parameter? string The name of the parameter that carries the prototype type. Defaults to `"type_name"`.
+---@param name_parameter? string The name of the parameter that holds the prototype name. Defaults to `"name"`.
+---@param type_parameter? string The name of the parameter that holds the prototype type. Defaults to `"type_name"`.
 ---@return SignatureRule
 ---
 ---#### Examples

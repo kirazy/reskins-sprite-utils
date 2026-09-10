@@ -3,7 +3,7 @@
 ---How a failed validation is reported.
 ---@alias ValidationBehavior
 ---| "throw" # Raise an error, aborting the load. The default.
----| "log" # Write the message to the log and carry on.
+---| "log" # Write the message to the log and continue.
 ---| "off" # Skip validation entirely; no rules are evaluated.
 
 ---Holds the reporting behavior shared by every validator.

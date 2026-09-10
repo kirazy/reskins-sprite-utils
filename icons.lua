@@ -350,12 +350,12 @@ local check_minify_icon = V.signature("minify_icon", {
 ---
 ---Shrinks the given `icon_data` by the given `scalar`, keeping the icon at its full footprint.
 ---
----A transparent full-size layer sits beneath the shrunk artwork. The game resizes the final icon so
----that all of its layers fit the box it is drawn in, so the base layer is what holds the footprint open and
----leaves the artwork drawn smaller within it.
+---A transparent full-size layer is placed beneath the shrunk artwork. The game resizes the final icon
+---so that all of its layers fit the box it is drawn in. The full-size layer keeps the footprint of the
+---icon, and the artwork is drawn smaller within it.
 ---
----- The first layer of the shrunk artwork has `draw_background` set, so the artwork draws the outline
----  that the transparent base layer would otherwise draw.
+---- `draw_background` is set on the first layer of the shrunk artwork, and the outline is drawn by
+---  that layer.
 ---- Missing icon fields are set to default values as appropriate.
 ---- `icon_data` is not modified.
 ---
@@ -404,11 +404,8 @@ end
 ---Warning! This leaves the prototype in an invalid state!
 ---Be sure to set a new icon after calling this function.
 ---
----- The dark-background icon fields are cleared alongside the main ones. Leaving
----  them would show the prototype's original artwork on dark backgrounds while
----  the replacement icon shows everywhere else.
----- `SpaceLocationPrototype::starmap_icon` is left alone. A starmap icon is
----  unrelated artwork at its own size, not a variant of the icon being replaced.
+---- The dark-background icon fields are cleared with the main ones.
+---- `SpaceLocationPrototype::starmap_icon` is not modified.
 ---@param prototype PrototypeWithIcons The prototype object.
 ---
 ---#### Examples
@@ -461,9 +458,8 @@ local check_add_missing_icon_defaults = V.signature("add_missing_icon_defaults",
 ---Adds default values to missing fields from the given `icon_datum`.\
 ---`icon_data` is not modified.
 ---
----Note: `IconData.draw_background` and `IconData.floating` are carried through
----as given, never defaulted. These represent an advanced use case and should be
----handled directly.
+---Note: `IconData.draw_background` and `IconData.floating` are copied
+---as given and are not defaulted.
 ---
 ---#### Parameters
 ---@param icon_datum IconData An `IconData` object.
@@ -500,9 +496,8 @@ local check_add_missing_icons_defaults = V.signature("add_missing_icons_defaults
 ---Adds default values to missing fields from each element of the given `icon_data` array.\
 ---`icon_data` is not modified.
 ---
----Note: `IconData.draw_background` and `IconData.floating` are carried through
----as given, never defaulted. These represent an advanced use case and should be
----handled directly.
+---Note: `IconData.draw_background` and `IconData.floating` are copied
+---as given and are not defaulted.
 ---
 ---#### Parameters
 ---@param icon_data IconData[] An icon represented by an array of `IconData` objects.
@@ -745,7 +740,7 @@ function _icons.get_dark_background_icon_from_prototype(item_prototype)
 	if dark_background_icons and dark_background_icons[1] then
 		icons = util.copy(dark_background_icons)
 
-		-- Ensure icon_size is set for all elements before adding defaults. The dark-background art has
+		-- Ensure icon_size is set for all elements before adding defaults. The dark-background artwork has
 		-- the same dimensions as the main icon, so `icon_size` is used when nothing more specific is set.
 		-- stylua: ignore
 		for n = 1, #icons do
@@ -937,9 +932,9 @@ local function resolve_icon_assignment_options(options)
 	}
 end
 
----Gets the entity name carried by an `EntityID` or an `ExplosionDefinition`.
+---Gets the entity name of an `EntityID` or an `ExplosionDefinition`.
 ---@param definition ExplosionDefinition|ExplosionDefinition[]|nil The definition to read a name from.
----@return EntityID? # The entity name, or `nil` if the definition does not carry one.
+---@return EntityID? # The entity name, or `nil` if the definition has none.
 ---@nodiscard
 local function get_explosion_name(definition)
 	if type(definition) == "string" then
@@ -1092,23 +1087,21 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 ---remnant prototypes.
 ---
 ---Sets the `pictures` field on the related item prototypes to the given
----`pictures`, clearing it when none is given. An item's `pictures` is drawn in
----place of its icon when the item is in the world, so leaving a previous one in
----place would keep showing the artwork this call is replacing.
+---`pictures`, and clears it when none is given.
 ---
 ---- This method assumes that recipes with the same `name` as the target prototype, having a single result that is
 ---  the target prototype, should use the same icon. If this behavior is undesirable, pass `infer_recipe = false` in
 ---  `options`, or handle assignment of icons to related entities directly.
 ---- `options` never affects the named prototype itself: it is always assigned the icon. It only controls whether
----  the item, recipe, explosion, and corpse cascades run, and whether the explosion/corpse cascades accept a match
----  found only by naming convention.
+---  the icon is assigned to the item, recipe, explosion, and corpse, and whether an explosion or corpse found only
+---  by naming convention is accepted.
 ---
 ---#### Parameters
 ---@param name string The name of the prototype.
 ---@param type_name? string The type name of the prototype.
 ---@param icon_data IconData[] An icon represented by an array of `IconData` objects.
 ---@param pictures? SpriteVariations A `SpriteVariations` object to use as the in-world sprite, or `nil` to clear any existing one so the icon is used instead. Typical use is when `icon_data` has a layer, such as a badge, that the in-world sprite should not. Ignored when `infer_item` is `false`.
----@param options? IconAssignmentOptions Controls which related prototypes the icon cascades to. Defaults apply as per `IconAssignmentOptions`.
+---@param options? IconAssignmentOptions Controls which related prototypes the icon is assigned to. Defaults apply as per `IconAssignmentOptions`.
 ---
 ---#### Examples
 ---```lua
@@ -1152,9 +1145,9 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 	local prototype = resolve_target_prototype(name, type_name)
 
 	-- Exclude technologies and recipes from related-prototype updates.
-	local cascades = type_name ~= "technology" and type_name ~= "recipe"
+	local assigns_to_related = type_name ~= "technology" and type_name ~= "recipe"
 
-	if cascades and resolved_options.infer_item then
+	if assigns_to_related and resolved_options.infer_item then
 		for _, item in pairs(resolve_related_items(name)) do
 			set_icon_on_prototype(item, icon_data_copy)
 
@@ -1163,7 +1156,7 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 		end
 	end
 
-	if cascades and resolved_options.infer_recipe then
+	if assigns_to_related and resolved_options.infer_recipe then
 		local recipe = resolve_related_recipe(name)
 		if recipe then
 			-- Clear the icon so that it is inherited from the product.
@@ -1179,13 +1172,13 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 	if prototype then
 		set_icon_on_prototype(prototype, icon_data_copy)
 
-		if cascades and resolved_options.infer_explosion then
+		if assigns_to_related and resolved_options.infer_explosion then
 			for _, explosion in pairs(resolve_related_explosions(prototype, name, resolved_options.explosion_by_convention)) do
 				set_icon_on_prototype(explosion, icon_data_copy)
 			end
 		end
 
-		if cascades and resolved_options.infer_corpse then
+		if assigns_to_related and resolved_options.infer_corpse then
 			for _, corpse in pairs(resolve_related_corpses(prototype, name, resolved_options.corpse_by_convention)) do
 				set_icon_on_prototype(corpse, icon_data_copy)
 			end
@@ -1975,7 +1968,7 @@ end
 ---Outlines the given `icon_datum`: the layer draws its background.
 ---
 ---- A spacer, an empty image holding a footprint open and recognized by a file name ending in
----  `empty.png`, cannot carry an outline and is returned unchanged.
+---  `empty.png`, does not draw an outline and is returned unchanged.
 ---- `icon_datum` is not modified, and no other field is touched.
 ---
 ---#### Parameters
@@ -2005,10 +1998,10 @@ end
 ---
 ---Outlines the given `icon_data`: the first layer that is not a spacer draws its background.
 ---
----- A spacer is an empty image holding a footprint open, recognized by a file name ending in
----  `empty.png`. It cannot carry an outline, so the outline goes to the first layer of artwork.
+---- A spacer is an empty image that keeps the footprint of the icon, recognized by a file name
+---  ending in `empty.png`. A spacer does not draw an outline. The first layer of artwork draws it.
 ---- An icon made only of spacers is returned unchanged.
----- `icon_data` is not modified, and no other field is touched.
+---- `icon_data` is not modified. No other field is set.
 ---
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects.
@@ -2018,7 +2011,7 @@ end
 ---
 ---#### Examples
 ---```lua
------ Give a shrunken icon back the outline its artwork drew at full size.
+----- Outline a shrunken icon.
 ---local outlined = _icons.outline_icons(_icons.minify_icon(icon_data, 0.8))
 ---```
 ---@throws Thrown when `icon_data` is not a non-empty array of valid `IconData` objects.

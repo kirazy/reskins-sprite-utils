@@ -36,7 +36,7 @@ local _result = require("validation.result")
 ---An immutable, reusable set of rules describing what a valid value looks like.
 ---
 ---A validator is built once, from rules, and then applied to many values. Builder
----methods never mutate; each returns a new validator carrying one more rule, so
+---methods never mutate; each returns a new validator with one more rule, so
 ---a validator shared from a catalog can be safely extended by any caller.
 ---
 ---#### Examples
@@ -390,7 +390,7 @@ end
 ---
 ---The counterpart to `assert`: use `parse` where the typed value is wanted, and
 ---`assert` where the call is a statement. Assigning the result back over the
----argument is the idiom that carries the type into the rest of the function.
+---argument gives the rest of the function the typed value.
 ---
 ---What happens on failure depends on the configured behavior: `"throw"` raises,
 ---`"log"` records the message, and `"off"` skips validation altogether. The
