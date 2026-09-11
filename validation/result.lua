@@ -2,28 +2,29 @@
 
 local _config = require("validation.config")
 
----A single validation failure, located by the path of the value that failed.
+---Represents a single validation failure and the path of the invalid value.
 ---@class ValidationError
----The dotted/indexed path to the offending value, such as `icon_data[3].icon_size`.
+---The path of the invalid value, such as `icon_data[3].icon_size`.
 ---@field path string
----What was wrong, phrased to follow the path, such as `must be a positive integer, got -1`.
+---The description of the failure, which follows the path in the rendered message, such as
+---`must be a positive integer, got -1`.
 ---@field message string
 
----The outcome of validating a value.
+---Represents the outcome of validating a value.
 ---@class ValidationResult
----Whether the value satisfied every rule.
+---When `true`, indicates that the value satisfies every rule.
 ---@field ok boolean
----Every failure found. Empty when `ok` is `true`.
+---The failures, or an empty array when `ok` is `true`.
 ---@field errors ValidationError[]
 
----Builds validation results, composes value paths, and renders failure messages.
+---Provides methods for building validation results, composing value paths, and rendering failure messages.
 ---@class ValidationResults
 local _result = {}
 
----Matches a key that can be written with dot notation.
+---Matches a key that is a valid Lua identifier.
 local IDENTIFIER_PATTERN = "^[%a_][%w_]*$"
 
----The directory of this module, read from the source path of this file.
+---The directory of this module. The value is read from the source path of this file.
 local MODULE_PREFIX = ""
 if debug ~= nil then
 	---@diagnostic disable-next-line: need-check-nil
@@ -31,15 +32,17 @@ if debug ~= nil then
 end
 
 ---Indicates whether a stack frame belongs to this module.
----@param source string The `source` of the frame, as reported by `debug.getinfo`.
----@return boolean # `true` if the frame belongs to this module; otherwise, `false`.
+---@param source string
+---@return boolean
+---@nodiscard
 local function is_module_frame(source)
 	return MODULE_PREFIX ~= "" and source:sub(1, #MODULE_PREFIX) == MODULE_PREFIX
 end
 
----Formats the given value for inclusion in a failure message. Uses `serpent` if it is available.
----@param value any
+---Formats the given `value` for inclusion in a failure message, with `serpent` if it is available.
+---@param value unknown The value to format.
 ---@return string
+---@nodiscard
 function _result.format_value(value)
 	if type(value) == "string" then
 		return string.format("'%s'", value)
@@ -52,12 +55,13 @@ function _result.format_value(value)
 	return tostring(value)
 end
 
----Extends a path with a table key.
+---Appends the given `key` to the given `path`.
 ---
----Identifier-safe string keys use dot notation; everything else is bracketed.
+---A string key that is a valid Lua identifier is appended with dot notation. Any other key is appended in brackets.
 ---@param path string The path of the containing value.
 ---@param key any The key of the contained value.
 ---@return string
+---@nodiscard
 function _result.child_path(path, key)
 	if type(key) == "string" and key:match(IDENTIFIER_PATTERN) then
 		return path .. "." .. key
@@ -70,15 +74,15 @@ function _result.child_path(path, key)
 	return string.format("%s[%s]", path, tostring(key))
 end
 
----Creates a result representing a value that satisfied every rule.
+---Creates a `ValidationResult` representing a value that satisfies every rule.
 ---@return ValidationResult
 ---@nodiscard
 function _result.pass()
 	return { ok = true, errors = {} }
 end
 
----Creates a result representing a single failure.
----@param path string The path of the offending value.
+---Creates a `ValidationResult` representing a single failure.
+---@param path string The path of the invalid value.
 ---@param message string The failure message.
 ---@return ValidationResult
 ---@nodiscard
@@ -86,8 +90,8 @@ function _result.fail(path, message)
 	return { ok = false, errors = { { path = path, message = message } } }
 end
 
----Creates a result from a list of failures, passing when the list is empty.
----@param errors ValidationError[]
+---Creates a `ValidationResult` from the given `errors`, which passes when the list is empty.
+---@param errors ValidationError[] The failures.
 ---@return ValidationResult
 ---@nodiscard
 function _result.from_errors(errors)
@@ -98,14 +102,13 @@ function _result.from_errors(errors)
 	return { ok = false, errors = errors }
 end
 
----Renders one or more failures as a single human-readable message.
+---Renders the given `errors` as a single message.
 ---
----A lone failure reads as one line; several are listed beneath a header so the
----path of each is visible at a glance.
+---A single failure is rendered as one line. Several failures are rendered as a header followed by one line per failure.
 ---
 ---#### Parameters
----@param function_name string The function whose parameter failed.
----@param param_name string The parameter that failed.
+---@param function_name string The name of the function that receives the invalid parameter.
+---@param param_name string The name of the invalid parameter.
 ---@param errors ValidationError[] The failures to render.
 ---@return string
 ---@nodiscard
@@ -122,20 +125,16 @@ function _result.format_message(function_name, param_name, errors)
 	return table.concat(lines, "\n")
 end
 
----Renders the source location `error` would prefix at the given level.
----
----`log` has no level parameter and stamps its own call site instead, which would
----attribute every logged failure to this file. Resolving the location by hand is
----what keeps `"log"` pointing at the same line `"throw"` blames.
----@param level integer The stack level to locate, as per `error`.
----@return string # A `source:line: ` prefix, or an empty string when unavailable.
+---Gets the `source:line: ` prefix that `error` adds at the given `level`.
+---@param level integer
+---@return string
 ---@nodiscard
 local function where(level)
 	if not debug then
 		return ""
 	end
 
-	-- Offset by one, since `error` counts levels from its caller.
+	-- `error` counts levels from its caller. Offset the level by one.
 	local info = debug.getinfo(level + 1, "Sl")
 	if not info or not info.currentline or info.currentline <= 0 then
 		return ""
@@ -144,20 +143,14 @@ local function where(level)
 	return string.format("%s:%d: ", info.short_src, info.currentline)
 end
 
----Locates the call a failure should be reported against.
+---Gets the stack level of the call against which a failure is reported.
 ---
----The number of frames between a failure and the caller differs between `parse`,
----`assert`, and a signature check, and would change again if this module grew an
----internal frame. Walking out of the module is correct for all of them, which is
----what keeps a stack level out of the public API.
----
----The frame blamed is the one that called the validated function, not the guard
----inside it: the guard is in the same place on every failure and so locates
----nothing.
+---The level is that of the first frame outside this module, and is the same for `parse`, `assert`, and a signature
+---check. The frame that is blamed is the frame that calls the validated function.
 ---
 ---#### Returns
----@return integer # The level of the frame to blame, relative to the caller of this function.
----@return string? # The name of the validated function, when it can be known.
+---@return integer level The level of the frame to blame, relative to the caller of this function.
+---@return string? function_name The name of the validated function, if it is known.
 ---@nodiscard
 function _result.blame()
 	if not debug then
@@ -174,14 +167,12 @@ function _result.blame()
 	end
 
 	if not frame then
-		-- Every frame belongs to this module, which should not happen. Blame the outermost frame.
+		-- Every frame belongs to this module. This case is not expected. Blame the outermost frame.
 		return level - 2, nil
 	end
 
-	-- A tail call into this module discards the validated function's frame, so the frame found is
-	-- its caller. A tail call into the validated function discards its caller's frame, leaving the
-	-- validated function's own line. In either case the frame found is the one to blame, and Lua
-	-- keeps no name for a frame entered by a tail call.
+	-- A tail call into or out of the validated function discards one frame. The frame found is still the one
+	-- to blame. A frame entered by a tail call has no name.
 	local entry = debug.getinfo(level - 1, "t")
 	local guarded = debug.getinfo(level, "t")
 	if (entry and entry.istailcall) or (guarded and guarded.istailcall) then
@@ -195,8 +186,10 @@ end
 
 ---Reports a failure according to the configured behavior.
 ---
----Throwing is the default; `"log"` records the message and returns; `"off"`
----does nothing.
+---The behavior determines how the message is reported:
+---- `"throw"` raises the message as an error.
+---- `"log"` writes the message to the log with its source location.
+---- `"off"` does nothing.
 ---@param message string The rendered failure message.
 function _result.report(message)
 	local behavior = _config.get_behavior()
@@ -210,6 +203,7 @@ function _result.report(message)
 	local level = _result.blame()
 
 	if behavior == "log" then
+		-- `log` has no level parameter and records its own call site. Prepend the location to the message.
 		log(where(level) .. message)
 		return
 	end

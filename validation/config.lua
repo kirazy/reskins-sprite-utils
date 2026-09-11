@@ -1,16 +1,15 @@
 ---@namespace Reskins.SpriteUtils.Validation
 
----How a failed validation is reported.
+---Defines the behavior applied when a validation fails. Default `"throw"`.
 ---@alias ValidationBehavior
----| "throw" # Raise an error, aborting the load. The default.
----| "log" # Write the message to the log and continue.
----| "off" # Skip validation entirely; no rules are evaluated.
+---| "throw" # Raises an error and aborts the load.
+---| "log" # Writes the message to the log and continues the load.
+---| "off" # Skips validation.
 
----Holds the reporting behavior shared by every validator.
+---Provides methods for reading and setting the behavior applied when a validation fails.
 ---
----The initial value comes from the hidden `reskins-sprite-utils-validation-behavior`
----startup setting, so a mod author can downgrade or disable validation without
----touching code.
+---The behavior is read from the hidden `reskins-sprite-utils-validation-behavior` startup setting until `set_behavior`
+---is called.
 ---@class Configuration
 local _config = {}
 
@@ -23,13 +22,16 @@ local VALID_BEHAVIORS = {
 	off = true,
 }
 
----The resolved behavior, or `nil` when it has yet to be read from the setting.
+---The current behavior, or `nil` when no behavior has been read or set.
 ---@type ValidationBehavior?
 local behavior = nil
 
----Reads the behavior from the startup setting. Returns the default behavior if `settings` is not
----available, as during the settings stage, or the setting holds an unrecognized value.
+---Gets the behavior from the startup setting.
+---
+---The default behavior is returned when `settings` is not available, as in the settings stage, or when the value of the
+---setting is not a `ValidationBehavior`.
 ---@return ValidationBehavior
+---@nodiscard
 local function read_setting()
 	local ok, value = pcall(function()
 		return settings.startup[SETTING_NAME].value
@@ -44,6 +46,7 @@ end
 
 ---Gets the behavior applied when a validation fails.
 ---@return ValidationBehavior
+---@nodiscard
 function _config.get_behavior()
 	if not behavior then
 		behavior = read_setting()
@@ -52,8 +55,10 @@ function _config.get_behavior()
 	return behavior
 end
 
----Sets the behavior applied when a validation fails, overriding the setting.
----@param new_behavior ValidationBehavior One of `"throw"`, `"log"`, or `"off"`.
+---Sets the behavior applied when a validation fails.
+---
+---The given `new_behavior` replaces the value read from the startup setting until `reset_behavior` is called.
+---@param new_behavior ValidationBehavior
 function _config.set_behavior(new_behavior)
 	---@diagnostic disable-next-line: unnecessary-if
 	if not VALID_BEHAVIORS[new_behavior] then
@@ -63,7 +68,7 @@ function _config.set_behavior(new_behavior)
 	behavior = new_behavior
 end
 
----Discards any override, so the next read comes from the startup setting again.
+---Removes the behavior set by `set_behavior`. The next call to `get_behavior` reads the startup setting.
 function _config.reset_behavior()
 	behavior = nil
 end

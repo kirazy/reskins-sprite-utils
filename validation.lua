@@ -6,13 +6,7 @@ local _collections = require("validation.collections")
 local _combinators = require("validation.combinators")
 local _signature = require("validation.signature")
 
----Provides reusable validators for function arguments and data structures.
----
----A validator is defined once and applied wherever it is needed. Builder methods return a new
----validator and do not modify the original. Validators for Factorio structures, such as icons,
----colors, vectors, and file paths, are provided by `validation.common`.
----
----This module may be used in any mod loading stage.
+---Provides reusable validators for function arguments and data structures, usable in any mod loading stage.
 ---
 ---#### Examples
 ---```lua
@@ -29,6 +23,7 @@ local _signature = require("validation.signature")
 ---    ...
 ---end
 ---```
+---@see Reskins.SpriteUtils.Validation.Common
 ---@class Validation
 local _validation = {}
 
@@ -44,8 +39,8 @@ _validation.table = _primitives.table
 -- Collections.
 _validation.array = _collections.array
 _validation.map = _collections.map
-_validation.shape = _collections.shape
-_validation.shape_of = _collections.shape_of
+_validation.struct = _collections.struct
+_validation.class = _collections.class
 _validation.tuple = _collections.tuple
 
 -- Combinators.

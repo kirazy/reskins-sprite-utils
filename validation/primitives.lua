@@ -3,32 +3,26 @@
 local Validator = require("validation.validator")
 local _result = require("validation.result")
 
----Validators for the primitive Lua types.
+---Provides validators for the primitive Lua types.
 ---@class Primitives
 local _primitives = {}
 
--- Any
-
----@generic T
+---Represents a validator that accepts any non-`nil` value.
 ---@class NotNullValidator<T> : Validator<T>
 local NotNullValidator = Validator.subclass("any")
 
----Creates a validator accepting any non-`nil` value.
----
----Useful as a starting point for `:satisfies` rules, and as the value validator
----of a map whose values are unconstrained.
+---Creates a validator that accepts any non-`nil` value.
 ---@return NotNullValidator<any>
 ---@nodiscard
 function _primitives.any()
 	return Validator.instance(NotNullValidator)
 end
 
--- Boolean
-
+---Represents a validator that accepts booleans.
 ---@class BooleanValidator : Validator<boolean>
 local BooleanValidator = Validator.subclass("boolean")
 
----Creates a validator accepting booleans.
+---Creates a validator that accepts booleans.
 ---@return BooleanValidator
 ---@nodiscard
 function _primitives.boolean()
@@ -39,10 +33,11 @@ function _primitives.boolean()
 	})
 end
 
+---Represents a validator that accepts functions.
 ---@class FunctionValidator : Validator<function>
 local FunctionValidator = Validator.subclass("function")
 
----Creates a validator accepting functions.
+---Creates a validator that accepts functions.
 ---@return FunctionValidator
 ---@nodiscard
 function _primitives.func()
@@ -53,15 +48,16 @@ function _primitives.func()
 	})
 end
 
--- Table
-
+---Represents a validator that accepts tables.
 ---@class TableValidator : Validator<table>
 local TableValidator = Validator.subclass("table")
 
----Creates a validator accepting any table, without constraining its contents.
----
----Use `V.shape`, `V.array`, or `V.map` to constrain what is inside.
+---Creates a validator that accepts any table without checking its contents.
 ---@return TableValidator
+---@see Collections.array
+---@see Collections.map
+---@see Collections.struct
+---@see Collections.class
 ---@nodiscard
 function _primitives.table()
 	return Validator.instance(TableValidator, {
@@ -71,12 +67,11 @@ function _primitives.table()
 	})
 end
 
--- String
-
+---Represents a validator that accepts strings.
 ---@class StringValidator : Validator<string>
 local StringValidator = Validator.subclass("string")
 
----Creates a validator accepting strings.
+---Creates a validator that accepts strings.
 ---@return StringValidator
 ---@nodiscard
 function _primitives.string()
@@ -89,7 +84,7 @@ end
 
 ---Requires the string to be at least `min_length` characters long.
 ---@param min_length integer The fewest characters allowed.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function StringValidator:min_length(min_length)
 	return self:extend({
@@ -107,7 +102,7 @@ end
 
 ---Requires the string to be at most `max_length` characters long.
 ---@param max_length integer The most characters allowed.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function StringValidator:max_length(max_length)
 	return self:extend({
@@ -126,7 +121,7 @@ end
 ---Requires the string's length to fall within the given inclusive range.
 ---@param min_length integer The fewest characters allowed.
 ---@param max_length integer The most characters allowed.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function StringValidator:length_in_range(min_length, max_length)
 	return self:extend({
@@ -143,7 +138,7 @@ function StringValidator:length_in_range(min_length, max_length)
 end
 
 ---Requires the string to contain at least one character.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function StringValidator:not_empty()
 	return self:extend({
@@ -160,7 +155,7 @@ function StringValidator:not_empty()
 end
 
 ---Requires the string to contain no characters.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function StringValidator:is_empty()
 	return self:extend({
@@ -178,8 +173,8 @@ end
 
 ---Requires the string to match the given Lua pattern.
 ---@param pattern string The Lua pattern to match.
----@param description string? How to describe the requirement, in place of the raw pattern.
----@return self
+---@param description? string How to describe the requirement, in place of the raw pattern.
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function StringValidator:matches(pattern, description)
 	local described = description or string.format("a match for the pattern '%s'", pattern)
@@ -201,7 +196,7 @@ end
 ---
 ---The prefix is compared literally; pattern magic characters have no special meaning.
 ---@param prefix string The required prefix.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function StringValidator:starts_with(prefix)
 	return self:extend({
@@ -221,7 +216,7 @@ end
 ---
 ---The suffix is compared literally; pattern magic characters have no special meaning.
 ---@param suffix string The required suffix.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function StringValidator:ends_with(suffix)
 	return self:extend({
@@ -241,7 +236,7 @@ end
 ---
 ---The substring is compared literally; pattern magic characters have no special meaning.
 ---@param substring string The required substring.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function StringValidator:contains(substring)
 	return self:extend({
@@ -257,16 +252,14 @@ function StringValidator:contains(substring)
 	})
 end
 
--- Number
-
----`T` is `number` or `integer`, the kind of number accepted.
+---Represents a validator that accepts numbers.
+---@generic T extends number|integer
 ---@class NumberValidator<T> : Validator<T>
 local NumberValidator = Validator.subclass("number")
 
----Rejects values that are not whole numbers.
+---A gate that checks that a value is a whole number.
 ---
----`nan` and the infinities fail as a side effect: neither yields zero from the
----modulo, which is the behavior wanted here.
+---`nan` and the infinities are rejected.
 ---@type ValidationRule<integer>
 local INTEGER_GATE = {
 	id = "number.integer",
@@ -281,7 +274,7 @@ local INTEGER_GATE = {
 	end,
 }
 
----Creates a validator accepting numbers.
+---Creates a validator that accepts numbers.
 ---@return NumberValidator<number>
 ---@nodiscard
 function _primitives.number()
@@ -292,7 +285,7 @@ function _primitives.number()
 	}) --[[@as NumberValidator<number>]]
 end
 
----Creates a validator accepting whole numbers.
+---Creates a validator that accepts whole numbers.
 ---@return NumberValidator<integer>
 ---@nodiscard
 function _primitives.integer()
@@ -305,7 +298,7 @@ function _primitives.integer()
 end
 
 ---Requires the number to be greater than zero.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function NumberValidator:positive()
 	return self:extend({
@@ -322,7 +315,7 @@ function NumberValidator:positive()
 end
 
 ---Requires the number to be less than zero.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function NumberValidator:negative()
 	return self:extend({
@@ -339,7 +332,7 @@ function NumberValidator:negative()
 end
 
 ---Requires the number to be zero or greater.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function NumberValidator:non_negative()
 	return self:extend({
@@ -356,7 +349,7 @@ function NumberValidator:non_negative()
 end
 
 ---Requires the number to be anything other than zero.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function NumberValidator:not_zero()
 	return self:extend({
@@ -375,7 +368,7 @@ end
 ---Requires the number to fall within the given inclusive range.
 ---@param min number The smallest value allowed.
 ---@param max number The largest value allowed.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function NumberValidator:in_range(min, max)
 	return self:extend({
@@ -398,10 +391,8 @@ function NumberValidator:in_range(min, max)
 end
 
 ---Requires the number to be no smaller than the given value.
----
----The inclusive counterpart of `greater_than`, and the one-sided form of `in_range`.
 ---@param min number The smallest value allowed.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function NumberValidator:at_least(min)
 	return self:extend({
@@ -418,10 +409,8 @@ function NumberValidator:at_least(min)
 end
 
 ---Requires the number to be no larger than the given value.
----
----The inclusive counterpart of `less_than`, and the one-sided form of `in_range`.
 ---@param max number The largest value allowed.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function NumberValidator:at_most(max)
 	return self:extend({
@@ -438,8 +427,8 @@ function NumberValidator:at_most(max)
 end
 
 ---Requires the number to exceed the given value.
----@param min number The value the number must exceed.
----@return self
+---@param min number The value that the number must exceed.
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function NumberValidator:greater_than(min)
 	return self:extend({
@@ -456,8 +445,8 @@ function NumberValidator:greater_than(min)
 end
 
 ---Requires the number to fall below the given value.
----@param max number The value the number must fall below.
----@return self
+---@param max number The value that the number must fall below.
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function NumberValidator:less_than(max)
 	return self:extend({
@@ -474,7 +463,7 @@ function NumberValidator:less_than(max)
 end
 
 ---Requires the number to be neither infinite nor `nan`.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function NumberValidator:finite()
 	return self:extend({

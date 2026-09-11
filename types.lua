@@ -2,7 +2,7 @@
 
 ---@namespace Reskins.SpriteUtils
 
----Represents any Prototype with the required `icons` or `icon` fields.
+---Defines the prototype types that have an `icon` or `icons` field.
 ---@alias PrototypeWithIcons
 ---| AchievementPrototype
 ---| AmmoCategory
@@ -22,12 +22,12 @@
 ---| TipsAndTricksItem
 ---| VirtualSignalPrototype
 
----Type names/aliases that map to icon_size defaults as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
+---Defines the type names and aliases that map to `icon_size` defaults, as listed under
+---[IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
 ---
----Every name other than `"default"`, `"starmap"`, and `"shortcut-small"` is a prototype type name
----with the matching expected icon size. `"starmap"` is the expected size of
----`SpaceLocationPrototype::starmap_icon`; the regular `icon` of a space location uses the default
----size.
+---Every name other than `"default"`, `"starmap"`, and `"shortcut-small"` is a prototype type name with the matching
+---expected icon size. `"starmap"` is the expected size of `SpaceLocationPrototype::starmap_icon`; the regular `icon` of
+---a space location uses the default size.
 ---@alias IconDefaultsType
 ---| "default"
 ---| "technology"
@@ -38,223 +38,224 @@
 ---| "item-group"
 ---| string
 
----Controls which related prototypes `Icons.assign_icons_to_prototype_and_related_prototypes` assigns
----the icon to, beyond the named prototype itself.
+---Defines the related prototypes to which `Icons.assign_icons_to_prototype_and_related_prototypes` assigns the icon.
 ---@class (exact) IconAssignmentOptions
----Whether to assign the icon to the `item` or `item-with-entity-data` of the same name, and set its `pictures`.
----Default `true`.
+---When `true`, indicates that the icon is assigned to the `item` or `item-with-entity-data` of the same name, and its
+---`pictures` is set. Default `true`.
 ---@field infer_item? boolean
----Whether to assign the icon to a `recipe` of the same name whose only result is the named prototype. Default `true`.
+---When `true`, indicates that the icon is assigned to the `recipe` of the same name, for which the named prototype is
+---the only product. Default `true`.
 ---@field infer_recipe? boolean
----Whether to assign the icon to the explosion named by `dying_explosion`, or by naming convention. Default `true`.
+---When `true`, indicates that the icon is assigned to the explosion named by `dying_explosion`, or by naming
+---convention. Default `true`.
 ---@field infer_explosion? boolean
----Whether to assign the icon to the corpse named by `corpse`, or by naming convention. Default `true`.
+---When `true`, indicates that the icon is assigned to the corpse named by `corpse`, or by naming convention. Default
+---`true`.
 ---@field infer_corpse? boolean
----When `infer_explosion` is `true`, whether an explosion matched only by naming convention (and not
----by the `dying_explosion` field) is included. Default `true`; set `false` to require the field.
+---When `true`, indicates that an explosion matched only by naming convention is included under `infer_explosion`. When
+---`false`, only the explosion named by the `dying_explosion` field is included. Default `true`.
 ---@field explosion_by_convention? boolean
----When `infer_corpse` is `true`, whether a corpse matched only by naming convention (and not by the
----`corpse` field) is included. Default `true`; set `false` to require the field.
+---When `true`, indicates that a corpse matched only by naming convention is included under `infer_corpse`. When
+---`false`, only the corpse named by the `corpse` field is included. Default `true`.
 ---@field corpse_by_convention? boolean
----When `true`, sets `infer_item`, `infer_recipe`, `infer_explosion`, and `infer_corpse` to `false`,
----regardless of their own values. Only the named prototype itself is assigned the icon.
+---When `true`, indicates that `infer_item`, `infer_recipe`, `infer_explosion`, and `infer_corpse` are treated as
+---`false`, and only the named prototype is assigned the icon. Default `false`.
 ---@field strict? boolean
 
----Represents an icon from an array of `IconData` objects that may be stored for deferred assignment.
----@class DeferrableIconData
----The name of the prototype to be assigned this icon.
+---Represents an icon from an array of `IconData` objects, with the name and type of the prototype to which it is
+---assigned.
+---@deprecated Use `IconDataAssignment`.
+---@alias DeferrableIconData IconDataAssignment
+---Represents an icon from a single `IconData` object, with the name and type of the prototype to which it is assigned.
+---@deprecated Use `IconDatumAssignment`.
+---@alias DeferrableIconDatum IconDatumAssignment
+
+---Defines the fields shared by every form of assignment icon.
+---@class IconAssignmentBase
+---The name of the prototype to which the icon is assigned.
 ---@field name string
----The type name of the prototype to be assigned this icon.
+---The type name of the prototype to which the icon is assigned.
 ---@field type_name string
----The icon data to store for deferred assignment.
----@field icon_data IconData[]
----The pictures data to store for deferred assignment.
----@field pictures? SpriteVariations
----Controls which related prototypes the icon is assigned to. Defaults apply as per `IconAssignmentOptions`.
+---The options that configure how icon assignment resolves related prototypes.
+---When `nil`, every related prototype that can be resolved is assigned the icon.
 ---@field options? IconAssignmentOptions
 
----Represents an icon from a single `IconData` object that may be stored for deferred assignment.
----@class DeferrableIconDatum
----The name of the prototype to be assigned this icon.
----@field name string
----The type name of the prototype to be assigned this icon.
----@field type_name string
----The icon data to store for deferred assignment.
+---Represents an icon from a single `IconData` object, with the name and type of the prototype to which it is assigned.
+---@class (exact) IconDatumAssignment : IconAssignmentBase
+---The icon, as a single image.
 ---@field icon_datum IconData
----Controls which related prototypes the icon is assigned to. Defaults apply as per `IconAssignmentOptions`.
----@field options? IconAssignmentOptions
 
----A scale and a shift, applied together: the subject is scaled about its origin, and then
----moved. Both are relative to whatever the subject already has, in the subject's own units.
+---Represents an icon from an array of `IconData` objects, with the name and type of the prototype to which it is
+---assigned.
+---@class (exact) IconDataAssignment : IconAssignmentBase
+---The icon, as an array of images.
+---@field icon_data IconData[]
+---The sprite assigned to the `pictures` field of the item of the same name.
+---When `nil`, the field is cleared.
+---@field pictures? SpriteVariations
+
+---Represents an icon from an `IconComposition`, with the name and type of the prototype to which it is assigned.
+---@class (exact) IconCompositionAssignment : IconAssignmentBase
+---The icon, as an `IconComposition`.
+---@field composition IconComposition
+
+---Defines an icon assignment to a prototype: an array of `IconData` objects, a single `IconData` object, or an
+---`IconComposition`, with the name and type of the prototype to which it is assigned.
+---@alias IconAssignment IconDataAssignment|IconDatumAssignment|IconCompositionAssignment
+
+---Defines a scale and a shift that are applied together to transform an icon layer or a sprite.
 ---
----For an icon, the scale multiplies the layer's `scale` and the shift is measured as
----[IconData::shift](https://lua-api.factorio.com/latest/types/IconData.html#shift) is, where the
----whole icon is `expected_icon_size / 2` across: 32 for an ordinary prototype, so `{ 8, -8 }`
----places a source in the upper-right quadrant.
+---For an icon layer, the shift is measured as
+---[IconData::shift](https://lua-api.factorio.com/latest/types/IconData.html#shift) is, where the whole icon spans
+---`expected_icon_size / 2`. An ordinary icon spans 32, and `{ 8, -8 }` places the layer in its upper-right quadrant.
 ---@class Transform
----The factor to multiply the subject's scale by. Default `nil`, which leaves it as it is.
+---The factor by which the scale of the layer is multiplied.
+---When `nil`, the scale is not modified.
 ---@field scale? double
----The offset to add to the subject's shift, after any existing shift is scaled. Default `nil`,
----which leaves it as it is.
+---The offset added to the shift of the layer, after the existing shift is scaled.
+---When `nil`, the shift is not modified.
 ---@field shift? Vector
 
----The transformation fields shared by every form of icon source.
+---Defines the fields shared by every form of icon source.
 ---@class TransformableIconBase
----The scale to apply to the sourced icon. Default `nil`.
----
----Multiplied with the existing scale of the sourced icon. An ordinary 64px icon defaults to a
----scale of `0.5`, so a scale of `0.5` here results in `0.25`. Ignored when `transform` is defined.
+---The factor by which the scale of every layer of the sourced icon is multiplied. An ordinary 64px icon has a scale of
+---0.5, and a factor of 0.5 gives 0.25. The field is ignored when `transform` is set. Default `nil`.
 ---@field scale? double
----The shift to apply to the sourced icon. Default `nil`.
----
----Measured as [IconData::shift](https://lua-api.factorio.com/latest/types/IconData.html#shift)
----is, where the whole icon is `expected_icon_size / 2` across. That is 32 for an
----ordinary prototype, so `{ 8, -8 }` places the source in the upper-right
----quadrant. Ignored when `transform` is defined.
+---The offset added to the shift of every layer of the sourced icon, after the existing shift is scaled. The offset is
+---measured as [IconData::shift](https://lua-api.factorio.com/latest/types/IconData.html#shift) is, where the whole icon
+---spans `expected_icon_size / 2`. An ordinary icon spans 32, and `{ 8, -8 }` places the source in its upper-right
+---quadrant. The field is ignored when `transform` is set. Default `nil`.
 ---@field shift? Vector
----The tint to apply to the sourced icon. Default `nil`.
----
----Applied to every layer of the sourced icon, except layers whose tint has an alpha of zero, which
----the game renders additively.
+---The tint set on every layer of the sourced icon. A layer with a tint alpha of zero is skipped. Default `nil`.
 ---@field tint? Color
----When `true`, the sourced icon is not considered for calculating bounds of the icon, so it can go
----out of the bounds into which the composed icon is drawn in GUI.
+---When `true`, indicates that `floating` is set on every layer of the sourced icon, and the layers are excluded from
+---the bounds of the GUI slot. A layer that is already floating is not modified. Default `false`.
 ---
----Applied to every layer of the sourced icon. Icon layers where this field is already `true` will
----retain their value.
----
----[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html%23floating#floating)
+---[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html#floating)
 ---@field floating? boolean
----The placement of the sourced icon; used preferentially when defined over `scale` and `shift`.
----Default `nil`.
+---The scale and shift applied to the sourced icon. When set, `scale` and `shift` are ignored. Default `nil`.
 ---@field transform? Transform
 
----Provides the icon and optional transformations to a sourced `IconData` object.
+---Defines an icon source that holds one `IconData` object.
 ---@class IconDatumSource : TransformableIconBase
----The icon data to be used for the icon.
+---The layer of the sourced icon.
 ---@field icon_datum IconData
----The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
----Unrecognized names resolve to `defines.default_icon_size`.
+---The name of the type-specific icon defaults of `icon_datum`, as per
+---[IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized types resolve to
+---`defines.default_icon_size`.
 ---@field defaults_type? IconDefaultsType
 
----Provides the icon and optional transformations to a sourced array of `IconData` objects.
+---Defines an icon source that holds an array of `IconData` objects.
 ---@class IconDataSource : TransformableIconBase
----The icon data to be used for the icon.
+---The layers of the sourced icon.
 ---@field icon_data IconData[]
----The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
----Unrecognized names resolve to `defines.default_icon_size`.
+---The name of the type-specific icon defaults of `icon_data`, as per
+---[IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized types resolve to
+---`defines.default_icon_size`.
 ---@field defaults_type? IconDefaultsType
 
----Provides the name and type information necessary to directly retrieve an icon
----from a source prototype, and apply a shift and scale to that icon.
+---Defines an icon source that names the prototype from which the icon is retrieved.
 ---@class PrototypeIconSource : TransformableIconBase
----The name of the prototype to source the icon from.
+---The name of the prototype from which the icon is retrieved.
 ---@field name string
----The type name of the prototype to source the icon from.
+---The type name of the prototype from which the icon is retrieved.
 ---@field type_name string
 
----A source of icon data, whether an explicit icon or a set of instructions on where to retrieve it.
+---Defines the source of a single icon source: an `IconData` object, an array of `IconData` objects, or the name and
+---type of a prototype from which the icon is retrieved.
 ---@alias IconSource IconDatumSource|IconDataSource|PrototypeIconSource
 
----An array of icon data sources, whether a mix of explicit icons or a instructions on where to retrieve icons.
+---Defines an array of icon sources, each an `IconData` object, an array of `IconData` objects, or the name and type of
+---a prototype from which an icon is retrieved.
 ---@alias IconSources (IconDatumSource|IconDataSource|PrototypeIconSource)[]
 
----A stratum of an icon composition. Content is drawn by stratum, in the order listed.
+---Defines a stratum of an icon composition.
 ---
----`backdrop`, `canvas`, `overlay`, and `symbol` hold artwork, which placements and the
----`transform` of the composition scale and shift together. `label` holds content positioned
----relative to the finished icon, which is not placed, transformed, or floated, and is not included
----when the composition is embedded in another composition.
+---Content is drawn by stratum, in the order listed. The `backdrop`, `canvas`, `overlay`, and `symbol` strata contain
+---artwork.
+---- A placement or a `transform` scales and shifts all artwork together.
+---- The `label` stratum contains content that is positioned relative to the finished icon.
+---- Label content is not placed, transformed, or floated, and is not included when the composition is embedded in
+---  another composition.
 ---@alias IconCompositionStratum
----| "backdrop" # Artwork drawn beneath the icon, such as a box or a crate. Holds the footprint `minify` shrinks the canvas against.
----| "canvas" # The icon's own artwork.
----| "overlay" # Icons composed onto the icon, such as the ingredients of a recipe. Each is outlined on its own.
----| "symbol" # Marks drawn on the icon, such as a symbol or a letter. Never outlined.
----| "label" # Content positioned on the finished icon, such as a badge in a corner.
+---| "backdrop" # The artwork drawn beneath the icon, such as a box or a crate.
+---| "canvas" # The artwork of the icon itself.
+---| "overlay" # The icons composed onto the icon, such as the ingredients of a recipe, each outlined on its own.
+---| "symbol" # The symbols, letters, and other marks drawn over the icon without an outline.
+---| "label" # The badges and other marks positioned on the finished icon without an outline.
 
 ---Defines a named group of content in an icon composition.
 ---
----A composition stores the definition the first time content is added to a group with its name. A
----later definition with the same name must be equal to the stored definition.
+---A composition stores the definition the first time content is added to a group with its name. A later definition with
+---the same name must be equal to the stored definition.
 ---@class IconCompositionGroup
 ---The name of the group, unique within a composition.
 ---@field name string
----The stratum the content of the group is drawn in.
+---The stratum of the group.
 ---@field stratum IconCompositionStratum
----The drawing order of the group within its stratum, lowest first. Default `0`. Groups with the
----same order are drawn in name order, and content within a group in the order it was added.
+---The draw order of the group within its stratum, lowest first. Groups with the same order are drawn in name order,
+---and the content of a group is drawn in the order it was added. Default `0`.
 ---@field order? number
----Whether `set_tint` and `blend_tint` are applied to the content of the group. Default `true`.
+---When `true`, indicates that `set_tint` and `blend_tint` are applied to the content of the group. Default `true`.
 ---@field tintable? boolean
----Whether the group holds one content at a time. When `true`, adding content to the group replaces
----its existing content. Default `false`.
+---When `true`, indicates that the group contains one content at a time, and adding content to the group replaces its
+---existing content. Default `false`.
 ---@field unique? boolean
----Settings for each projection, by projection name. `false` excludes the group from the
----projection; a table is passed to the projection as the entry of the group.
+---The settings of the group for each projection, under the name of the projection. A `false` entry excludes the
+---group from the projection, and a table entry is passed to the projection as the entry of the group.
 ---@field projections? table<string, table|false>
 
----Represents the content of one group as passed to a projection. Missing icon fields are set to
----default values, the placement is applied, and the recorded operations are applied. A
----contribution holds either `layers` or a `sprite`.
+---Represents the content of one group as passed to a projection. Missing icon fields are set to default values, the
+---placement is applied, and the recorded operations are applied. A contribution has either `layers` or a `sprite`.
 ---@class IconCompositionProjectedContribution
----The group the content belongs to.
+---The group of the content.
 ---@field group IconCompositionGroup
----The layers of the content, converted to the icon defaults type given by the build options, if
----any. The field is `nil` when the contribution holds a sprite.
+---The layers of the content, in the icon defaults type given by the build options, if any. The field is `nil` when the
+---contribution has a sprite.
 ---@field layers? SafeIconData[]
----The sprite layer of the content, such as a light. The field is `nil` when the contribution
----holds layers.
+---The sprite layer of the content, such as a light. The field is `nil` when the contribution has layers.
 ---@field sprite? Sprite
 ---The entry of the group for the projection, if the group defines one.
 ---@field entry? table
 
----Information about the composition passed to the `lower` function of a projection.
+---Defines the information about the composition that is passed to the `lower` function of a projection.
 ---@class IconCompositionProjectionContext
----The name of the type-specific icon defaults the layers are converted to.
+---The name of the type-specific icon defaults to which the layers are converted.
 ---@field defaults_type? IconDefaultsType
 ---The composition being projected.
 ---@field composition IconComposition
 
 ---Defines how an icon composition is built to an output, such as an icon or a sprite.
 ---@class IconCompositionProjection<T>
----The name of the projection, used as the key of group `projections` entries.
+---The name of the projection, under which a group defines its `projections` entry for it.
 ---@field name string
----Whether `label` content is included. When `false`, label content is included only if its group
+---When `true`, indicates that `label` content is included. When `false`, label content is included only if its group
 ---has an entry for the projection.
 ---@field includes_labels boolean
----Builds the output from the projected contributions, given in drawing order.
+---A function that builds the output from the projected contributions, which are given in draw order.
 ---@field lower fun(contributions: IconCompositionProjectedContribution[], context: IconCompositionProjectionContext): T
 
----Settings for a group in the `pictures` projection.
+---Defines the settings for a group in the `pictures` projection.
 ---@class IconCompositionPicturesEntry
----A function that receives the sprite layers of the group and returns the layers to use in place
----of them, and optionally an array of layers to draw after all groups.
+---A function that receives the sprite layers of the group and returns the layers that replace them, and optionally an
+---array of layers that are appended after the layers of every group.
 ---@field rewrite? fun(layers: Sprite[], contribution: IconCompositionProjectedContribution): Sprite[], Sprite[]?
 
----Options for building or projecting an icon composition.
+---Defines the options for building or projecting an icon composition.
 ---@class IconCompositionBuildOptions
----The name of the type-specific icon defaults to convert the output to. The scale and shift of
----every layer, including label layers, are converted. If `nil`, the output is not converted.
+---The name of the type-specific icon defaults to which the output is converted. The scale and shift of every layer,
+---including label layers, are converted. If `nil`, the output is not converted.
 ---@field to? IconDefaultsType
 
----Content that may be added to an icon composition: an `IconData` object, an array of `IconData`
----objects, an `IconSource`, a prototype defining an icon, or an `IconComposition`.
+---Defines the content that may be added to an icon composition: an `IconData` object, an array of `IconData` objects,
+---an `IconSource`, a prototype defining an icon, or an `IconComposition`.
 ---@alias IconCompositionContent IconData|IconData[]|IconSource|PrototypeWithIcons|IconComposition
 
----Provides additional fields for the `Animation` object when using a sprite sheet with
----frames laid out in vertical stripes instead of the standard convention of horizontal stripes.
+---Defines an `Animation` with a field that marks its sprite sheet as vertically oriented, for
+---use with `Sprites.make_4way_animation_from_spritesheet`.
 ---@class VerticallyOrientableAnimation : Animation
----When `true`, indicates that the Animation sprites are laid out vertically and should be processed
----accordingly by `SpriteUtils.make_4way_animation_from_spritesheet`.
+---When `true`, indicates that the directions of the sprite sheet are laid out top to bottom. Default `false`.
 ---@field vertically_oriented? boolean
----
----If this property is present, all Animation definitions have to be placed as entries in the array,
----and they will all be loaded from there. layers may not be an empty table. Each definition in the
----array may also have the layers property.
----
----`animation_speed` and `max_advance` of the first layer are used for all layers. All layers will
----run at the same speed.
----
----If this property is present, all other properties, including those inherited from
----AnimationParameters, are ignored.
+---The layers of the animation, each with a sprite sheet of its own. When set, every other field of the animation is
+---ignored, and the `animation_speed` and `max_advance` of the first layer are used for all layers.
 ---@field layers? VerticallyOrientableAnimation[]

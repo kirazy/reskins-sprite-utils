@@ -1,6 +1,6 @@
 ---@namespace Reskins.SpriteUtils
 
---- Provides low-level generalized utility methods.
+---Provides general utility methods.
 ---
 ---#### Examples
 ---```lua
@@ -11,33 +11,27 @@ local _utils = {}
 
 local V = require("validation")
 
----A validator that checks that a value is an array. Elements are not validated.
+---A validator that checks that a value is an array, without validating its elements.
 local any_array = V.array(V.any()):describe_as("an array")
 
+---Concatenates the given arrays into a new array.
 ---
----Concatenates the given arrays into a single new array, preserving order.
+---The elements are copied by reference. The given arrays are not modified. A `nil` argument is skipped.
 ---
----Elements are copied by reference; the given arrays are not modified.
----
----An argument that is `nil` contributes nothing, so an array that is only
----sometimes wanted can be passed conditionally without standing in an empty one.
----
----#### Parameters
 ---@generic T
 ---@param ... T[] The arrays to concatenate.
----
----#### Returns
----@return T[] # A new array containing the elements of each given array, in order.
+---@return T[] # A new array that contains the elements of each given array, in order.
 ---
 ---#### Examples
 ---```lua
+----- Concatenate the base layers and the tint layers.
 ---local base_layers = { base_animation, base_shadow_animation }
 ---local tint_layers = { mask_animation, highlights_animation }
 ---
 ---local layers = _utils.array_concat(base_layers, tint_layers)
 ----- { base_animation, base_shadow_animation, mask_animation, highlights_animation }
 ---```
----@throws Thrown when an argument is neither an array nor `nil`.
+---@throws When an argument is neither an array nor `nil`.
 ---@nodiscard
 function _utils.array_concat(...)
 	local concatenated = {}

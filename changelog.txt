@@ -47,17 +47,16 @@ Date: ????
     - Fixed that `icons.get_starmap_icon_from_prototype` fell back to the prototype's regular `icon_size` for layers omitting one, rather than to `starmap_icon_size`
     - Fixed that `icons.create_icons_from_sources` returned an icon referencing the caller's tint table, and raised an index error rather than a validation message when given no sources
     - Fixed that `icons.add_missing_icon_defaults` returned `shift` and `tint` by reference, so icons built from the same source shared those tables
-    - Fixed that `icons.assign_deferrable_icon` preferred `icon_datum` over `icon_data` when both were set, contrary to the game's preference for `icons` over `icon`, and dropped `pictures` in that case
     - Fixed that `colors.rgba_to_hsva` returned a saturation of `NaN` for black, which the HSVA conversion methods then rejected as invalid
     - Fixed that `colors.normalize` defaulted a missing alpha before dividing by 255, so a color given on the 0-255 scale without an alpha was nearly transparent
     - Fixed that `sprites.create_sprite_from_icon` and `sprites.create_sprite_from_icons` applied `scale` to each layer's artwork but not its shift, resulting in misaligned layered icons at any scale other than 1
     - Fixed that `icons.transform_icon` and `icons.transform_icons` left an existing shift unscaled when given a scale and no shift of their own
     - Fixed that prototypes whose scale was determined by `tile_width` and `tile_height` were not correctly rescaled when using the rescale prototype methods
-    - Fixed documentation on `icons.transform_icon` to correctly reflect that it handles singular icon layers, not the array form
   Deprecated:
     - Deprecated the positional call form of `icons.transform_icon` and `icons.transform_icons` (`scale, shift, tint, defaults_type`); use a `Transform` for scale and shift, and `icons.set_icon_tint` or `icons.set_icons_tint` for tint
     - Deprecated `colors.from_argb`; the Factorio Modding Tool Kit now uses EmmyLua in place of sumneko, which correctly handles RGBA color strings
-    - Deprecated `icons.store_icon_for_deferred_assignment_in_stage` and `icons.assign_icons_deferred_to_stage`; use `icons.assign_deferrable_icon` in the stage the icon belongs to
+    - Deprecated `icons.store_icon_for_deferred_assignment_in_stage` and `icons.assign_icons_deferred_to_stage`; use `icons.apply_icon_assignment` in the stage the icon belongs to
+    - Deprecated `DeferrableIconDatum` and `DeferrableIconData`; use the `IconAssignment` union type or the individual `IconDatumAssignment` and `IconDataAssignment` types instead.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
 Date: 2026-06-07

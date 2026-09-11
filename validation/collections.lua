@@ -3,16 +3,14 @@
 local Validator = require("validation.validator")
 local _result = require("validation.result")
 
----Validators for tables: arrays, maps, shapes, and tuples.
+---Provides validators for tables: arrays, maps, structs, and tuples.
 ---@class Collections
 local _collections = {}
 
----Counts the entries of a table and finds its largest whole-number key.
----
----`#` is unreliable on a table with gaps, so length rules count entries instead.
+---Counts the entries of the given `value` and finds its largest whole-number key, or 0 when there is none.
 ---@param value table
----@return integer count The number of entries.
----@return integer max_index The largest whole-number key, or `0` when there is none.
+---@return integer count
+---@return integer max_index
 local function measure(value)
 	local count, max_index = 0, 0
 
@@ -26,9 +24,9 @@ local function measure(value)
 	return count, max_index
 end
 
----Gets the keys of the given table, sorted alphabetically.
----@param value table The table.
----@return any[] # The keys, sorted.
+---Gets the keys of the given `value`, sorted alphabetically.
+---@param value table
+---@return any[]
 local function sorted_keys(value)
 	local keys = {}
 	for key in pairs(value) do
@@ -42,15 +40,11 @@ local function sorted_keys(value)
 	return keys
 end
 
--- Array
-
+---Represents a validator that checks each element of an array against an element validator.
 ---@class ArrayValidator<T> : Validator<T[]>
 local ArrayValidator = Validator.subclass("array")
 
----Rejects tables that are not contiguous, one-based sequences.
----
----This is a gate: with gaps or stray keys present, per-element failures would
----describe the wrong positions.
+---A gate that checks that a value is a contiguous, one-based sequence.
 local SEQUENCE_GATE = {
 	id = "array.sequence",
 	describe = "an array",
@@ -79,31 +73,32 @@ local SEQUENCE_GATE = {
 	end,
 }
 
----Creates a validator accepting an array whose every element satisfies `element`.
+---Creates a validator that checks each element of an array against `validator`.
 ---@generic T
----@param element Validator<T> The validator applied to each element.
+---@param validator Validator<T> The validator applied to each element.
 ---@return ArrayValidator<T>
 ---
 ---#### Examples
 ---```lua
+----- Create a validator for a non-empty array of icon data.
 ---local IconData = V.array(IconDatum):not_empty()
 ---```
 ---@nodiscard
-function _collections.array(element)
+function _collections.array(validator)
 	local element_rule = {
 		id = "array.elements",
-		-- Deferred so that a `lazy` element is not resolved before its definition is bound.
+		-- The description is computed on demand. A `lazy` element is not resolved until its definition is bound.
 		describe = function()
-			return string.format("an array of %s", element:describe())
+			return string.format("an array of %s", validator:describe())
 		end,
 		check = function(value, ctx)
 			local _, max_index = measure(value)
 
 			local errors = {}
 			for index = 1, max_index do
-				-- Gaps in the array are reported by the sequence gate, not by the element validator.
+				-- Gaps in the array are reported by the sequence gate.
 				if value[index] ~= nil then
-					local result = element:validate(value[index], { path = string.format("%s[%d]", ctx.path, index) })
+					local result = validator:validate(value[index], { path = string.format("%s[%d]", ctx.path, index) })
 					for _, err in pairs(result.errors) do
 						errors[#errors + 1] = err
 					end
@@ -119,23 +114,23 @@ function _collections.array(element)
 	}
 
 	return Validator.instance(ArrayValidator, {
-		element = element,
+		element = validator,
 		collect_all = true,
 		rules = { Validator.type_gate("table", "an array"), SEQUENCE_GATE, element_rule },
 	})
 end
 
----Creates a copy of this validator that tolerates gaps and non-index keys.
+---Permits gaps and non-index keys in the array.
 ---
----Elements still present are validated; missing positions are skipped.
----@return self
+---The elements at whole-number positions are validated. The values of non-index keys are not validated.
+---@return self # A copy of this validator with the sequence rule removed.
 ---@nodiscard
 function ArrayValidator:allow_holes()
 	return self:without("array.sequence")
 end
 
----Requires the array to hold at least one element.
----@return self
+---Requires the array to contain at least one element.
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function ArrayValidator:not_empty()
 	return self:extend({
@@ -151,9 +146,9 @@ function ArrayValidator:not_empty()
 	})
 end
 
----Requires the array to hold at least `min_length` elements.
+---Requires the array to contain at least `min_length` elements.
 ---@param min_length integer The fewest elements allowed.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function ArrayValidator:min_length(min_length)
 	return self:extend({
@@ -170,9 +165,9 @@ function ArrayValidator:min_length(min_length)
 	})
 end
 
----Requires the array to hold at most `max_length` elements.
+---Requires the array to contain at most `max_length` elements.
 ---@param max_length integer The most elements allowed.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function ArrayValidator:max_length(max_length)
 	return self:extend({
@@ -189,9 +184,9 @@ function ArrayValidator:max_length(max_length)
 	})
 end
 
----Requires the array to hold exactly `length` elements.
+---Requires the array to contain exactly `length` elements.
 ---@param length integer The number of elements required.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function ArrayValidator:length(length)
 	return self:extend({
@@ -209,7 +204,7 @@ function ArrayValidator:length(length)
 end
 
 ---Requires no two elements of the array to be equal.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function ArrayValidator:unique()
 	return self:extend({
@@ -221,7 +216,7 @@ function ArrayValidator:unique()
 			local seen = {}
 			for index = 1, max_index do
 				local element = value[index]
-				-- `nan` is skipped: it cannot be a table key, and it is never equal to itself.
+				-- `nan` is skipped. It cannot be a table key, and it is never equal to itself.
 				if element ~= nil and element == element then
 					if seen[element] then
 						return false,
@@ -241,11 +236,9 @@ function ArrayValidator:unique()
 	})
 end
 
----Requires the array's elements to be in order.
----
----#### Parameters
----@param compare (fun(a: T, b: T): boolean)? A function that returns `true` if `a` may precede `b`. Default `a <= b`.
----@return self
+---Requires the elements of the array to be sorted according to `compare`.
+---@param compare? fun(a: T, b: T): boolean A function that returns `true` if `a` may precede `b`. Default `a <= b`.
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function ArrayValidator:sorted(compare)
 	compare = compare or function(a, b)
@@ -263,9 +256,7 @@ function ArrayValidator:sorted(compare)
 			for index = 1, max_index do
 				if value[index] ~= nil then
 					if previous_index then
-						-- This rule runs after the element rule, not instead of it, so the comparison may receive
-						-- elements that failed validation. The default comparison raises on mixed types, and a
-						-- supplied comparison may raise on unexpected values.
+						-- Elements that failed the element rule are still compared here, and comparing them may raise.
 						local compared, precedes = pcall(compare, value[previous_index], value[index])
 
 						if not compared then
@@ -291,12 +282,11 @@ function ArrayValidator:sorted(compare)
 	})
 end
 
--- Map
-
+---Represents a validator that checks each key and each value of a table against a validator.
 ---@class MapValidator<K, V> : Validator<table<K, V>>
 local MapValidator = Validator.subclass("map")
 
----Creates a validator accepting a table whose keys and values each satisfy a validator.
+---Creates a validator that checks each key of a table against `key` and each value against `value`.
 ---@generic K, V
 ---@param key Validator<K> The validator applied to each key.
 ---@param value Validator<V> The validator applied to each value.
@@ -304,6 +294,7 @@ local MapValidator = Validator.subclass("map")
 ---
 ---#### Examples
 ---```lua
+----- Create a validator for a table of icon data keyed by non-empty strings.
 ---local IconsByName = V.map(V.string():not_empty(), IconData)
 ---```
 ---@nodiscard
@@ -317,7 +308,7 @@ function _collections.map(key, value)
 		check = function(subject, ctx)
 			local errors = {}
 
-			-- Keys are walked in sorted order so that failures are reported alphabetically.
+			-- Keys are walked in sorted order, and failures are reported alphabetically.
 			for _, entry_key in pairs(sorted_keys(subject)) do
 				local key_result = key:validate(entry_key, { path = ctx.path })
 				for _, err in pairs(key_result.errors) do
@@ -349,8 +340,8 @@ function _collections.map(key, value)
 	})
 end
 
----Requires the map to hold at least one entry.
----@return self
+---Requires the map to contain at least one entry.
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function MapValidator:not_empty()
 	return self:extend({
@@ -366,9 +357,9 @@ function MapValidator:not_empty()
 	})
 end
 
----Requires the map to hold at least `min_count` entries.
+---Requires the map to contain at least `min_count` entries.
 ---@param min_count integer The fewest entries allowed.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function MapValidator:min_count(min_count)
 	return self:extend({
@@ -385,9 +376,9 @@ function MapValidator:min_count(min_count)
 	})
 end
 
----Requires the map to hold at most `max_count` entries.
+---Requires the map to contain at most `max_count` entries.
 ---@param max_count integer The most entries allowed.
----@return self
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
 function MapValidator:max_count(max_count)
 	return self:extend({
@@ -404,45 +395,44 @@ function MapValidator:max_count(max_count)
 	})
 end
 
--- Shape
-
----@class ShapeValidator<TValidated> : Validator<TValidated>
+---Represents a validator that checks the named fields of a table against their validators.
+---@class StructValidator<TValidated> : Validator<TValidated>
 ---The validator for each named field.
 ---@field fields table<string, Validator<any>>
-local ShapeValidator = Validator.subclass("shape")
+local StructValidator = Validator.subclass("struct")
 
----The validators for the fields of `T`, keyed by field name. Each validator must validate the
----type of the field it is keyed by.
----@alias ShapeFields<T> { [K in keyof T]: Validator<T[K]> }
+---Defines a validator for each field of `T`, keyed by the name of the field. Each validator is typed over the type of
+---its field.
+---@alias StructFields<T> { [K in keyof T]: Validator<T[K]> }
 
----Creates a validator accepting a table whose named fields satisfy their validators.
+---Creates a validator that checks the named fields of a table against their validators.
 ---
----Fields are required unless their validator is `:optional()`. Unrecognized keys
----are permitted; call `:strict()` to reject them, which catches misspelled
----prototype fields that would otherwise be silently ignored.
+---Fields are required unless their validator is `:optional()`. Unrecognized keys are permitted unless `:strict()` is
+---called.
 ---@generic F : table<string, Validator<any>>
 ---@param fields F The validator for each named field.
----@return ShapeValidator<{ [K in keyof F]: any }> # A validator typed over the given field names.
+---@return StructValidator<{ [K in keyof F]: any }> # A validator typed over the given field names.
 ---
 ---#### Examples
 ---```lua
----local IconDatum = V.shape({
+----- Create a validator for an icon datum with an optional size and scale.
+---local IconDatum = V.struct({
 ---    icon = ModFilePath,
 ---    icon_size = V.integer():positive():optional(),
 ---    scale = V.number():positive():optional(),
 ---})
 ---```
 ---@nodiscard
-function _collections.shape(fields)
+function _collections.struct(fields)
 	local names = sorted_keys(fields)
 
 	local fields_rule = {
-		id = "shape.fields",
+		id = "struct.fields",
 		describe = string.format("a table with the fields %s", table.concat(names, ", ")),
 		check = function(value, ctx)
 			local errors = {}
 
-			-- Fields are walked in sorted order so that failures are reported alphabetically.
+			-- Fields are walked in sorted order, and failures are reported alphabetically.
 			for _, name in pairs(names) do
 				local result = fields[name]:validate(value[name], { path = _result.child_path(ctx.path, name) })
 				for _, err in pairs(result.errors) do
@@ -458,46 +448,48 @@ function _collections.shape(fields)
 		end,
 	}
 
-	return Validator.instance(ShapeValidator, {
+	return Validator.instance(StructValidator, {
 		fields = fields,
 		collect_all = true,
 		rules = { Validator.type_gate("table"), fields_rule },
-	}) --[[@as ShapeValidator<{ [K in keyof F]: any }>]]
+	}) --[[@as StructValidator<{ [K in keyof F]: any }>]]
 end
 
----Creates a validator accepting a table of the named class, whose fields satisfy their validators.
+---Creates a validator for the named class that checks the named fields of a table against their validators.
 ---
----The class is named in full, including its namespace; `@using` does not apply to the name.
----Each field validator is checked against the type of the class field it is keyed by, and a
----required field of the class that is given no validator is reported. Otherwise the validator
----behaves as one created by `shape`.
+---The language server checks each field validator against the type of the class field of the same name. At runtime, the
+---class name is not checked, and the validator is the one that `struct` creates.
 ---
 ---#### Parameters
 ---@generic T
----@param _type_name `T` The name of the class the validator validates.
----@param fields ShapeFields<T> The validator for each named field.
----@return ShapeValidator<T>
+---@param _type_name `T` The name of the class.
+---@param fields StructFields<T> The validator for each named field.
+---
+---#### Returns
+---@return StructValidator<T> # A validator typed over `T`.
 ---
 ---#### Examples
 ---```lua
----local Transform = V.shape_of("Reskins.SpriteUtils.Transform", {
+----- Create a validator for a transform with an optional scale and shift.
+------@using Reskins.SpriteUtils
+---local Transform = V.class("Transform", {
 ---    scale = V.number():positive():optional(),
 ---    shift = Vector:optional(),
 ---})
 ---```
 ---@nodiscard
-function _collections.shape_of(_type_name, fields)
-	return _collections.shape(fields) --[[@as ShapeValidator<T>]]
+function _collections.class(_type_name, fields)
+	return _collections.struct(fields) --[[@as StructValidator<T>]]
 end
 
----Creates a copy of this validator that rejects keys it does not describe.
----@return self
+---Requires the table to have no unrecognized keys.
+---@return self # A copy of this validator with the rule added.
 ---@nodiscard
-function ShapeValidator:strict()
+function StructValidator:strict()
 	local fields = self.fields
 
 	return self:extend({
-		id = "shape.strict",
+		id = "struct.strict",
 		describe = "free of unrecognized fields",
 		check = function(value, ctx)
 			local errors = {}
@@ -520,23 +512,26 @@ function ShapeValidator:strict()
 	})
 end
 
----Creates a copy of this validator with an additional rule spanning several fields.
+---Requires the table to satisfy the given `predicate`.
 ---
 ---#### Parameters
 ---@param predicate fun(value: TValidated): boolean A function that returns `true` if the table is acceptable.
----@param message string The complete failure message, phrased to follow the path.
----@return self
+---@param message string The failure message, which follows the path in the rendered message.
+---
+---#### Returns
+---@return self # A copy of this validator with the rule added.
 ---
 ---#### Examples
 ---```lua
----local Prototype = V.shape({ icon = Icon:optional(), icons = Icons:optional() })
+----- Create a validator that requires `icon` or `icons` to be present.
+---local Prototype = V.struct({ icon = Icon:optional(), icons = Icons:optional() })
 ---    :where(function(value) return value.icon ~= nil or value.icons ~= nil end,
 ---           "must define one of 'icon' or 'icons'")
 ---```
 ---@nodiscard
-function ShapeValidator:where(predicate, message)
+function StructValidator:where(predicate, message)
 	return self:extend({
-		id = "shape.where",
+		id = "struct.where",
 		describe = message,
 		check = function(value)
 			if predicate(value) then
@@ -548,23 +543,23 @@ function ShapeValidator:where(predicate, message)
 	})
 end
 
--- Tuple
-
+---Represents a validator that checks each element of a fixed-length array against the validator for its position.
 ---@class TupleValidator<T> : Validator<T>
 local TupleValidator = Validator.subclass("tuple")
 
----Creates a validator accepting a fixed-length array of positionally typed elements.
+---Creates a validator that checks each element of a fixed-length array against the validator for its position.
 ---@param ... Validator<any> The validator for each position, in order.
 ---@return TupleValidator<any>
 ---
 ---#### Examples
 ---```lua
+----- Create a validator for a pair of numbers.
 ---local Offset = V.tuple(V.number(), V.number())
 ---```
 ---@nodiscard
 function _collections.tuple(...)
-	-- Packed with `table.pack` so that a nil argument does not truncate the list. The result must
-	-- be walked by index, since `pairs` would return the `n` field as an element.
+	-- `table.pack` keeps a `nil` argument in the list. The result is walked by index. `pairs` would return the `n`
+	-- field as an element.
 	local elements = table.pack(...)
 	local arity = elements.n
 
