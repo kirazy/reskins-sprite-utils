@@ -45,22 +45,16 @@ end
 ---
 ---The game usually expects colors to be in pre-multiplied form (color channels are pre-multiplied by alpha).
 ---
----[View Documentation](https://lua-api.factorio.com/latest/types/Color.html)
+---See [Color](https://lua-api.factorio.com/latest/types/Color.html).
 ---@class (exact) NormalizedColor
----The alpha value (opacity).
----
----[View Documentation](https://lua-api.factorio.com/latest/types/Color.html#a)
+---The alpha value (opacity). See [Color::a](https://lua-api.factorio.com/latest/types/Color.html#a).
 ---@field a float
 ---
----The blue value. [View Documentation](https://lua-api.factorio.com/latest/types/Color.html#b)
+---The blue value. See [Color::b](https://lua-api.factorio.com/latest/types/Color.html#b).
 ---@field b float
----The green value.
----
----[View Documentation](https://lua-api.factorio.com/latest/types/Color.html#g)
+---The green value. See [Color::g](https://lua-api.factorio.com/latest/types/Color.html#g).
 ---@field g float
----The red value.
----
----[View Documentation](https://lua-api.factorio.com/latest/types/Color.html#r)
+---The red value. See [Color::r](https://lua-api.factorio.com/latest/types/Color.html#r).
 ---@field r float
 
 ---Normalizes the given `tint` without performing validation.
@@ -184,8 +178,6 @@ local check_from_argb = V.signature("from_argb", {
 ---Converts the given 8-character ARGB hex code to a `Color`.
 ---
 ---Leading hash (`"#"`) characters are not supported.
----@param hex string
----@return Color
 ---
 ---#### Examples
 ---```lua
@@ -193,6 +185,8 @@ local check_from_argb = V.signature("from_argb", {
 ---
 ---local tahiti_blue = colors.from_argb("FF00C1DF")
 ---```
+---@param hex string
+---@return Color
 ---@throws When `hex` is `nil`.
 ---@throws When `hex` is not eight hexadecimal digits.
 ---@deprecated Use `util.color("RRGGBBAA")`.

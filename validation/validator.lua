@@ -28,8 +28,8 @@ local _result = require("validation.result")
 ---@class ValidationOptions
 ---The path against which failures are reported. Default `"value"`.
 ---@field path? string
----When `true`, indicates that rules are evaluated after the first failure. Default the `collect_all` field of the
----validator.
+---When `true`, indicates that rules are evaluated after the first failure. When `nil`, the `collect_all` field of the
+---validator is used.
 ---@field collect_all? boolean
 
 ---Represents an immutable, reusable set of rules that a valid value satisfies.
@@ -113,7 +113,7 @@ end
 ---
 ---When the gate fails, the remaining rules are skipped.
 ---@param expected_type type The `type()` name required.
----@param article? string How to describe the type, such as `"an array"`. Default the type name.
+---@param article? string How to describe the type, such as `"an array"`. When `nil`, the type name is used.
 ---@return ValidationRule<any>
 ---@nodiscard
 function Validator.type_gate(expected_type, article)

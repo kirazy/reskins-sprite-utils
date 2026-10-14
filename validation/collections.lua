@@ -40,6 +40,23 @@ local function sorted_keys(value)
 	return keys
 end
 
+---Gets the given field `names` as a quoted list, such as `'a', 'b', and 'c'`.
+---@param names any[]
+---@return string
+---@nodiscard
+local function join_field_names(names)
+	local quoted = {}
+	for index, name in pairs(names) do
+		quoted[index] = _result.format_value(name)
+	end
+
+	if #quoted <= 2 then
+		return table.concat(quoted, " and ")
+	end
+
+	return table.concat(quoted, ", ", 1, #quoted - 1) .. ", and " .. quoted[#quoted]
+end
+
 ---Represents a validator that checks each element of an array against an element validator.
 ---@class ArrayValidator<T> : Validator<T[]>
 local ArrayValidator = Validator.subclass("array")
@@ -56,7 +73,7 @@ local SEQUENCE_GATE = {
 			count = count + 1
 
 			if type(key) ~= "number" or key % 1 ~= 0 or key < 1 then
-				return false, string.format("must be an array, but has the non-index key %s", _result.format_value(key))
+				return false, string.format("has the non-index key %s", _result.format_value(key))
 			end
 
 			if key > max_index then
@@ -65,8 +82,7 @@ local SEQUENCE_GATE = {
 		end
 
 		if count ~= max_index then
-			return false,
-				string.format("must be an array without gaps, but has %d elements spanning indices 1 to %d", count, max_index)
+			return false, string.format("has gaps, with %d elements between indices 1 and %d", count, max_index)
 		end
 
 		return true
@@ -74,15 +90,15 @@ local SEQUENCE_GATE = {
 }
 
 ---Creates a validator that checks each element of an array against `validator`.
----@generic T
----@param validator Validator<T> The validator applied to each element.
----@return ArrayValidator<T>
 ---
 ---#### Examples
 ---```lua
 ----- Create a validator for a non-empty array of icon data.
 ---local IconData = V.array(IconDatum):not_empty()
 ---```
+---@generic T
+---@param validator Validator<T> The validator applied to each element.
+---@return ArrayValidator<T>
 ---@nodiscard
 function _collections.array(validator)
 	local element_rule = {
@@ -221,7 +237,7 @@ function ArrayValidator:unique()
 					if seen[element] then
 						return false,
 							string.format(
-								"must not contain duplicates, but %s appears at indices %d and %d",
+								"has the duplicate %s at indices %d and %d",
 								_result.format_value(element),
 								seen[element],
 								index
@@ -261,15 +277,11 @@ function ArrayValidator:sorted(compare)
 
 						if not compared then
 							return false,
-								string.format(
-									"must be sorted, but the elements at indices %d and %d cannot be compared",
-									previous_index,
-									index
-								)
+								string.format("has elements at indices %d and %d that cannot be compared", previous_index, index)
 						end
 
 						if not precedes then
-							return false, string.format("must be sorted, but the element at index %d precedes it", index)
+							return false, string.format("has the element at index %d out of order", index)
 						end
 					end
 
@@ -428,7 +440,7 @@ function _collections.struct(fields)
 
 	local fields_rule = {
 		id = "struct.fields",
-		describe = string.format("a table with the fields %s", table.concat(names, ", ")),
+		describe = #names == 0 and "a table" or string.format("a table with the fields %s", join_field_names(names)),
 		check = function(value, ctx)
 			local errors = {}
 
@@ -448,10 +460,14 @@ function _collections.struct(fields)
 		end,
 	}
 
+	-- The fields rule describes the table, so the gate is not described twice.
+	local table_gate = Validator.type_gate("table")
+	table_gate.describe = nil
+
 	return Validator.instance(StructValidator, {
 		fields = fields,
 		collect_all = true,
-		rules = { Validator.type_gate("table"), fields_rule },
+		rules = { table_gate, fields_rule },
 	}) --[[@as StructValidator<{ [K in keyof F]: any }>]]
 end
 
@@ -490,7 +506,7 @@ function StructValidator:strict()
 
 	return self:extend({
 		id = "struct.strict",
-		describe = "free of unrecognized fields",
+		describe = "no other fields",
 		check = function(value, ctx)
 			local errors = {}
 
@@ -548,14 +564,14 @@ end
 local TupleValidator = Validator.subclass("tuple")
 
 ---Creates a validator that checks each element of a fixed-length array against the validator for its position.
----@param ... Validator<any> The validator for each position, in order.
----@return TupleValidator<any>
 ---
 ---#### Examples
 ---```lua
 ----- Create a validator for a pair of numbers.
 ---local Offset = V.tuple(V.number(), V.number())
 ---```
+---@param ... Validator<any> The validator for each position, in order.
+---@return TupleValidator<any>
 ---@nodiscard
 function _collections.tuple(...)
 	-- `table.pack` keeps a `nil` argument in the list. The result is walked by index. `pairs` would return the `n`

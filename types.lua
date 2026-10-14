@@ -131,7 +131,7 @@
 ---When `true`, indicates that `floating` is set on every layer of the sourced icon, and the layers are excluded from
 ---the bounds of the GUI slot. A layer that is already floating is not modified. Default `false`.
 ---
----[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html#floating)
+---See [IconData::floating](https://lua-api.factorio.com/latest/types/IconData.html#floating).
 ---@field floating? boolean
 ---The scale and shift applied to the sourced icon. When set, `scale` and `shift` are ignored. Default `nil`.
 ---@field transform? Transform

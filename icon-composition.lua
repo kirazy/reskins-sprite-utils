@@ -1359,13 +1359,7 @@ function IconComposition:project(projection, options)
 	local projected_contributions = get_projected_contributions(self, projection, to, false)
 
 	if #projected_contributions == 0 then
-		error(
-			string.format(
-				"IconComposition:project(): nothing to project: no content is included in projection '%s'",
-				projection.name
-			),
-			2
-		)
+		error(string.format("IconComposition:project(): no content is included in projection '%s'", projection.name), 2)
 	end
 
 	return projection.lower(projected_contributions, { defaults_type = to or self.defaults_type, composition = self })
@@ -1830,7 +1824,7 @@ pictures_projection = {
 		layers = _utils.array_concat(layers, trailing)
 
 		if #layers == 0 then
-			error("IconComposition:project(): projection 'pictures' has no layers to draw", 2)
+			error("IconComposition:project(): the projection 'pictures' has no layers", 2)
 		end
 
 		if #layers == 1 then

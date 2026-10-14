@@ -328,7 +328,7 @@ _common.animation_spritesheet = animation_spritesheet
 ---@see WorkingVisualisation
 _common.working_visualisation = V.struct({
 	animation = _common.animation_spritesheet,
-}):describe_as("a WorkingVisualisation carrying an animation")
+}):describe_as("a WorkingVisualisation with an animation")
 
 ---Provides validators that check values against the prototypes in `data.raw`. They are usable during the prototype
 ---stages only. Using one elsewhere raises an error.
@@ -407,7 +407,6 @@ end
 ---`data.raw`.
 ---@param name_parameter? string The name of the parameter that contains the prototype name. Default `"name"`.
 ---@param type_parameter? string The name of the parameter that contains the prototype type. Default `"type_name"`.
----@return SignatureRule
 ---
 ---#### Examples
 ---```lua
@@ -416,6 +415,7 @@ end
 ---    { "type_name", Common.prototypes.is_registered_type },
 ---}, { Common.prototypes.names_an_existing_prototype() })
 ---```
+---@return SignatureRule
 ---@nodiscard
 function _common.prototypes.names_an_existing_prototype(name_parameter, type_parameter)
 	name_parameter = name_parameter or "name"

@@ -103,11 +103,7 @@ function _signature.signature(function_name, params, rules)
 	for index, rule in pairs(rules or {}) do
 		if type(rule) ~= "table" or type(rule.check) ~= "function" then
 			error(
-				string.format(
-					"V.signature(): rule %d for '%s' must be a table carrying a 'check' function.",
-					index,
-					function_name
-				),
+				string.format("V.signature(): rule %d for '%s' must be a table with a 'check' function.", index, function_name),
 				2
 			)
 		end

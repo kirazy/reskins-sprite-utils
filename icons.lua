@@ -53,11 +53,11 @@ end
 ---
 ---The game automatically generates [icon mipmaps](https://factorio.com/blog/post/fff-291) for all icons. However, icons can have custom mipmaps defined. Custom mipmaps may help to achieve clearer icons at reduced size (e.g. when zooming out) than auto-generated mipmaps. If an icon file contains mipmaps then the game will automatically infer the icon's mipmap count. Icon files for custom mipmaps must contain half-size images with a geometric-ratio, for each mipmap level. Each next level is aligned to the upper-left corner, with no extra padding. Example sequence: `128x128@(0,0)`, `64x64@(128,0)`, `32x32@(192,0)` is three mipmaps.
 ---
----[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html)
+---See [IconData](https://lua-api.factorio.com/latest/types/IconData.html).
 ---@class SafeIconData : IconData
 ---The size of the square icon, in pixels, such as 32 for a 32px by 32px icon. The size must be larger than 0.
 ---
----[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html#icon_size)
+---See [IconData::icon_size](https://lua-api.factorio.com/latest/types/IconData.html#icon_size).
 ---@field icon_size SpriteSizeType
 ---Defaults to `(expected_icon_size / 2) / icon_size`.
 ---
@@ -75,7 +75,7 @@ end
 ---
 ---* `64` for the rest of the prototypes that use icons.
 ---
----[View Documentation](https://lua-api.factorio.com/latest/types/IconData.html#scale)
+---See [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
 ---@field scale double
 
 ---Sets the missing fields of the given `icon_datum` to default values.

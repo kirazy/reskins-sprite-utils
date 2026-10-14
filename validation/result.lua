@@ -110,7 +110,9 @@ end
 ---@param function_name string The name of the function that receives the invalid parameter.
 ---@param param_name string The name of the invalid parameter.
 ---@param errors ValidationError[] The failures to render.
----@return string
+---
+---#### Returns
+---@return string # The message.
 ---@nodiscard
 function _result.format_message(function_name, param_name, errors)
 	if #errors == 1 then

@@ -32,14 +32,14 @@ local AnyOfValidator = Validator.subclass("any_of")
 ---
 ---When no validator accepts the value, the failure message lists the requirement of each validator and why the value
 ---did not satisfy it.
----@generic const T
----@param ... Validator<T> The branches to try, in order.
----@return AnyOfValidator<any>
 ---
 ---#### Examples
 ---```lua
 ---local Vector = V.any_of(V.tuple(V.number(), V.number()), V.struct({ x = V.number(), y = V.number() }))
 ---```
+---@generic const T
+---@param ... Validator<T> The branches to try, in order.
+---@return AnyOfValidator<any>
 ---@overload fun<const A>(a: Validator<A>): AnyOfValidator<A>
 ---@overload fun<const A, const B>(a: Validator<A>, b: Validator<B>): AnyOfValidator<A|B>
 ---@overload fun<const A, const B, const C>(a: Validator<A>, b: Validator<B>, c: Validator<C>): AnyOfValidator<A|B|C>
@@ -91,11 +91,7 @@ function _combinators.any_of(...)
 					end
 
 					return false,
-						string.format(
-							"must be %s, but matched none of them:\n%s",
-							table.concat(descriptions, ", or "),
-							table.concat(details, "\n")
-						)
+						string.format("must be %s:\n%s", table.concat(descriptions, ", or "), table.concat(details, "\n"))
 				end,
 			},
 		},
@@ -279,8 +275,8 @@ function _combinators.lazy(resolver)
 			if not resolved then
 				-- The resolver ran before the validator that it refers to was assigned.
 				error(
-					"reskins-sprite-utils: a lazy validator's resolver returned nil. It ran before the validator it "
-						.. "refers to had been assigned; make sure the reference is only read once the definition is complete.",
+					"reskins-sprite-utils: the resolver of a lazy validator returned nil, because it was called before the "
+						.. "validator to which it refers was assigned.",
 					0
 				)
 			end
