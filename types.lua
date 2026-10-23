@@ -142,7 +142,7 @@
 ---@field icon_datum IconData
 ---The name of the type-specific icon defaults of `icon_datum`, as per
 ---[IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized types resolve to
----`defines.default_icon_size`.
+---`defines.constant.default_icon_size`.
 ---@field defaults_type? IconDefaultsType
 
 ---Defines an icon source that holds an array of `IconData` objects.
@@ -151,7 +151,7 @@
 ---@field icon_data IconData[]
 ---The name of the type-specific icon defaults of `icon_data`, as per
 ---[IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized types resolve to
----`defines.default_icon_size`.
+---`defines.constant.default_icon_size`.
 ---@field defaults_type? IconDefaultsType
 
 ---Defines an icon source that names the prototype from which the icon is retrieved.

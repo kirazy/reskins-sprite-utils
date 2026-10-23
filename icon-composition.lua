@@ -1468,7 +1468,7 @@ local check_from_icon = V.signature("IconComposition:from_icon", {
 ---#### Parameters
 ---@param icon_datum IconData An `IconData` object.
 ---@param group? IconCompositionGroup The group to which the icon is added. Default `IconComposition.canvas_group`.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return self # A composition containing the icon in the given group.
@@ -1495,7 +1495,7 @@ local check_from_icons = V.signature("IconComposition:from_icons", {
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects.
 ---@param group? IconCompositionGroup The group to which the icon is added. Default `IconComposition.canvas_group`.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return self # A composition containing the icon in the given group.
@@ -1523,7 +1523,7 @@ local check_from_source = V.signature("IconComposition:from_source", {
 ---#### Parameters
 ---@param source IconSource The `IconSource` to resolve.
 ---@param group? IconCompositionGroup The group to which the icon is added. Default `IconComposition.canvas_group`.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return self # A composition containing the icon in the given group.
@@ -1561,7 +1561,7 @@ local check_from_prototype = V.signature("IconComposition:from_prototype", {
 ---#### Parameters
 ---@param prototype PrototypeWithIcons The prototype from which the icon is read.
 ---@param group? IconCompositionGroup The group to which the icon is added. Default `IconComposition.canvas_group`.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return self # A composition containing the icon in the given group.
@@ -1591,7 +1591,7 @@ local check_from_named_prototype = V.signature("IconComposition:from_named_proto
 ---@param name string The name of the prototype.
 ---@param type_name string The type name of the prototype.
 ---@param group? IconCompositionGroup The group to which the icon is added. Default `IconComposition.canvas_group`.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return self # A composition containing the icon in the given group.
@@ -1661,7 +1661,7 @@ local check_from_classified_icons = V.signature("IconComposition:from_classified
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects.
 ---@param classify IconLayerClassifier A function that returns the group for each layer.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return self # A composition containing the layers in their groups.

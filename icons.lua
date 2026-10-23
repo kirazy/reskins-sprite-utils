@@ -34,7 +34,7 @@ local default_icon_sizes = {
 ---@return SpriteSizeType # The expected icon size, in pixels.
 ---@nodiscard
 local function resolve_expected_icon_size(defaults_type)
-	return default_icon_sizes[defaults_type or ""] or defines.default_icon_size
+	return default_icon_sizes[defaults_type or ""] or defines.constant.default_icon_size
 end
 
 ---Represents one layer of an icon, with `icon_size` and `scale` set. Icon layering follows the following rules:
@@ -235,7 +235,7 @@ local check_get_expected_icon_size = V.signature("get_expected_icon_size", {
 ---The default `scale` of a layer and the unit of its `shift` are derived from the expected icon size.
 ---
 ---#### Parameters
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return SpriteSizeType # The expected icon size, in pixels.
@@ -261,7 +261,7 @@ local check_empty_icon = V.signature("empty_icon", {
 ---Gets an empty icon, scaled for the given `defaults_type`.
 ---
 ---#### Parameters
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return SafeIconData # An empty icon.
@@ -297,7 +297,7 @@ local check_scale_icon = V.signature("scale_icon", {
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects to scale.
 ---@param scalar double The factor by which the icon is scaled.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return SafeIconData[] # A copy of `icon_data` scaled by the given `scalar`.
@@ -354,7 +354,7 @@ local check_minify_icon = V.signature("minify_icon", {
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects to minify.
 ---@param scalar double The scalar by which the icon is minified. Must be greater than 0 and less than 1.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return SafeIconData[] # A copy of `icon_data` minified by the given `scalar`, over a transparent layer of the expected icon size.
@@ -445,7 +445,7 @@ local check_add_missing_icon_defaults = V.signature("add_missing_icon_defaults",
 ---
 ---#### Parameters
 ---@param icon_datum IconData An `IconData` object.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return SafeIconData # A copy of `icon_datum` with missing fields set to default values.
@@ -484,7 +484,7 @@ local check_add_missing_icons_defaults = V.signature("add_missing_icons_defaults
 ---
 ---#### Parameters
 ---@param icon_data IconData[] An icon represented by an array of `IconData` objects.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return SafeIconData[] # A copy of `icon_data` with missing fields on each layer set to default values.
@@ -640,7 +640,7 @@ function _icons.get_icon_from_prototype(prototype)
 	local icons
 
 	-- Give precedence to an existing icons field.
-	local default_icon_size = default_icon_sizes[prototype.type] or defines.default_icon_size--[[@as SpriteSizeType]]
+	local default_icon_size = default_icon_sizes[prototype.type] or defines.constant.default_icon_size--[[@as SpriteSizeType]]
 	if prototype.icons and prototype.icons[1] then
 		---@type IconData[]
 		icons = util.copy(prototype.icons)
@@ -716,14 +716,16 @@ function _icons.get_dark_background_icon_from_prototype(item_prototype)
 			icons[n].icon_size = icons[n].icon_size
 				or item_prototype.dark_background_icon_size
 				or item_prototype.icon_size
-				or defines.default_icon_size--[[@as SpriteSizeType]]
+				or defines.constant.default_icon_size--[[@as SpriteSizeType]]
 		end
 	elseif item_prototype.dark_background_icon then
 		---@type IconData[]
 		icons = {
 			{
 				icon = item_prototype.dark_background_icon,
-				icon_size = item_prototype.dark_background_icon_size or item_prototype.icon_size or defines.default_icon_size --[[@as SpriteSizeType]],
+				icon_size = item_prototype.dark_background_icon_size
+					or item_prototype.icon_size
+					or defines.constant.default_icon_size --[[@as SpriteSizeType]],
 			},
 		}
 	else
@@ -1293,7 +1295,7 @@ local check_compose_icons = V.signature("compose_icons", {
 ---with the first icon at the base of the stack and the last icon at the top.
 ---
 ---#### Parameters
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---@param ... IconData|IconData[]|nil A variable set of `IconData` or `IconData` arrays to combine. A `nil` argument is skipped.
 ---
 ---#### Returns
@@ -1600,7 +1602,7 @@ local check_transform_icon_positional = V.signature("transform_icon", {
 ---#### Parameters
 ---@param icon_datum IconData An `IconData` object.
 ---@param transform Transform The scale and shift to apply.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---@param ... unknown The extra arguments of the deprecated positional form. The `Transform` form does not use them.
 ---
 ---#### Returns
@@ -1665,7 +1667,7 @@ local check_transform_icons_positional = V.signature("transform_icons", {
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects.
 ---@param transform Transform The scale and shift to apply to every layer.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---@param ... unknown The extra arguments of the deprecated positional form. The `Transform` form does not use them.
 ---
 ---#### Returns
@@ -1732,8 +1734,8 @@ local check_convert_icon_defaults_type = V.signature("convert_icon_defaults_type
 ---
 ---#### Parameters
 ---@param icon_datum IconData An `IconData` object.
----@param from_type? IconDefaultsType The name of the type-specific icon defaults for which `icon_datum` is scaled, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
----@param to_type? IconDefaultsType The name of the type-specific icon defaults for which the copy is scaled. Unrecognized names resolve to `defines.default_icon_size`.
+---@param from_type? IconDefaultsType The name of the type-specific icon defaults for which `icon_datum` is scaled, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
+---@param to_type? IconDefaultsType The name of the type-specific icon defaults for which the copy is scaled. Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return SafeIconData # A copy of `icon_datum` scaled for `to_type`.
@@ -1768,8 +1770,8 @@ local check_convert_icons_defaults_type = V.signature("convert_icons_defaults_ty
 ---
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects.
----@param from_type? IconDefaultsType The name of the type-specific icon defaults for which `icon_data` is scaled, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
----@param to_type? IconDefaultsType The name of the type-specific icon defaults for which the copy is scaled. Unrecognized names resolve to `defines.default_icon_size`.
+---@param from_type? IconDefaultsType The name of the type-specific icon defaults for which `icon_data` is scaled, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
+---@param to_type? IconDefaultsType The name of the type-specific icon defaults for which the copy is scaled. Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return SafeIconData[] # A copy of `icon_data` scaled for `to_type`.
@@ -2245,7 +2247,7 @@ end
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects to receive the sourced icons.
 ---@param sources IconSources An array of `IconData` sources to layer on `icon_data`.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`. The `defaults_type` or `type_name` of a source takes precedence for the layers of that source.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`. The `defaults_type` or `type_name` of a source takes precedence for the layers of that source.
 ---
 ---#### Returns
 ---@return SafeIconData[] combined_icon A copy of `icon_data` with the sourced icons transformed and layered on top.
@@ -2278,7 +2280,7 @@ local check_create_icons_from_sources = V.signature("create_icons_from_sources",
 ---
 ---#### Parameters
 ---@param sources IconSources An array of `IconData` sources, with the base icon first.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`. The `defaults_type` or `type_name` of a source takes precedence for the layers of that source.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`. The `defaults_type` or `type_name` of a source takes precedence for the layers of that source.
 ---
 ---#### Returns
 ---@return SafeIconData[] icon A new icon created from the sources, with the base icon from the first source, and icons from the remaining sources layered on top.

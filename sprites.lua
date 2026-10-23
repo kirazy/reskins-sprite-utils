@@ -60,7 +60,7 @@ local check_create_sprite_from_icons = V.signature("create_sprite_from_icons", {
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects.
 ---@param scale? double The factor by which the scale and shift of every layer are multiplied. Default `1`.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults of `icon_data`, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults of `icon_data`, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return Sprite # A `Sprite` with one layer per element of `icon_data`.
@@ -122,7 +122,7 @@ local check_create_sprite_from_icon = V.signature("create_sprite_from_icon", {
 ---#### Parameters
 ---@param icon_datum IconData An `IconData` object.
 ---@param scale? double The factor by which the scale and shift of the layer are multiplied. Default `1`.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults of `icon_datum`, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults of `icon_datum`, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return Sprite # A `Sprite` with the file, size, scale, shift, and tint of `icon_datum`.
