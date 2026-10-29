@@ -41,6 +41,7 @@ Date: ????
     - Deprecated the positional call form of `icons.transform_icon` and `icons.transform_icons` (`scale, shift, tint, defaults_type`); use a `Transform` for scale and shift, and `icons.set_icon_tint` or `icons.set_icons_tint` for tint.
     - Deprecated `icons.store_icon_for_deferred_assignment_in_stage` and `icons.assign_icons_deferred_to_stage`; use `icons.apply_icon_assignment` in the stage the icon belongs to.
     - Deprecated `DeferrableIconDatum` and `DeferrableIconData`; use the `IconAssignment` union type or the individual `IconDatumAssignment` and `IconDataAssignment` types instead.
+    - Deprecated `icons.assign_deferrable_icon`; use `icons.apply_icon_assignment` instead.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: 2026-07-19

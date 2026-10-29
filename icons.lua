@@ -1188,6 +1188,35 @@ function _icons.apply_icon_assignment(icon_assignment)
 	)
 end
 
+---
+---Assigns the given `deferrable_icon` to the associated prototype.
+---
+---### Examples
+---```lua
+------@type DeferrableIconData
+---local deferrable_icon = {
+---    name = "iron-plate",
+---    type_name = "item",
+---    icon_data = { {
+---        icon = "__base__/graphics/icons/iron-plate.png",
+---        icon_size = 64,
+---        scale = 0.5,
+---    } },
+---}
+---
+---_icons.assign_deferrable_icon(deferrable_icon)
+---```
+---@param deferrable_icon DeferrableIconData|DeferrableIconDatum
+---@throws When `icon_assignment.name` is `nil` or an empty string.
+---@throws When `icon_assignment.type_name` is not a registered prototype type name.
+---@throws When `icon_assignment.icon_data` is not an array of valid `IconData` objects, or `icon_assignment.icon_datum` is not a valid `IconData` object, or `icon_assignment.composition` is not a valid `IconComposition`.
+---@throws When `icon_assignment.options` is not an `IconAssignmentOptions`.
+---@see Icons.assign_icons_to_prototype_and_related_prototypes
+---@deprecated Use `apply_icon_assignment`.
+function _icons.assign_deferrable_icon(deferrable_icon)
+	_icons.apply_icon_assignment(deferrable_icon)
+end
+
 ---Defines a dictionary of deferrable icons, indexed by the stage in which they are assigned.
 ---@deprecated Deferred assignment is being removed; assign icons in the target stage.
 ---@alias DeferredIconStore { [Stage]: (DeferrableIconData|DeferrableIconDatum)[] }
