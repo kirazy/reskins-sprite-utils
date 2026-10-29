@@ -66,6 +66,7 @@
 ---assigned.
 ---@deprecated Use `IconDataAssignment`.
 ---@alias DeferrableIconData IconDataAssignment
+
 ---Represents an icon from a single `IconData` object, with the name and type of the prototype to which it is assigned.
 ---@deprecated Use `IconDatumAssignment`.
 ---@alias DeferrableIconDatum IconDatumAssignment
