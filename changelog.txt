@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.0
-Date: ????
+Date: 2026-11-01
   Features:
     - Added `validation` module for defining reusable argument validators, and `validation.common`, a catalog of validators for icons, colors, vectors, mod-relative file paths, sprite sizes, and prototype references.
     - Added hidden startup setting `reskins-sprite-utils-validation-behavior`, selecting whether an invalid argument throws, is logged, or is ignored.
