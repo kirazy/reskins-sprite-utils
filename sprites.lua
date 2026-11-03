@@ -446,8 +446,155 @@ function _sprites.make_rotated_animation_variations_from_spritesheet(variation_c
 	return result
 end
 
+---Gets the given `value` with every number in it, at every depth, multiplied by the given `scalar`.
+---
+---The result is a copy.
+---@generic T
+---@param value T
+---@param scalar double
+---@return T
+---@nodiscard
+local function get_scaled_numbers(value, scalar)
+	if type(value) == "number" then
+		return value * scalar
+	elseif type(value) == "table" then
+		local scaled = {}
+		for key, item in pairs(value) do
+			scaled[key] = get_scaled_numbers(item, scalar)
+		end
+
+		return scaled
+	end
+
+	return value
+end
+
+---Gets the given `sprite` with its shift, or the shift of each of its layers, moved by the given `offset`.
+---
+---The result is a copy.
+---@param sprite Sprite
+---@param offset Vector
+---@return Sprite
+---@nodiscard
+local function get_moved_sprite(sprite, offset)
+	local moved = util.copy(sprite)
+	local layers = sprite.layers
+	if layers ~= nil then
+		local moved_layers = {}
+		for index, layer in pairs(layers) do
+			moved_layers[index] = get_moved_sprite(layer, offset)
+		end
+
+		moved.layers = moved_layers
+	else
+		moved.shift = util.add_shift(sprite.shift or { 0, 0 }, offset)
+	end
+
+	return moved
+end
+
+---Gets the mean of the vectors in the given `wire_position`.
+---@param wire_position WirePosition
+---@return Vector? # `nil` when `wire_position` holds no vectors.
+local function get_mean_wire_position(wire_position)
+	---@type Vector
+	local sum = { 0, 0 }
+	local count = 0
+	for _, vector in pairs(wire_position) do
+		sum = util.add_shift(sum, vector)
+		count = count + 1
+	end
+
+	if count == 0 then
+		return nil
+	end
+
+	return util.mul_shift(sum, 1 / count)
+end
+
+---Gets a copy of the given `definition` that is moved to match an entity resized by the given `scalar`.
+---
+---The sprites of the definition keep their size. Each of `points.wire` and `points.shadow` is moved so that its mean is
+---at its scaled position. Each sprite and light offset is moved with `points.shadow` when its name contains "shadow",
+---and with `points.wire` otherwise. The wire positions of a definition without sprites are scaled.
+---@param definition CircuitConnectorDefinition
+---@param scalar double
+---@return CircuitConnectorDefinition
+---@nodiscard
+local function get_moved_circuit_connector_definition(definition, scalar)
+	local moved = util.copy(definition)
+	local points = definition.points
+	if points == nil then
+		return moved
+	end
+
+	if definition.sprites == nil then
+		-- The wires attach to the sprite of the entity.
+		moved.points = get_scaled_numbers(points, scalar)
+		return moved
+	end
+
+	-- The shadow is moved separately because the distance between a connector and its shadow depends on the height of
+	-- the connector on the entity, which is scaled.
+	---@type table<string, Vector>
+	local offsets = {}
+	local moved_points = moved.points --[[@as table<string, WirePosition>]]
+	for name, wire_position in pairs(points --[[@as table<string, WirePosition>]]) do
+		local position = get_mean_wire_position(wire_position)
+		if position ~= nil then
+			local offset = util.mul_shift(position, scalar - 1) --[[@as Vector]]
+			offsets[name] = offset
+
+			---@type WirePosition
+			local moved_wire_position = {}
+			for color, vector in pairs(wire_position) do
+				moved_wire_position[color] = util.add_shift(vector, offset)
+			end
+
+			moved_points[name] = moved_wire_position
+		end
+	end
+
+	-- Each value is computed from `definition`, so a table that appears twice in it is not moved twice.
+	local moved_sprites = moved.sprites --[[@as table<string, any>]]
+	for name, value in pairs(definition.sprites --[[@as table<string, any>]]) do
+		local offset = offsets[name:find("shadow", 1, true) and "shadow" or "wire"]
+
+		-- A sprite has a `filename` or `layers`, and a light offset is a vector. Other fields are not modified.
+		if offset ~= nil and type(value) == "table" then
+			if value.filename ~= nil or value.layers ~= nil then
+				moved_sprites[name] = get_moved_sprite(value, offset)
+			elseif value[1] ~= nil or value.x ~= nil then
+				moved_sprites[name] = util.add_shift(value, offset)
+			end
+		end
+	end
+
+	return moved
+end
+
+---Gets a copy of the given `circuit_connector` that is moved to match an entity resized by the given `scalar`.
+---@param circuit_connector CircuitConnectorDefinition | CircuitConnectorDefinition[]
+---@param scalar double
+---@return CircuitConnectorDefinition | CircuitConnectorDefinition[]
+---@nodiscard
+local function get_moved_circuit_connector(circuit_connector, scalar)
+	-- A single definition has `points` or `sprites`, and an array of definitions has neither.
+	if circuit_connector.points ~= nil or circuit_connector.sprites ~= nil then
+		return get_moved_circuit_connector_definition(circuit_connector --[[@as CircuitConnectorDefinition]], scalar)
+	end
+
+	---@type CircuitConnectorDefinition[]
+	local moved = {}
+	for index, definition in pairs(circuit_connector --[[@as CircuitConnectorDefinition[] ]]) do
+		moved[index] = get_moved_circuit_connector_definition(definition, scalar)
+	end
+
+	return moved
+end
+
 -- `apply_rescale` filters fields with these tables.
-local included_fields = {
+local scaled_fields = {
 	["shift"] = true,
 	["scale"] = true,
 	["collision_box"] = true,
@@ -458,9 +605,24 @@ local included_fields = {
 	["west_position"] = true,
 	["position"] = true,
 	["window_bounding_box"] = true,
-	["circuit_wire_connection_points"] = true,
 	["tile_width"] = true,
 	["tile_height"] = true,
+
+	-- Each of these fields holds a `WireConnectionPoint` or an array of them, which hold only positions.
+	["circuit_wire_connection_points"] = true,
+	["circuit_wire_connection_point"] = true,
+	["connection_points"] = true,
+	["input_connection_points"] = true,
+	["output_connection_points"] = true,
+	["left_wire_connection_point"] = true,
+	["right_wire_connection_point"] = true,
+}
+
+-- Each of these fields is replaced with the result of its function, and `apply_rescale` does not recurse into it.
+---@type table<string, fun(value: any, scalar: double): any>
+local handled_fields = {
+	["circuit_connector"] = get_moved_circuit_connector,
+	["circuit_connector_flipped"] = get_moved_circuit_connector,
 }
 
 local excluded_fields = {
@@ -468,6 +630,9 @@ local excluded_fields = {
 	["fluid_box"] = true,
 	["energy_source"] = true,
 	["input_fluid_box"] = true,
+
+	-- A stripe has no `scale` and no positions.
+	["stripes"] = true,
 }
 
 ---Rescales the given `entity_prototype` in place, recursing into every nested table, without validating the
@@ -475,51 +640,22 @@ local excluded_fields = {
 ---@param entity_prototype table The prototype to rescale.
 ---@param scalar double The factor by which the prototype is resized.
 local function apply_rescale(entity_prototype, scalar)
-	---Scales every numeric value in the given `table`, at every depth.
-	---@generic T
-	---@param table T The table to rescale.
-	---@return T # The rescaled table.
-	local function rescale_table_recursively(table)
-		for key, value in pairs(table) do
-			if type(value) == "table" then
-				table[key] = rescale_table_recursively(value)
-			elseif type(value) == "number" then
-				table[key] = value * scalar
-			else
-				-- Do nothing.
-			end
-		end
-
-		return table
+	-- Provide a reasonable default scale where not defined, so that rescaling has something to scale and an image
+	---is not left the game's inferred scale. Use canon-typical violence.
+	-- The default is set before the loop because assigning a new field during `pairs` is undefined.
+	if entity_prototype.filename or entity_prototype.stripes or entity_prototype.filenames then
+		entity_prototype.scale = entity_prototype.scale or 0.5
 	end
 
 	for key, value in pairs(entity_prototype) do
-		-- Provide a reasonable default scale where not defined, so that rescaling has something to scale and an image
-		---is not left the game's inferred scale. Use canon-typical violence.
-		if entity_prototype.filename or entity_prototype.stripes or entity_prototype.filenames then
-			entity_prototype.scale = entity_prototype.scale or 0.5
-		end
-
-		if included_fields[key] ~= nil then
-			if type(value) == "table" then
-				entity_prototype[key] = rescale_table_recursively(util.copy(value))
-			elseif type(value) == "number" then
-				entity_prototype[key] = value * scalar
-			else
-				-- Do nothing.
-			end
+		if scaled_fields[key] ~= nil then
+			entity_prototype[key] = get_scaled_numbers(value, scalar)
+		elseif handled_fields[key] ~= nil then
+			entity_prototype[key] = handled_fields[key](value, scalar)
 		elseif excluded_fields[key] ~= nil then
 			-- Do nothing.
 		elseif type(value) == "table" then
 			apply_rescale(value, scalar)
-
-			-- `scale` is not a property of stripes, and the recursion adds it to child tables.
-			-- FIXME: Pass context to the recursive calls and skip adding `scale` to stripes.
-			if key == "stripes" then
-				for _, stripe in pairs(value) do
-					stripe.scale = nil
-				end
-			end
 		end
 	end
 end
@@ -544,14 +680,19 @@ local check_rescale_prototype = V.signature("rescale_prototype", {
 
 ---Resizes the given `entity_prototype` in place by the given `scalar`.
 ---
----The `scalar` is applied to every numeric value, at every depth, of the `shift`, `scale`, `collision_box`,
----`selection_box`, `position`, `north_position`, `east_position`, `south_position`, `west_position`,
----`window_bounding_box`, `circuit_wire_connection_points`, `tile_width`, and `tile_height` fields.
+---The `scalar` is applied to the fields of the prototype that describe sizes and positions, at every depth, such as
+---`scale`, `shift`, `collision_box`, `selection_box`, and the wire connection points of electric poles.
+---
+---Circuit connectors keep their size and are moved to the same position relative to the resized entity. The wire
+---positions of a circuit connector without sprites are scaled.
 ---
 ---The `fluid_box`, `fluid_boxes`, `input_fluid_box`, and `energy_source` fields are not modified and will need to be
 ---handled separately to ensure a valid prototype.
 ---
 ---A sprite with no `scale` is assumed to have a default `scale` of 0.5.
+---
+---Circuit connector definitions are replaced with copies. Other nested tables are modified in place, including tables
+---that are shared with other prototypes.
 ---
 ---`scalar` is recommended to be the ratio of the new tile size and the original tile size. For example, if rescaling a
 ---5 x 5 tile entity to a 3 x 3 tile entity, `scalar` should be `3 / 5`.

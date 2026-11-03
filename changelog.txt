@@ -2,6 +2,10 @@
 Version: 0.3.1
 Date: ????
   Changes:
+    - `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` no longer scale circuit connectors, and now move each connector and its shadow to the same position relative to the resized entity.
+    - `sprites.rescale_prototype` now replaces circuit connector definitions with copies.
+  Bugfixes:
+    - Fixed that `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` did not move the wire positions of circuit connectors with their sprites, or scale the wire connection points of electric poles, combinators, and power switches.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.0
 Date: 2026-11-01
