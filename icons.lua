@@ -926,8 +926,28 @@ local function resolve_related_recipe(name)
 	return nil
 end
 
+-- The generic remnants and explosions of the base game, which many entities share, are never assigned the icon of an
+-- entity that names them.
+local shared_corpses = {
+	["small-remnants"] = true,
+	["medium-remnants"] = true,
+	["big-remnants"] = true,
+}
+
+local shared_explosions = {
+	["explosion"] = true,
+	["explosion-hit"] = true,
+	["grenade-explosion"] = true,
+	["ground-explosion"] = true,
+	["medium-explosion"] = true,
+	["big-explosion"] = true,
+	["massive-explosion"] = true,
+	["nuke-explosion"] = true,
+}
+
 ---Gets the explosion prototypes related to the given entity prototype. The related explosions are the explosion named
----by its `dying_explosion` and, when `by_convention` is `true`, the explosions named `[ar-]<name>-explosion`.
+---by its `dying_explosion` and, when `by_convention` is `true`, the explosions named `[ar-]<name>-explosion`. A
+---generic explosion of the base game is not included.
 ---@param prototype PrototypeWithIcons The entity prototype.
 ---@param name string The name of the prototype.
 ---@param by_convention? boolean When `true`, indicates that explosions named by convention are included.
@@ -946,7 +966,7 @@ local function resolve_related_explosions(prototype, name, by_convention)
 		names["ar-" .. name .. "-explosion"] = true
 	end
 
-	if dying_explosion_name then
+	if dying_explosion_name and not shared_explosions[dying_explosion_name] then
 		names[dying_explosion_name] = true
 	end
 
@@ -962,7 +982,8 @@ local function resolve_related_explosions(prototype, name, by_convention)
 end
 
 ---Gets the corpse prototypes related to the given entity prototype. The related corpses are the corpse named by its
----`corpse` field and, when `by_convention` is `true`, the corpses named `[ar-]<name>-remnants`.
+---`corpse` field and, when `by_convention` is `true`, the corpses named `[ar-]<name>-remnants`. A generic corpse of
+---the base game is not included.
 ---@param prototype PrototypeWithIcons The entity prototype.
 ---@param name string The name of the prototype.
 ---@param by_convention? boolean When `true`, indicates that corpses named by convention are included.
@@ -983,7 +1004,7 @@ local function resolve_related_corpses(prototype, name, by_convention)
 		names["ar-" .. name .. "-remnants"] = true
 	end
 
-	if corpse_name then
+	if corpse_name and not shared_corpses[corpse_name] then
 		names[corpse_name] = true
 	end
 
@@ -1027,6 +1048,9 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 ---- The corpse named by `corpse`, and as named by convention: `[ar-]<name>-remnants`.
 ---- A `recipe` of the same name, for which the named prototype is the only product. The icon is assigned when
 ---  `main_product` is not defined; otherwise, it is cleared and the `recipe` inherits the icon of its `main_product`.
+---
+---The generic remnants and explosions of the base game, such as `medium-remnants` and `medium-explosion`, which many
+---entities share, are never assigned the icon.
 ---
 ---#### Parameters
 ---@param name string The name of the prototype.
@@ -1142,6 +1166,9 @@ end
 ---- The corpse named by `corpse`, and as named by convention: `[ar-]<name>-remnants`.
 ---- A `recipe` of the same name, for which the named prototype is the only product. The icon is assigned when
 ---  `main_product` is not defined; otherwise, it is cleared and the `recipe` inherits the icon of its `main_product`.
+---
+---The generic remnants and explosions of the base game, such as `medium-remnants` and `medium-explosion`, which many
+---entities share, are never assigned the icon.
 ---
 ---#### Examples
 ---```lua
