@@ -607,6 +607,10 @@ local scaled_fields = {
 	["window_bounding_box"] = true,
 	["tile_width"] = true,
 	["tile_height"] = true,
+	["source_offset"] = true,
+	["projectile_center"] = true,
+	["projectile_creation_distance"] = true,
+	["drawing_box_vertical_extension"] = true,
 
 	-- Each of these fields holds a `WireConnectionPoint` or an array of them, which hold only positions.
 	["circuit_wire_connection_points"] = true,
@@ -616,13 +620,69 @@ local scaled_fields = {
 	["output_connection_points"] = true,
 	["left_wire_connection_point"] = true,
 	["right_wire_connection_point"] = true,
+
+	-- Each of these fields holds a position, a height, a distance, or an array of positions of an artillery cannon.
+	["cannon_base_shift"] = true,
+	["cannon_base_height"] = true,
+	["cannon_base_shift_when_vertical"] = true,
+	["cannon_base_shift_when_horizontal"] = true,
+	["cannon_barrel_recoil_shiftings"] = true,
+
+	-- A `TurretSpecialEffect` holds only positions and distances.
+	["special_effect"] = true,
+
+	-- Each of these fields holds an `AnimatedVector`, which holds only positions.
+	["preparing_muzzle_animation_shift"] = true,
+	["prepared_muzzle_animation_shift"] = true,
+	["starting_attack_muzzle_animation_shift"] = true,
+	["attacking_muzzle_animation_shift"] = true,
+	["ending_attack_muzzle_animation_shift"] = true,
+	["folding_muzzle_animation_shift"] = true,
+	["folded_muzzle_animation_shift"] = true,
 }
 
--- Each of these fields is replaced with the result of its function, and `apply_rescale` does not recurse into it.
----@type table<string, fun(value: any, scalar: double): any>
+---Gets a rescaled copy of the given `heat_buffer`, in which the `connections` are not modified, without validating
+---the arguments.
+---@param heat_buffer table The heat buffer to rescale.
+---@param scalar double The factor by which the heat buffer is resized.
+---@param rescale fun(subset: table, scalar: double, visited: table<table, true>) The function that rescales a table in place.
+---@return table # A rescaled copy of `heat_buffer`.
+---@nodiscard
+local function get_rescaled_heat_buffer(heat_buffer, scalar, rescale)
+	local rescaled = util.copy(heat_buffer)
+	local connections = rescaled.connections
+
+	-- Heat connections are positions in the tiles the entity occupies, and are not scaled.
+	rescaled.connections = nil
+	rescale(rescaled, scalar, {})
+	rescaled.connections = connections
+
+	return rescaled
+end
+
+---Gets a rescaled copy of the given `shell_particle`, without validating the arguments.
+---
+---The `center` and the `creation_distance` are scaled. The other fields are not modified.
+---@param shell_particle table The shell particle to rescale.
+---@param scalar double The factor by which the shell particle is resized.
+---@return table # A rescaled copy of `shell_particle`.
+---@nodiscard
+local function get_rescaled_shell_particle(shell_particle, scalar)
+	local rescaled = util.copy(shell_particle)
+	rescaled.center = rescaled.center and get_scaled_numbers(rescaled.center, scalar)
+	rescaled.creation_distance = rescaled.creation_distance and rescaled.creation_distance * scalar
+
+	return rescaled
+end
+
+-- Each of these fields is replaced with the result of its function, and `apply_rescale` does not recurse into it. The
+-- function is given the function that rescales a nested table.
+---@type table<string, fun(value: any, scalar: double, rescale: fun(subset: table, scalar: double, visited: table<table, true>)): any>
 local handled_fields = {
 	["circuit_connector"] = get_moved_circuit_connector,
 	["circuit_connector_flipped"] = get_moved_circuit_connector,
+	["heat_buffer"] = get_rescaled_heat_buffer,
+	["shell_particle"] = get_rescaled_shell_particle,
 }
 
 local excluded_fields = {
@@ -630,34 +690,60 @@ local excluded_fields = {
 	["fluid_box"] = true,
 	["energy_source"] = true,
 	["input_fluid_box"] = true,
+	["neighbour_connectable"] = true,
+
+	-- Pipe covers are drawn on the tile beyond each connection, and keep their size.
+	["pipe_covers"] = true,
+	["pipe_covers_frozen"] = true,
+	["heat_pipe_covers"] = true,
+
+	-- The radius visualisation depicts a range in tiles, and keeps its size.
+	["radius_visualisation_picture"] = true,
 
 	-- A stripe has no `scale` and no positions.
 	["stripes"] = true,
 }
 
----Rescales the given `entity_prototype` in place, recursing into every nested table, without validating the
----arguments.
+---Rescales the given `entity_prototype` in place, recursing into every nested table that is not in the given
+---`visited`, without validating the arguments.
 ---@param entity_prototype table The prototype to rescale.
 ---@param scalar double The factor by which the prototype is resized.
-local function apply_rescale(entity_prototype, scalar)
+---@param visited table<table, true> The tables that are already rescaled. `entity_prototype` is added to it.
+local function rescale_table(entity_prototype, scalar, visited)
+	visited[entity_prototype] = true
+
+	local is_sprite = entity_prototype.filename or entity_prototype.stripes or entity_prototype.filenames
+
 	-- Provide a reasonable default scale where not defined, so that rescaling has something to scale and an image
 	---is not left the game's inferred scale. Use canon-typical violence.
 	-- The default is set before the loop because assigning a new field during `pairs` is undefined.
-	if entity_prototype.filename or entity_prototype.stripes or entity_prototype.filenames then
+	if is_sprite then
 		entity_prototype.scale = entity_prototype.scale or 0.5
 	end
 
 	for key, value in pairs(entity_prototype) do
-		if scaled_fields[key] ~= nil then
+		if key == "position" and is_sprite then
+			-- The `position` of a sprite is the position of its frame in the image file, in pixels.
+		elseif scaled_fields[key] ~= nil then
 			entity_prototype[key] = get_scaled_numbers(value, scalar)
 		elseif handled_fields[key] ~= nil then
-			entity_prototype[key] = handled_fields[key](value, scalar)
+			entity_prototype[key] = handled_fields[key](value, scalar, rescale_table)
 		elseif excluded_fields[key] ~= nil then
 			-- Do nothing.
-		elseif type(value) == "table" then
-			apply_rescale(value, scalar)
+		elseif type(value) == "table" and not visited[value] then
+			rescale_table(value, scalar, visited)
 		end
 	end
+end
+
+---Rescales the given `entity_prototype` in place, recursing into every nested table, without validating the
+---arguments.
+---
+---A table that is reached more than once is rescaled once.
+---@param entity_prototype table The prototype to rescale.
+---@param scalar double The factor by which the prototype is resized.
+local function apply_rescale(entity_prototype, scalar)
+	rescale_table(entity_prototype, scalar, {})
 end
 
 ---Gets a rescaled copy of the given `entity_prototype`, without validating the arguments.
@@ -689,10 +775,17 @@ local check_rescale_prototype = V.signature("rescale_prototype", {
 ---The `fluid_box`, `fluid_boxes`, `input_fluid_box`, and `energy_source` fields are not modified and will need to be
 ---handled separately to ensure a valid prototype.
 ---
+---The `pipe_covers`, `pipe_covers_frozen`, and `heat_pipe_covers` fields are not modified at any depth. The
+---`neighbour_connectable` field and the `connections` of the `heat_buffer` are not modified.
+---
+---The `radius_visualisation_picture` field is not modified.
+---
+---The `position` of a sprite is a position in its image file, and is not modified.
+---
 ---A sprite with no `scale` is assumed to have a default `scale` of 0.5.
 ---
 ---Circuit connector definitions are replaced with copies. Other nested tables are modified in place, including tables
----that are shared with other prototypes.
+---that are shared with other prototypes. A table that is reached more than once is rescaled once.
 ---
 ---`scalar` is recommended to be the ratio of the new tile size and the original tile size. For example, if rescaling a
 ---5 x 5 tile entity to a 3 x 3 tile entity, `scalar` should be `3 / 5`.
