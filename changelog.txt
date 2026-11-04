@@ -1,6 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.1
 Date: ????
+  Features:
+    - Added `utils.unpack_vector`, which gets the x and y components of a vector in either form.
   Changes:
     - `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` no longer scale circuit connectors, and now move each connector and its shadow to the same position relative to the resized entity.
     - `sprites.rescale_prototype` now replaces circuit connector definitions with copies.
