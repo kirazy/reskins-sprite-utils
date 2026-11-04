@@ -46,18 +46,12 @@
 ---When `true`, indicates that the icon is assigned to the `recipe` of the same name, for which the named prototype is
 ---the only product. Default `true`.
 ---@field infer_recipe? boolean
----When `true`, indicates that the icon is assigned to the explosion named by `dying_explosion`, or by naming
----convention. Default `true`.
+---When `true`, indicates that the icon is assigned to the explosions named `<name>-explosion` and
+---`ar-<name>-explosion`. Default `true`.
 ---@field infer_explosion? boolean
----When `true`, indicates that the icon is assigned to the corpse named by `corpse`, or by naming convention. Default
----`true`.
+---When `true`, indicates that the icon is assigned to the corpses named `<name>-remnants` and `ar-<name>-remnants`.
+---Default `true`.
 ---@field infer_corpse? boolean
----When `true`, indicates that an explosion matched only by naming convention is included under `infer_explosion`. When
----`false`, only the explosion named by the `dying_explosion` field is included. Default `true`.
----@field explosion_by_convention? boolean
----When `true`, indicates that a corpse matched only by naming convention is included under `infer_corpse`. When
----`false`, only the corpse named by the `corpse` field is included. Default `true`.
----@field corpse_by_convention? boolean
 ---When `true`, indicates that `infer_item`, `infer_recipe`, `infer_explosion`, and `infer_corpse` are treated as
 ---`false`, and only the named prototype is assigned the icon. Default `false`.
 ---@field strict? boolean

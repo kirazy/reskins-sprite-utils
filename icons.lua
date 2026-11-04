@@ -835,8 +835,6 @@ local default_icon_assignment_options = {
 	infer_recipe = true,
 	infer_explosion = true,
 	infer_corpse = true,
-	explosion_by_convention = true,
-	corpse_by_convention = true,
 }
 
 ---Sets every missing field of the given `options` to `true`, or every field to `false` when `strict` is `true`.
@@ -854,8 +852,6 @@ local function resolve_icon_assignment_options(options)
 			infer_recipe = false,
 			infer_explosion = false,
 			infer_corpse = false,
-			explosion_by_convention = false,
-			corpse_by_convention = false,
 		}
 	end
 
@@ -864,23 +860,7 @@ local function resolve_icon_assignment_options(options)
 		infer_recipe = options.infer_recipe ~= false,
 		infer_explosion = options.infer_explosion ~= false,
 		infer_corpse = options.infer_corpse ~= false,
-		explosion_by_convention = options.explosion_by_convention ~= false,
-		corpse_by_convention = options.corpse_by_convention ~= false,
 	}
-end
-
----Gets the entity name of an `EntityID` or an `ExplosionDefinition`.
----@param definition? ExplosionDefinition|ExplosionDefinition[] The definition from which the name is retrieved.
----@return EntityID? # The entity name, or `nil` if the definition has none.
----@nodiscard
-local function get_explosion_name(definition)
-	if type(definition) == "string" then
-		return definition
-	elseif type(definition) == "table" and type(definition.name) == "string" then
-		return definition.name
-	end
-
-	return nil
 end
 
 ---Gets the prototype with the given `name` and `type_name`, if `type_name` is given and is not a related prototype
@@ -926,97 +906,22 @@ local function resolve_related_recipe(name)
 	return nil
 end
 
--- The generic remnants and explosions of the base game, which many entities share, are never assigned the icon of an
--- entity that names them.
-local shared_corpses = {
-	["small-remnants"] = true,
-	["medium-remnants"] = true,
-	["big-remnants"] = true,
-}
-
-local shared_explosions = {
-	["explosion"] = true,
-	["explosion-hit"] = true,
-	["grenade-explosion"] = true,
-	["ground-explosion"] = true,
-	["medium-explosion"] = true,
-	["big-explosion"] = true,
-	["massive-explosion"] = true,
-	["nuke-explosion"] = true,
-}
-
----Gets the explosion prototypes related to the given entity prototype. The related explosions are the explosion named
----by its `dying_explosion` and, when `by_convention` is `true`, the explosions named `[ar-]<name>-explosion`. A
----generic explosion of the base game is not included.
----@param prototype PrototypeWithIcons The entity prototype.
----@param name string The name of the prototype.
----@param by_convention? boolean When `true`, indicates that explosions named by convention are included.
----@return PrototypeWithIcons[] # The explosion prototypes that exist.
+---Gets the prototypes of the given `type_name` named `<name><suffix>` and `ar-<name><suffix>`, if found.
+---@param type_name "explosion"|"corpse" The type name of the related prototypes.
+---@param name string The name of the entity prototype.
+---@param suffix "-explosion"|"-remnants" The suffix of the names of the related prototypes.
+---@return PrototypeWithIcons[] # The prototypes that exist, in that order.
 ---@nodiscard
-local function resolve_related_explosions(prototype, name, by_convention)
-	---@cast prototype EntityWithHealthPrototype
-	local dying_explosion = prototype.dying_explosion
-	local dying_explosion_name = get_explosion_name(dying_explosion)
-		or (type(dying_explosion) == "table" and get_explosion_name(dying_explosion[1]))
-		or nil
-
-	local names = {}
-	if by_convention then
-		names[name .. "-explosion"] = true
-		names["ar-" .. name .. "-explosion"] = true
-	end
-
-	if dying_explosion_name and not shared_explosions[dying_explosion_name] then
-		names[dying_explosion_name] = true
-	end
-
-	local explosions = {}
-	for explosion_name in pairs(names) do
-		local explosion = data.raw["explosion"][explosion_name]
-		if explosion ~= nil then
-			explosions[#explosions + 1] = explosion
+local function resolve_related_by_convention(type_name, name, suffix)
+	local prototypes = {}
+	for _, related_name in pairs({ name .. suffix, "ar-" .. name .. suffix }) do
+		local related = data.raw[type_name][related_name]
+		if related ~= nil then
+			prototypes[#prototypes + 1] = related
 		end
 	end
 
-	return explosions
-end
-
----Gets the corpse prototypes related to the given entity prototype. The related corpses are the corpse named by its
----`corpse` field and, when `by_convention` is `true`, the corpses named `[ar-]<name>-remnants`. A generic corpse of
----the base game is not included.
----@param prototype PrototypeWithIcons The entity prototype.
----@param name string The name of the prototype.
----@param by_convention? boolean When `true`, indicates that corpses named by convention are included.
----@return CorpsePrototype[] # The corpse prototypes that exist.
----@nodiscard
-local function resolve_related_corpses(prototype, name, by_convention)
-	---@cast prototype EntityWithHealthPrototype
-	local corpse_name
-	if type(prototype.corpse) == "string" then
-		corpse_name = prototype.corpse
-	elseif type(prototype.corpse) == "table" and type(prototype.corpse[1]) == "string" then
-		corpse_name = prototype.corpse[1]
-	end
-
-	local names = {}
-	if by_convention then
-		names[name .. "-remnants"] = true
-		names["ar-" .. name .. "-remnants"] = true
-	end
-
-	if corpse_name and not shared_corpses[corpse_name] then
-		names[corpse_name] = true
-	end
-
-	local corpses = {}
-	for remnants_name in pairs(names) do
-		local remnants = data.raw["corpse"][remnants_name]
-		if remnants ~= nil then
-			corpses[#corpses + 1] = remnants
-		end
-	end
-
-	return corpses
+	return prototypes
 end
 
 ---Replaces the icon of the given `prototype` with the given `icon_data`.
@@ -1044,13 +949,13 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 ---
 ---Related prototypes are resolved in the following way:
 ---- The `item` and `item-with-entity-data` of the same name.
----- The explosion named by `dying_explosion`, and as named by convention: `[ar-]<name>-explosion`.
----- The corpse named by `corpse`, and as named by convention: `[ar-]<name>-remnants`.
+---- The explosions named `<name>-explosion` and `ar-<name>-explosion`.
+---- The corpses named `<name>-remnants` and `ar-<name>-remnants`.
 ---- A `recipe` of the same name, for which the named prototype is the only product. The icon is assigned when
 ---  `main_product` is not defined; otherwise, it is cleared and the `recipe` inherits the icon of its `main_product`.
 ---
----The generic remnants and explosions of the base game, such as `medium-remnants` and `medium-explosion`, which many
----entities share, are never assigned the icon.
+---An explosion or corpse that the prototype names in its `dying_explosion` or `corpse` field under any other name, such
+---as an explosion or corpse that several entities share, is not assigned the icon.
 ---
 ---#### Parameters
 ---@param name string The name of the prototype.
@@ -1140,13 +1045,13 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 		set_icon_on_prototype(prototype, icon_data_copy)
 
 		if assigns_to_related and resolved_options.infer_explosion then
-			for _, explosion in pairs(resolve_related_explosions(prototype, name, resolved_options.explosion_by_convention)) do
+			for _, explosion in pairs(resolve_related_by_convention("explosion", name, "-explosion")) do
 				set_icon_on_prototype(explosion, icon_data_copy)
 			end
 		end
 
 		if assigns_to_related and resolved_options.infer_corpse then
-			for _, corpse in pairs(resolve_related_corpses(prototype, name, resolved_options.corpse_by_convention)) do
+			for _, corpse in pairs(resolve_related_by_convention("corpse", name, "-remnants")) do
 				set_icon_on_prototype(corpse, icon_data_copy)
 			end
 		end
@@ -1162,13 +1067,13 @@ end
 ---
 ---Related prototypes are resolved in the following way:
 ---- The `item` and `item-with-entity-data` of the same name.
----- The explosion named by `dying_explosion`, and as named by convention: `[ar-]<name>-explosion`.
----- The corpse named by `corpse`, and as named by convention: `[ar-]<name>-remnants`.
+---- The explosions named `<name>-explosion` and `ar-<name>-explosion`.
+---- The corpses named `<name>-remnants` and `ar-<name>-remnants`.
 ---- A `recipe` of the same name, for which the named prototype is the only product. The icon is assigned when
 ---  `main_product` is not defined; otherwise, it is cleared and the `recipe` inherits the icon of its `main_product`.
 ---
----The generic remnants and explosions of the base game, such as `medium-remnants` and `medium-explosion`, which many
----entities share, are never assigned the icon.
+---An explosion or corpse that the prototype names in its `dying_explosion` or `corpse` field under any other name, such
+---as an explosion or corpse that several entities share, is not assigned the icon.
 ---
 ---#### Examples
 ---```lua

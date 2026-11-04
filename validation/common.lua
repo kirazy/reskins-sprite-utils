@@ -224,8 +224,6 @@ _common.icon_assignment_options = V.class("IconAssignmentOptions", {
 	infer_recipe = V.boolean():optional(),
 	infer_explosion = V.boolean():optional(),
 	infer_corpse = V.boolean():optional(),
-	explosion_by_convention = V.boolean():optional(),
-	corpse_by_convention = V.boolean():optional(),
 	strict = V.boolean():optional(),
 })
 	:strict()
