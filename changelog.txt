@@ -3,6 +3,7 @@ Version: 0.3.1
 Date: ????
   Features:
     - Added `utils.unpack_vector`, which gets the x and y components of a vector in either form.
+    - Added `belt-animation-sets`, with methods for finding the prototypes that use the belt animation set of a transport belt, matched by the files and tints of its layers and its speed, and for setting a belt animation set on them.
   Changes:
     - `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` no longer scale circuit connectors, and now move each connector and its shadow to the same position relative to the resized entity.
     - `sprites.rescale_prototype` now replaces circuit connector definitions with copies.
