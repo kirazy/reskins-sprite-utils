@@ -264,9 +264,9 @@ local project_options = V.struct({
 
 ---A validator that checks that a value is a non-empty array of variations, each an `IconData` object or an array of
 ---them.
-local variations_content = V.array(Common.icon)
-	:not_empty()
-	:describe_as("an array of variations, each an IconData object or an array of IconData objects")
+local variations_content = V.array(Common.icon):not_empty():describe_as(
+	"an array of variations, each an IconData object or an array of IconData objects"
+)
 
 ---A validator that checks that a value is a blending function.
 local blender_function = V.func():describe_as("a blending function")
@@ -958,10 +958,7 @@ local function add_variations_to_group(self, group, variations, placement, mipma
 
 	if has_variations(derived) then
 		error(
-			string.format(
-				"%s(): parameter 'variations': the composition already has content with variations",
-				function_name
-			),
+			string.format("%s(): parameter 'variations': the composition already has content with variations", function_name),
 			3
 		)
 	end
@@ -1237,14 +1234,7 @@ local check_add_variations = V.signature("IconComposition:add_variations", {
 function IconComposition:add_variations(group, variations, placement, mipmap_count)
 	check_add_variations(group, variations, placement, mipmap_count)
 
-	return add_variations_to_group(
-		self,
-		group,
-		variations,
-		placement,
-		mipmap_count,
-		"IconComposition:add_variations"
-	)
+	return add_variations_to_group(self, group, variations, placement, mipmap_count, "IconComposition:add_variations")
 end
 
 local check_remove = V.signature("IconComposition:remove", {

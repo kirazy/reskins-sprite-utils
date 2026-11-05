@@ -539,7 +539,9 @@ local function get_moved_circuit_connector_definition(definition, scalar)
 	---@type table<string, Vector>
 	local offsets = {}
 	local moved_points = moved.points --[[@as table<string, WirePosition>]]
-	for name, wire_position in pairs(points --[[@as table<string, WirePosition>]]) do
+	for name, wire_position in
+		pairs(points --[[@as table<string, WirePosition>]])
+	do
 		local position = get_mean_wire_position(wire_position)
 		if position ~= nil then
 			local offset = util.mul_shift(position, scalar - 1) --[[@as Vector]]
@@ -557,7 +559,9 @@ local function get_moved_circuit_connector_definition(definition, scalar)
 
 	-- Each value is computed from `definition`, so a table that appears twice in it is not moved twice.
 	local moved_sprites = moved.sprites --[[@as table<string, any>]]
-	for name, value in pairs(definition.sprites --[[@as table<string, any>]]) do
+	for name, value in
+		pairs(definition.sprites --[[@as table<string, any>]])
+	do
 		local offset = offsets[name:find("shadow", 1, true) and "shadow" or "wire"]
 
 		-- A sprite has a `filename` or `layers`, and a light offset is a vector. Other fields are not modified.
@@ -586,7 +590,9 @@ local function get_moved_circuit_connector(circuit_connector, scalar)
 
 	---@type CircuitConnectorDefinition[]
 	local moved = {}
-	for index, definition in pairs(circuit_connector --[[@as CircuitConnectorDefinition[] ]]) do
+	for index, definition in
+		pairs(circuit_connector --[[@as CircuitConnectorDefinition[] ]])
+	do
 		moved[index] = get_moved_circuit_connector_definition(definition, scalar)
 	end
 

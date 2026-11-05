@@ -1076,9 +1076,7 @@ local icon_assignment_validator = V.struct({
 })
 	:strict()
 	:where(function(value)
-		return (value.icon_data ~= nil and value.icon_data[1] ~= nil)
-			or value.icon_datum ~= nil
-			or value.composition ~= nil
+		return (value.icon_data ~= nil and value.icon_data[1] ~= nil) or value.icon_datum ~= nil or value.composition ~= nil
 	end, "must define a non-empty 'icon_data', an 'icon_datum', or a 'composition'")
 	:describe_as("an IconAssignment")
 
@@ -1494,13 +1492,7 @@ function _icons.assign_icons(type_name, definitions, options)
 			local composition = resolve_icon_definition(definition, type_name, name, classify, "assign_icons")
 			local icon_data, pictures = composition:build({ to = type_name })
 
-			_icons.assign_icons_to_prototype_and_related_prototypes(
-				name,
-				type_name,
-				icon_data,
-				pictures,
-				definition.options
-			)
+			_icons.assign_icons_to_prototype_and_related_prototypes(name, type_name, icon_data, pictures, definition.options)
 		end
 	end
 end
