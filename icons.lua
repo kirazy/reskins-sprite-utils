@@ -895,20 +895,13 @@ local function resolve_related_items(name)
 	return items
 end
 
----Gets the recipe with the given `name`, if it exists, its only result is the prototype with that name, and its
----`main_product` is not an empty string. A recipe with an empty `main_product` does not inherit the icon of its product.
+---Gets the recipe with the given `name`, if it exists and its only result is the prototype with that name.
 ---@param name RecipeID The name of the prototype.
 ---@return RecipePrototype? # The recipe, or `nil` if there is none.
 ---@nodiscard
 local function resolve_related_recipe(name)
 	local recipe = data.raw["recipe"][name]
-	if
-		recipe
-		and recipe.main_product ~= ""
-		and recipe.results
-		and #recipe.results == 1
-		and recipe.results[1].name == name
-	then
+	if recipe and recipe.results and #recipe.results == 1 and recipe.results[1].name == name then
 		return recipe
 	end
 
@@ -976,8 +969,8 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 ---- The explosions named `<name>-explosion` and `ar-<name>-explosion`.
 ---- The corpses named `<name>-remnants` and `ar-<name>-remnants`.
 ---- A `recipe` of the same name, for which the named prototype is the only product. The icon is assigned when
----  `main_product` is `nil`; otherwise, it is cleared and the `recipe` inherits the icon of its `main_product`. A
----  recipe with an empty `main_product` does not inherit the icon of its product, and keeps its own icon.
+---  `main_product` is `nil` or an empty string; otherwise, it is cleared and the `recipe` inherits the icon of its
+---  `main_product`.
 ---
 ---An explosion or corpse that the prototype names in its `dying_explosion` or `corpse` field under any other name, such
 ---as an explosion or corpse that several entities share, is not assigned the icon.
@@ -1060,8 +1053,9 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 			-- Clear the icon; the icon of the product is inherited.
 			_icons.clear_icon_from_prototype(recipe)
 
-			-- An icon is required when the recipe does not have a main product.
-			if not recipe.main_product then
+			-- An icon is required when the recipe does not have a main product, which is when `main_product` is `nil` or an
+			-- empty string.
+			if not recipe.main_product or recipe.main_product == "" then
 				recipe.icons = icon_data_copy
 			end
 		end
@@ -1122,8 +1116,8 @@ local check_apply_icon_assignment = V.signature("apply_icon_assignment", {
 ---- The explosions named `<name>-explosion` and `ar-<name>-explosion`.
 ---- The corpses named `<name>-remnants` and `ar-<name>-remnants`.
 ---- A `recipe` of the same name, for which the named prototype is the only product. The icon is assigned when
----  `main_product` is `nil`; otherwise, it is cleared and the `recipe` inherits the icon of its `main_product`. A
----  recipe with an empty `main_product` does not inherit the icon of its product, and keeps its own icon.
+---  `main_product` is `nil` or an empty string; otherwise, it is cleared and the `recipe` inherits the icon of its
+---  `main_product`.
 ---
 ---An explosion or corpse that the prototype names in its `dying_explosion` or `corpse` field under any other name, such
 ---as an explosion or corpse that several entities share, is not assigned the icon.
