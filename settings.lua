@@ -33,8 +33,7 @@ data:extend({
 --          that is assigned another way has no square.
 --   false  Draws the icons as given. Default.
 --
--- The setting is hidden from the mod settings GUI. To turn it on, set the default value from a
--- settings-final-fixes.lua:
+-- The setting is shown in the startup mod settings. A mod can turn it on by default from a settings-final-fixes.lua:
 --
 --   data.raw["bool-setting"]["reskins-sprite-utils-mark-assigned-icons"].default_value = true
 data:extend({
@@ -43,7 +42,6 @@ data:extend({
 		name = "reskins-sprite-utils-mark-assigned-icons",
 		setting_type = "startup",
 		default_value = false,
-		hidden = true,
 		order = "b",
 	},
 })

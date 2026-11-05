@@ -29,7 +29,7 @@ local MARK_SIZE = 64
 ---The number of mipmaps in the file of the bordered square that marks an assigned icon.
 local MARK_MIPMAP_COUNT = 4
 
----Gets the value of the hidden `reskins-sprite-utils-mark-assigned-icons` startup setting.
+---Gets the value of the `reskins-sprite-utils-mark-assigned-icons` startup setting.
 ---
 ---`false` is returned when `settings` is not available, as in the settings stage.
 ---@return boolean
@@ -45,7 +45,7 @@ end
 ---When `true`, indicates that `assign_icons_to_prototype_and_related_prototypes` draws a bordered square under each
 ---icon and item picture that it assigns. Default `false`.
 ---
----The value is read from the hidden `reskins-sprite-utils-mark-assigned-icons` startup setting.
+---The value is read from the `reskins-sprite-utils-mark-assigned-icons` startup setting.
 _icons.marks_assigned_icons = read_mark_setting()
 
 ---The expected icon sizes for each type, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
