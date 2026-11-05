@@ -25,6 +25,7 @@ Date: ????
     - Fixed that `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` did not scale some positions and sizes, such as wire connection points, turret and projectile positions, and `drawing_box_vertical_extension`.
     - Fixed that `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` scaled a table once for each field through which it was reached.
     - Fixed that `icons.assign_icons_to_prototype_and_related_prototypes` and `icons.apply_icon_assignment` left a recipe without an icon when its `main_product` is an empty string.
+    - Fixed that `icons.assign_icons_to_prototype_and_related_prototypes` and `icons.apply_icon_assignment` gave an icon to a recipe of the same name with no `main_product`, which inherits the icon of its only product, so that a copy of the recipe for another product, such as the higher tiers that Extended Angels makes of Angel's warehouses, showed the icon of the first.
   Deprecated:
     - Deprecated `icons.create_and_assign_composed_icons_from_sources_to_recipe`; use `icons.assign_icons` with icon definitions that give `sources`.
 ---------------------------------------------------------------------------------------------------
