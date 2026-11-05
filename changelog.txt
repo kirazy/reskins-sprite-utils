@@ -13,6 +13,7 @@ Date: ????
     - `IconComposition:build` now returns `pictures` as an array of sprites, with one sprite for each variation, and the `pictures` projection is annotated as returning one `Sprite`.
     - `icons.apply_icon_assignment` now validates its argument, and raises an error for a field that is not a field of an `IconAssignment`, such as `picture`.
     - `icons.apply_icon_assignment` now builds a composition with `to` set to the type of the prototype.
+    - `icons.assign_icons_to_prototype_and_related_prototypes`, `icons.apply_icon_assignment`, and `icons.assign_icons` now set the `pictures` of an item to the only sprite of pictures with one variation, as the base game sets them.
     - `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` no longer scale circuit connectors, and now move each connector and its shadow to the same position relative to the resized entity.
     - `sprites.rescale_prototype` now replaces circuit connector definitions with copies.
     - `icons.assign_icons_to_prototype_and_related_prototypes` and `icons.apply_icon_assignment` now find the related explosions and corpses of an entity by name only, and no longer follow its `dying_explosion` and `corpse` fields; the `explosion_by_convention` and `corpse_by_convention` fields of `IconAssignmentOptions` are removed.

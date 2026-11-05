@@ -934,6 +934,19 @@ local function set_icon_on_prototype(prototype, icon_data)
 	prototype.icons = icon_data
 end
 
+---Gets the only sprite of the given `pictures` when `pictures` is an array of one sprite, as the base game gives the
+---pictures of an item with one variation; otherwise, gets `pictures`.
+---@param pictures? SpriteVariations
+---@return SpriteVariations?
+---@nodiscard
+local function as_item_pictures(pictures)
+	if pictures and #pictures == 1 then
+		return pictures[1]
+	end
+
+	return pictures
+end
+
 local check_assign_icons_to_prototype_and_related_prototypes =
 	V.signature("assign_icons_to_prototype_and_related_prototypes", {
 		{ "name", Common.prototype_name },
@@ -945,7 +958,8 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 
 ---Sets the given `icon_data` on the prototype with the given `name` and `type_name`, and its related prototypes. The
 ---`pictures` field of the related item prototypes, and of the named prototype when it is an item, such as a `tool` or an
----`ammo`, is set to the given `pictures`; when `nil`, the field is cleared.
+---`ammo`, is set to the given `pictures`, or to its only sprite when `pictures` is an array of one sprite, as the base
+---game sets it; when `nil`, the field is cleared.
 ---
 ---`options` controls which related prototypes are assigned the icon.
 ---No related prototype is assigned the icon when `type_name` is `"technology"` or `"recipe"`.
@@ -1017,6 +1031,7 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 	local resolved_options = resolve_icon_assignment_options(options)
 
 	local icon_data_copy = apply_icons_defaults(icon_data, type_name)
+	local item_pictures = as_item_pictures(pictures)
 
 	local prototype = resolve_target_prototype(name, type_name)
 
@@ -1028,7 +1043,7 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 			set_icon_on_prototype(item, icon_data_copy)
 
 			-- Note: item-with-entity-data ignores the field.
-			item.pictures = pictures
+			item.pictures = item_pictures
 		end
 	end
 
@@ -1050,7 +1065,7 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 		set_icon_on_prototype(prototype, icon_data_copy)
 
 		if defines.prototypes.item[prototype.type] then
-			prototype.pictures = pictures
+			prototype.pictures = item_pictures
 		end
 
 		if assigns_to_related and resolved_options.infer_explosion then
