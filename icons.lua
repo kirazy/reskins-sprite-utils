@@ -20,6 +20,34 @@ local _result = require("validation.result")
 ---The expected icon size for `SpaceLocationPrototype::starmap_icon`.
 local STARMAP_ICON_SIZE = 512
 
+---The file of the bordered square that marks an assigned icon.
+local MARK_FILE = "__core__/graphics/buildability-collision-elevated.png"
+
+---The size of the bordered square that marks an assigned icon, in pixels.
+local MARK_SIZE = 64
+
+---The number of mipmaps in the file of the bordered square that marks an assigned icon.
+local MARK_MIPMAP_COUNT = 4
+
+---Gets the value of the hidden `reskins-sprite-utils-mark-assigned-icons` startup setting.
+---
+---`false` is returned when `settings` is not available, as in the settings stage.
+---@return boolean
+---@nodiscard
+local function read_mark_setting()
+	local ok, value = pcall(function()
+		return settings.startup["reskins-sprite-utils-mark-assigned-icons"].value
+	end)
+
+	return ok and value == true
+end
+
+---When `true`, indicates that `assign_icons_to_prototype_and_related_prototypes` draws a bordered square under each
+---icon and item picture that it assigns. Default `false`.
+---
+---The value is read from the hidden `reskins-sprite-utils-mark-assigned-icons` startup setting.
+_icons.marks_assigned_icons = read_mark_setting()
+
 ---The expected icon sizes for each type, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
 local default_icon_sizes = {
 	["technology"] = 256,
@@ -947,6 +975,79 @@ local function as_item_pictures(pictures)
 	return pictures
 end
 
+---Gets a copy of the given `icon_data` with the bordered square that marks an assigned icon added as its first layer,
+---at the size of the first layer of `icon_data`.
+---@param icon_data SafeIconData[]
+---@return SafeIconData[] # The icon. The layers of `icon_data` are shared.
+---@nodiscard
+local function add_mark_to_icon(icon_data)
+	local first = icon_data[1]
+	local marked = {
+		{
+			icon = MARK_FILE,
+			icon_size = MARK_SIZE,
+			scale = first.icon_size * first.scale / MARK_SIZE,
+		},
+	}
+
+	for index = 1, #icon_data do
+		marked[index + 1] = icon_data[index]
+	end
+
+	return marked
+end
+
+---Gets a copy of the given `sprite` with the bordered square that marks an assigned icon added as its first layer, at
+---the width of the first layer of `sprite`.
+---@param sprite Sprite
+---@return Sprite # The sprite. The layers of `sprite` are shared.
+---@nodiscard
+local function add_mark_to_sprite(sprite)
+	local layers = sprite.layers or { sprite }
+	local first = layers[1]
+	local width = first.width or (type(first.size) == "table" and first.size[1]) or first.size or MARK_SIZE
+
+	local marked = {
+		layers = {
+			{
+				filename = MARK_FILE,
+				size = MARK_SIZE,
+				mipmap_count = MARK_MIPMAP_COUNT,
+				scale = width * (first.scale or 1) / MARK_SIZE,
+			},
+		},
+	}
+
+	for _, layer in ipairs(layers) do
+		marked.layers[#marked.layers + 1] = layer
+	end
+
+	return marked
+end
+
+---Gets a copy of the given `pictures` with the bordered square that marks an assigned icon added under each sprite.
+---
+---When `pictures` is given as a sheet, `pictures` is returned and is not modified.
+---@param pictures SpriteVariations
+---@return SpriteVariations
+---@nodiscard
+local function add_mark_to_pictures(pictures)
+	if pictures[1] then
+		local marked = {}
+		for index, sprite in ipairs(pictures) do
+			marked[index] = add_mark_to_sprite(sprite)
+		end
+
+		return marked
+	end
+
+	if pictures.sheet then
+		return pictures
+	end
+
+	return add_mark_to_sprite(pictures --[[@as Sprite]])
+end
+
 local check_assign_icons_to_prototype_and_related_prototypes =
 	V.signature("assign_icons_to_prototype_and_related_prototypes", {
 		{ "name", Common.prototype_name },
@@ -974,6 +1075,9 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 ---
 ---An explosion or corpse that the prototype names in its `dying_explosion` or `corpse` field under any other name, such
 ---as an explosion or corpse that several entities share, is not assigned the icon.
+---
+---When `marks_assigned_icons` is `true`, a bordered square is drawn under the icon and under each sprite of the
+---pictures, at the size of their first layers.
 ---
 ---#### Parameters
 ---@param name string The name of the prototype.
@@ -1032,6 +1136,11 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 
 	local icon_data_copy = apply_icons_defaults(icon_data, type_name)
 	local item_pictures = as_item_pictures(pictures)
+
+	if _icons.marks_assigned_icons then
+		icon_data_copy = add_mark_to_icon(icon_data_copy)
+		item_pictures = item_pictures and add_mark_to_pictures(item_pictures)
+	end
 
 	local prototype = resolve_target_prototype(name, type_name)
 

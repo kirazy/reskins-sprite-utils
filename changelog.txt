@@ -8,6 +8,7 @@ Date: ????
     - Added `prototypes` module, with `prototypes.select_name` for selecting a prototype from names in order of precedence, by the recipe that uses it and then by whether it is hidden.
     - Added content with variations to `IconComposition`, through `IconComposition:add_variations` and `IconComposition:from_variations`, and the `variation` field of `IconCompositionBuildOptions` for `IconComposition:project`.
     - Added `IconComposition.glow_group` and `IconComposition:add_glow`, for artwork that is drawn again as a light in the pictures.
+    - Added the hidden `reskins-sprite-utils-mark-assigned-icons` startup setting and `icons.marks_assigned_icons`; when the setting is on, `icons.assign_icons_to_prototype_and_related_prototypes` draws the bordered square of `__core__/graphics/buildability-collision-elevated.png` under each icon and item picture that it assigns.
     - Added the `mipmap_count` field to `IconDatumSource` and `IconDataSource`, the `mipmap_count` parameter to `IconComposition:from_icon`, `IconComposition:from_icons`, `IconComposition:add_variations`, and `IconComposition:from_variations`, and `validation.common.mipmap_count`; the pictures of a composition set the count on the sprites lowered from the content that gives it.
   Changes:
     - `IconComposition:build` now returns `pictures` as an array of sprites, with one sprite for each variation, and the `pictures` projection is annotated as returning one `Sprite`.
