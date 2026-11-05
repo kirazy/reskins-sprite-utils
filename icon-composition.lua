@@ -68,6 +68,39 @@ local LIGHT_GROUP = {
 	projections = { icon = false },
 }
 
+---The tint of the copy of each layer that the glow group draws as a light.
+local GLOW_TINT = { r = 0.3, g = 0.3, b = 0.3, a = 0.3 } -- The tint of the light of uranium ore in the base game.
+
+---Gets an array of the given sprite layers followed by a copy of each, which is drawn as a light with additive blending.
+---@param layers Sprite[] The sprite layers of the content.
+---@return Sprite[] # A new array that holds the layers and then their copies.
+---@nodiscard
+local function append_glow_layers(layers)
+	local glowing = {}
+	for index = 1, #layers do
+		glowing[index] = layers[index]
+	end
+
+	for index = 1, #layers do
+		local copy = util.copy(layers[index])
+		copy.tint = util.copy(GLOW_TINT)
+		copy.blend_mode = "additive"
+		copy.draw_as_light = true
+		glowing[#glowing + 1] = copy
+	end
+
+	return glowing
+end
+
+---The group to which `add_glow` adds content. The content is included in the icon, and the `pictures` projection
+---appends a copy of each layer that is drawn as a light.
+---@type IconCompositionGroup
+local GLOW_GROUP = {
+	name = "glow",
+	stratum = "canvas",
+	projections = { pictures = { rewrite = append_glow_layers } },
+}
+
 ---Applies the given `transform` to the given sprite layer, in place.
 ---@param sprite Sprite The sprite layer.
 ---@param transform Transform The scale and shift to apply.
@@ -101,8 +134,14 @@ end
 ---The group definition stored by the composition when the content was added.
 ---@field group IconCompositionGroup
 ---The layers of the content, in the icon defaults type of the composition. The field is `nil` when the contribution has
----a sprite.
+---a sprite. For content with variations, the field is the first variation.
 ---@field content? IconData[]
+---The layers of each variation of the content, in the icon defaults type of the composition. The field is `nil` when
+---the content has no variations.
+---@field variations? IconData[][]
+---The number of mipmaps in the files of the content, which is set on each sprite lowered from it. The field is `nil`
+---when the count is not known.
+---@field mipmap_count? integer
 ---The sprite layer of the content. The field is `nil` when the contribution has layers.
 ---@field sprite? Sprite
 ---The placement of the content. The field is `nil` for label content.
@@ -135,6 +174,8 @@ end
 ---  when the composition is embedded in another.
 ---- Operations are applied when the composition is built, in the order they were recorded, to all content, including
 ---  content added after the operation was recorded.
+---- A composition contains at most one content with variations. The icon includes its first variation, and `build`
+---  builds a sprite of the pictures for each variation.
 ---
 --- |                                 | `backdrop`                  | `canvas`                    | `overlay`                                   | `symbol` | `label`                      |
 --- |---------------------------------|-----------------------------|-----------------------------|---------------------------------------------|----------|------------------------------|
@@ -206,12 +247,26 @@ local sprite_layer = V.struct({
 ---A validator that checks that a value is a classifier function.
 local classifier_function = V.func():describe_as("a classifier function")
 
----A validator that checks that a value is an `IconCompositionBuildOptions` object with no unknown fields.
+---A validator that checks that a value is an `IconCompositionBuildOptions` object for `build`, with no unknown fields.
 local build_options = V.struct({
 	to = Common.icon_defaults_type:optional(),
 })
 	:strict()
 	:describe_as("an IconCompositionBuildOptions")
+
+---A validator that checks that a value is an `IconCompositionBuildOptions` object for `project`, with no unknown fields.
+local project_options = V.struct({
+	to = Common.icon_defaults_type:optional(),
+	variation = V.integer():positive():optional(),
+})
+	:strict()
+	:describe_as("an IconCompositionBuildOptions")
+
+---A validator that checks that a value is a non-empty array of variations, each an `IconData` object or an array of
+---them.
+local variations_content = V.array(Common.icon)
+	:not_empty()
+	:describe_as("an array of variations, each an IconData object or an array of IconData objects")
 
 ---A validator that checks that a value is a blending function.
 local blender_function = V.func():describe_as("a blending function")
@@ -480,9 +535,10 @@ end
 ---@param projection IconCompositionProjection<any> The projection in which the contributions are included.
 ---@param to_defaults_type? IconDefaultsType The icon defaults type to which the layers are converted. If `nil`, the layers are not converted.
 ---@param is_embedding boolean When `true`, indicates that the composition is being embedded in another composition.
+---@param variation? integer The variation of the content with variations. When `nil`, the first variation is used.
 ---@return IconCompositionProjectedContribution[] # The projected contributions. Empty if no contribution is included.
 ---@nodiscard
-local function get_projected_contributions(self, projection, to_defaults_type, is_embedding)
+local function get_projected_contributions(self, projection, to_defaults_type, is_embedding, variation)
 	local sorted = {}
 	for index = 1, #self.contributions do
 		sorted[index] = self.contributions[index]
@@ -505,12 +561,18 @@ local function get_projected_contributions(self, projection, to_defaults_type, i
 
 				projected_contributions[#projected_contributions + 1] = { group = group, sprite = sprite, entry = entry or nil }
 			else
-				local layers = _icons.add_missing_icons_defaults(contribution.content, self.defaults_type)
+				local content = contribution.variations and contribution.variations[variation or 1] or contribution.content
+				local layers = _icons.add_missing_icons_defaults(content, self.defaults_type)
 				if contribution.placement then
 					layers = _icons.transform_icons(layers, contribution.placement, self.defaults_type)
 				end
 
-				projected_contributions[#projected_contributions + 1] = { group = group, layers = layers, entry = entry or nil }
+				projected_contributions[#projected_contributions + 1] = {
+					group = group,
+					layers = layers,
+					entry = entry or nil,
+					mipmap_count = contribution.mipmap_count,
+				}
 			end
 		end
 	end
@@ -567,8 +629,8 @@ local icon_projection = {
 	end,
 }
 
----The projection that builds the pictures, a `SpriteVariations` with a single layered sprite.
----@type IconCompositionProjection<SpriteVariations>
+---The projection that builds one sprite of the pictures.
+---@type IconCompositionProjection<Sprite>
 local pictures_projection
 
 ---Gets the artwork layers of the given composition, converted to the given `defaults_type`, for embedding in another
@@ -633,10 +695,12 @@ local function get_layers_from_source(source, defaults_type)
 	return placed
 end
 
----Gets the layers of the given `content`, converted to the icon defaults type of the given composition.
+---Gets the layers of the given `content`, converted to the icon defaults type of the given composition, and the number
+---of mipmaps in their files.
 ---@param self IconComposition The composition to which the content is added.
 ---@param content IconCompositionContent The content from which the layers are read.
 ---@return IconData[] # A copy of the layers. Empty only if `content` is a composition with no artwork.
+---@return integer? # The `mipmap_count` of an `IconDatumSource` or `IconDataSource`, if any.
 ---@nodiscard
 local function get_layers_from_content(self, content)
 	if is_icon_composition(content) then
@@ -669,8 +733,13 @@ local function get_layers_from_content(self, content)
 		return { util.copy(content) }
 	end
 
-	if content.icon_datum or content.icon_data or content.name then
-		---@cast content IconSource
+	if content.icon_datum or content.icon_data then
+		---@cast content IconDatumSource|IconDataSource
+		return get_layers_from_source(content, self.defaults_type), content.mipmap_count
+	end
+
+	if content.name then
+		---@cast content PrototypeIconSource
 		return get_layers_from_source(content, self.defaults_type)
 	end
 
@@ -808,7 +877,7 @@ end
 local function add_content_to_group(self, group, content, placement, replacing, function_name)
 	local adopted = adopt_group(self, group, function_name)
 
-	local layers = get_layers_from_content(self, content)
+	local layers, mipmap_count = get_layers_from_content(self, content)
 	if #layers == 0 then
 		error(
 			string.format(
@@ -830,6 +899,85 @@ local function add_content_to_group(self, group, content, placement, replacing, 
 		sequence = derived.next_sequence,
 		group = adopted,
 		content = layers,
+		mipmap_count = mipmap_count,
+		placement = placement and util.copy(placement) or nil,
+	}
+	derived.next_sequence = derived.next_sequence + 1
+
+	return derived
+end
+
+---Indicates whether the given composition contains content with variations.
+---@param composition IconComposition The composition.
+---@return boolean # `true` if a contribution has variations; otherwise, `false`.
+---@nodiscard
+local function has_variations(composition)
+	for _, contribution in pairs(composition.contributions) do
+		if contribution.variations then
+			return true
+		end
+	end
+
+	return false
+end
+
+---Gets the number of variations of the given composition. A composition without content with variations has one.
+---@param composition IconComposition The composition.
+---@return integer
+---@nodiscard
+local function get_variation_count(composition)
+	for _, contribution in pairs(composition.contributions) do
+		if contribution.variations then
+			return #contribution.variations
+		end
+	end
+
+	return 1
+end
+
+---Adds the given `variations` to the given `group` of the given composition as one content, without validating the
+---arguments.
+---@generic S : IconComposition
+---@param self S The composition to copy.
+---@param group IconCompositionGroup The group definition.
+---@param variations (IconData|IconData[])[] The variations to add.
+---@param placement? Transform The placement of the content.
+---@param mipmap_count? integer The number of mipmaps in the files of the variations.
+---@param function_name string The name of the calling method, for error messages.
+---@return S # A copy of the composition with the variations added.
+---@nodiscard
+local function add_variations_to_group(self, group, variations, placement, mipmap_count, function_name)
+	local adopted = adopt_group(self, group, function_name)
+
+	local derived = copy_composition_for_step(self)
+	derived.groups[adopted.name] = adopted
+
+	if adopted.unique then
+		remove_contributions_from_group(derived, adopted.name)
+	end
+
+	if has_variations(derived) then
+		error(
+			string.format(
+				"%s(): parameter 'variations': the composition already has content with variations",
+				function_name
+			),
+			3
+		)
+	end
+
+	local copies = {}
+	for index = 1, #variations do
+		local variation = variations[index]
+		copies[index] = variation.icon and { util.copy(variation) } or util.copy(variation)
+	end
+
+	derived.contributions[#derived.contributions + 1] = {
+		sequence = derived.next_sequence,
+		group = adopted,
+		content = copies[1],
+		variations = copies,
+		mipmap_count = mipmap_count,
 		placement = placement and util.copy(placement) or nil,
 	}
 	derived.next_sequence = derived.next_sequence + 1
@@ -1036,6 +1184,67 @@ function IconComposition:add_label(content)
 	check_add_label(content)
 
 	return self:add(LABEL_GROUP, content)
+end
+
+local check_add_variations = V.signature("IconComposition:add_variations", {
+	{ "group", Common.icon_composition_group },
+	{ "variations", variations_content },
+	{ "placement", Common.transform:optional() },
+	{ "mipmap_count", Common.mipmap_count:optional() },
+}, placement_only_for_artwork)
+
+---Adds the given `variations` to the given `group` as one content.
+---
+---The icon includes the first variation, and `build` builds a sprite of the pictures for each variation. When the
+---composition is embedded in another, the first variation is embedded. If the group is `unique`, the existing content
+---of the group is removed. Removing or replacing the content of the group removes the variations.
+---
+---#### Parameters
+---@param group IconCompositionGroup The group to which the variations are added.
+---@param variations (IconData|IconData[])[] The variations, each an `IconData` object or an array of them.
+---@param placement? Transform The scale and shift to apply to each variation. A placement is permitted for artwork only.
+---@param mipmap_count? integer The number of mipmaps in the files of the variations, which is set on each sprite of the pictures lowered from them. When `nil`, the sprites have no `mipmap_count`.
+---
+---#### Returns
+---@return self # A copy of the composition with the variations added.
+---
+---#### Examples
+---```lua
+----- Add an ore with four pictures, the first of which is also the icon.
+---local composition = IconComposition:from_icon(backdrop_icon, IconComposition.backdrop_group):add_variations(
+---    IconComposition.canvas_group,
+---    {
+---        { icon = "__my-mod__/graphics/icons/ore.png", icon_size = 64 },
+---        { icon = "__my-mod__/graphics/icons/ore-1.png", icon_size = 64 },
+---        { icon = "__my-mod__/graphics/icons/ore-2.png", icon_size = 64 },
+---        { icon = "__my-mod__/graphics/icons/ore-3.png", icon_size = 64 },
+---    },
+---    nil,
+---    4
+---)
+---
+---local icon_data, pictures = composition:build()
+----- The icon has the backdrop and `ore.png`. The pictures have four sprites, each with the backdrop and one variation,
+----- with a `mipmap_count` of 4 on each variation layer.
+---```
+---@throws When `group` is not a valid `IconCompositionGroup`, or is not equal to the stored definition of the group with the same name.
+---@throws When `variations` is not a non-empty array of variations, each an `IconData` object or an array of them.
+---@throws When `placement` is not a `Transform`, or is given for a label group.
+---@throws When `mipmap_count` is not an integer between 0 and 255.
+---@throws When the composition already contains content with variations.
+---@see IconComposition.from_variations
+---@nodiscard
+function IconComposition:add_variations(group, variations, placement, mipmap_count)
+	check_add_variations(group, variations, placement, mipmap_count)
+
+	return add_variations_to_group(
+		self,
+		group,
+		variations,
+		placement,
+		mipmap_count,
+		"IconComposition:add_variations"
+	)
 end
 
 local check_remove = V.signature("IconComposition:remove", {
@@ -1309,12 +1518,49 @@ function IconComposition:add_light(sprite, placement)
 	return add_sprite_to_group(self, LIGHT_GROUP, light, placement, "IconComposition:add_light")
 end
 
+local check_add_glow = placed_content_signature("IconComposition:add_glow")
+
+---Adds the given `content` to the glow group, `IconComposition.glow_group`, by `add`.
+---
+---The icon includes the content. The pictures include each layer of the content, followed by a copy of it drawn as a
+---light with additive blending. `add_glow` is for artwork that is drawn again as a light in the pictures, such as uranium
+---ore in the base game.
+---
+---#### Parameters
+---@param content IconCompositionContent The content to add.
+---@param placement? Transform The scale and shift to apply to the content.
+---
+---#### Returns
+---@return self # A copy of the composition with the content added.
+---
+---#### Examples
+---```lua
+----- Make an isotope glow in the world.
+---local icon_data, pictures = IconComposition:from_icon(backdrop_icon, IconComposition.backdrop_group)
+---    :add_glow({ icon = "__my-mod__/graphics/icons/isotope.png", icon_size = 64 })
+---    :build()
+----- The icon has the backdrop and the isotope. The pictures have the backdrop, the isotope, and a copy of the isotope
+----- drawn as a light.
+---```
+---@throws When `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws When `placement` is not a `Transform`.
+---@see IconComposition.add_light
+---@see IconComposition.glow_group
+---@nodiscard
+function IconComposition:add_glow(content, placement)
+	check_add_glow(content, placement)
+
+	return self:add(GLOW_GROUP, content, placement)
+end
+
 local check_project = V.signature("IconComposition:project", {
 	{ "projection", Common.icon_composition_projection },
-	{ "options", build_options:optional() },
+	{ "options", project_options:optional() },
 })
 
 ---Builds the composition with the given `projection`.
+---
+---The content with variations, if any, is built with the variation given by `options.variation`.
 ---
 ---#### Parameters
 ---@generic T
@@ -1327,8 +1573,8 @@ local check_project = V.signature("IconComposition:project", {
 ---#### Examples
 ---```lua
 ----- Add a light layer to the sprite projection.
----local GLOW = {
----  name = "glow",
+---local SHINE = {
+---  name = "shine",
 ---  stratum = "overlay",
 ---  projections = {
 ---    icon = false,
@@ -1343,11 +1589,12 @@ local check_project = V.signature("IconComposition:project", {
 ---  },
 ---}
 ---
----local pictures = composition:add(GLOW, glow_layer):project(IconComposition.projections.pictures)
------ The glow layer is drawn on top of the canvas content, with `draw_as_glow` set.
+---local pictures = composition:add(SHINE, shine_layer):project(IconComposition.projections.pictures)
+----- The shine layer is drawn on top of the canvas content, with `draw_as_glow` set.
 ---```
 ---@throws When `projection` is not an `IconCompositionProjection`.
 ---@throws When `options` is not an `IconCompositionBuildOptions`.
+---@throws When `options.variation` is greater than the number of variations.
 ---@throws When no content is included in the projection.
 ---@see IconComposition.build
 ---@see IconComposition.projections
@@ -1356,7 +1603,20 @@ function IconComposition:project(projection, options)
 	check_project(projection, options)
 
 	local to = options and options.to or nil
-	local projected_contributions = get_projected_contributions(self, projection, to, false)
+	local variation = options and options.variation or 1
+	local variation_count = get_variation_count(self)
+	if variation > variation_count then
+		error(
+			string.format(
+				"IconComposition:project(): parameter 'options.variation': must be between 1 and %d, got %d",
+				variation_count,
+				variation
+			),
+			2
+		)
+	end
+
+	local projected_contributions = get_projected_contributions(self, projection, to, false, variation)
 
 	if #projected_contributions == 0 then
 		error(string.format("IconComposition:project(): no content is included in projection '%s'", projection.name), 2)
@@ -1369,8 +1629,8 @@ local check_build = V.signature("IconComposition:build", {
 	{ "options", build_options:optional() },
 })
 
----Indicates whether every contribution of the given composition has layers, is included in both the `icon` and
----`pictures` projections or in neither, and has no `rewrite` for the pictures.
+---Indicates whether every contribution of the given composition has layers and no variations, is included in both
+---the `icon` and `pictures` projections or in neither, and has no `rewrite` for the pictures.
 ---@param self IconComposition The composition.
 ---@return boolean # `true` if every contribution meets the conditions; otherwise, `false`.
 ---@nodiscard
@@ -1378,7 +1638,7 @@ local function are_pictures_a_conversion_of_icon(self)
 	for _, contribution in pairs(self.contributions) do
 		local group = contribution.group
 
-		if contribution.sprite then
+		if contribution.sprite or contribution.variations then
 			return false
 		end
 		local in_icon = is_group_in_projection(group, icon_projection, false)
@@ -1405,7 +1665,7 @@ end
 ---
 ---#### Returns
 ---@return SafeIconData[] # An array of `IconData` objects.
----@return SpriteVariations? # The sprite icon, suitable for assignment to `prototype.pictures`, if required by the composition; otherwise, `nil`.
+---@return Sprite[]? # The sprites of the pictures, one for each variation, suitable for assignment to `prototype.pictures`, if required by the composition; otherwise, `nil`. A composition without content with variations has one sprite.
 ---
 ---#### Examples
 ---```lua
@@ -1432,13 +1692,20 @@ function IconComposition:build(options)
 	end
 
 	local to = options and options.to or nil
-	local projected_contributions = get_projected_contributions(self, pictures_projection, to, false)
-	if #projected_contributions == 0 then
-		return icon_data, nil
+	local context = { defaults_type = to or self.defaults_type, composition = self }
+
+	---@type Sprite[]
+	local pictures = {}
+	for variation = 1, get_variation_count(self) do
+		local projected_contributions = get_projected_contributions(self, pictures_projection, to, false, variation)
+		if #projected_contributions == 0 then
+			return icon_data, nil
+		end
+
+		pictures[variation] = pictures_projection.lower(projected_contributions, context)
 	end
 
-	return icon_data,
-		pictures_projection.lower(projected_contributions, { defaults_type = to or self.defaults_type, composition = self })
+	return icon_data, pictures
 end
 
 ---Creates an empty composition with the given `defaults_type`.
@@ -1461,7 +1728,22 @@ local check_from_icon = V.signature("IconComposition:from_icon", {
 	{ "icon_datum", Common.icon_datum },
 	{ "group", Common.icon_composition_group:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
+	{ "mipmap_count", Common.mipmap_count:optional() },
 })
+
+---Sets the given `mipmap_count` on the only contribution of the given new composition, in place.
+---@param composition IconComposition The composition, which no other composition shares.
+---@param mipmap_count? integer The number of mipmaps in the files of the contribution.
+---@return IconComposition # `composition`.
+local function set_mipmap_count_of_only_contribution(composition, mipmap_count)
+	if mipmap_count ~= nil then
+		local contribution = util.copy(composition.contributions[1])
+		contribution.mipmap_count = mipmap_count
+		composition.contributions[1] = contribution
+	end
+
+	return composition
+end
 
 ---Creates a composition containing the given `icon_datum` in the given `group`.
 ---
@@ -1469,25 +1751,31 @@ local check_from_icon = V.signature("IconComposition:from_icon", {
 ---@param icon_datum IconData An `IconData` object.
 ---@param group? IconCompositionGroup The group to which the icon is added. Default `IconComposition.canvas_group`.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
+---@param mipmap_count? integer The number of mipmaps in the files of the icon, which is set on each sprite of the pictures lowered from it. When `nil`, the sprites have no `mipmap_count`.
 ---
 ---#### Returns
 ---@return self # A composition containing the icon in the given group.
 ---@throws When `icon_datum` is not a valid `IconData`.
 ---@throws When `group` is not a valid `IconCompositionGroup`.
 ---@throws When `defaults_type` is an empty string.
+---@throws When `mipmap_count` is not an integer between 0 and 255.
 ---@see IconComposition.from_icons
 ---@see IconComposition.add
 ---@nodiscard
-function IconComposition:from_icon(icon_datum, group, defaults_type)
-	check_from_icon(icon_datum, group, defaults_type)
+function IconComposition:from_icon(icon_datum, group, defaults_type, mipmap_count)
+	check_from_icon(icon_datum, group, defaults_type, mipmap_count)
 
-	return new_composition(self, defaults_type):add(group or CANVAS_GROUP, icon_datum)
+	return set_mipmap_count_of_only_contribution(
+		new_composition(self, defaults_type):add(group or CANVAS_GROUP, icon_datum),
+		mipmap_count
+	)
 end
 
 local check_from_icons = V.signature("IconComposition:from_icons", {
 	{ "icon_data", Common.icon_data },
 	{ "group", Common.icon_composition_group:optional() },
 	{ "defaults_type", Common.icon_defaults_type:optional() },
+	{ "mipmap_count", Common.mipmap_count:optional() },
 })
 
 ---Creates a composition containing the given `icon_data` in the given `group`.
@@ -1496,20 +1784,25 @@ local check_from_icons = V.signature("IconComposition:from_icons", {
 ---@param icon_data IconData[] An array of `IconData` objects.
 ---@param group? IconCompositionGroup The group to which the icon is added. Default `IconComposition.canvas_group`.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
+---@param mipmap_count? integer The number of mipmaps in the files of the icon, which is set on each sprite of the pictures lowered from it. When `nil`, the sprites have no `mipmap_count`.
 ---
 ---#### Returns
 ---@return self # A composition containing the icon in the given group.
 ---@throws When `icon_data` is not a non-empty array of valid `IconData` objects.
 ---@throws When `group` is not a valid `IconCompositionGroup`.
 ---@throws When `defaults_type` is an empty string.
+---@throws When `mipmap_count` is not an integer between 0 and 255.
 ---@see IconComposition.from_icon
 ---@see IconComposition.from_classified_icons
 ---@see IconComposition.add
 ---@nodiscard
-function IconComposition:from_icons(icon_data, group, defaults_type)
-	check_from_icons(icon_data, group, defaults_type)
+function IconComposition:from_icons(icon_data, group, defaults_type, mipmap_count)
+	check_from_icons(icon_data, group, defaults_type, mipmap_count)
 
-	return new_composition(self, defaults_type):add(group or CANVAS_GROUP, icon_data)
+	return set_mipmap_count_of_only_contribution(
+		new_composition(self, defaults_type):add(group or CANVAS_GROUP, icon_data),
+		mipmap_count
+	)
 end
 
 local check_from_source = V.signature("IconComposition:from_source", {
@@ -1727,6 +2020,53 @@ function IconComposition:from_classified_icons(icon_data, classify, defaults_typ
 	return composition:add(run_group --[[@as IconCompositionGroup]], run)
 end
 
+local check_from_variations = V.signature("IconComposition:from_variations", {
+	{ "variations", variations_content },
+	{ "group", Common.icon_composition_group:optional() },
+	{ "defaults_type", Common.icon_defaults_type:optional() },
+	{ "mipmap_count", Common.mipmap_count:optional() },
+})
+
+---Creates a composition containing the given `variations` in the given `group`, as by `add_variations`.
+---
+---#### Parameters
+---@param variations (IconData|IconData[])[] The variations, each an `IconData` object or an array of them.
+---@param group? IconCompositionGroup The group to which the variations are added. Default `IconComposition.canvas_group`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
+---@param mipmap_count? integer The number of mipmaps in the files of the variations, which is set on each sprite of the pictures lowered from them. When `nil`, the sprites have no `mipmap_count`.
+---
+---#### Returns
+---@return self # A composition containing the variations in the given group.
+---
+---#### Examples
+---```lua
+----- Create the icon of a powder with three pictures, the first of which is also the icon.
+---local icon_data, pictures = IconComposition:from_variations({
+---    { icon = "__my-mod__/graphics/icons/powder.png", icon_size = 64 },
+---    { icon = "__my-mod__/graphics/icons/powder-1.png", icon_size = 64 },
+---    { icon = "__my-mod__/graphics/icons/powder-2.png", icon_size = 64 },
+---}, nil, nil, 4):build()
+----- The icon is `powder.png`, and the pictures are three sprites with a `mipmap_count` of 4.
+---```
+---@throws When `variations` is not a non-empty array of variations, each an `IconData` object or an array of them.
+---@throws When `group` is not a valid `IconCompositionGroup`.
+---@throws When `defaults_type` is an empty string.
+---@throws When `mipmap_count` is not an integer between 0 and 255.
+---@see IconComposition.add_variations
+---@nodiscard
+function IconComposition:from_variations(variations, group, defaults_type, mipmap_count)
+	check_from_variations(variations, group, defaults_type, mipmap_count)
+
+	return add_variations_to_group(
+		new_composition(self, defaults_type),
+		group or CANVAS_GROUP,
+		variations,
+		nil,
+		mipmap_count,
+		"IconComposition:from_variations"
+	)
+end
+
 local check_define_group = V.signature("IconComposition.define_group", {
 	{ "group", Common.icon_composition_group },
 })
@@ -1760,6 +2100,12 @@ IconComposition.label_group = LABEL_GROUP
 ---of 1, is not tintable, and is not included in the `icon` projection. The group must not be modified.
 ---@type IconCompositionGroup
 IconComposition.light_group = LIGHT_GROUP
+
+---The group to which `add_glow` adds content. The group is named `glow`, is in the `canvas` stratum, and is tintable.
+---Its `pictures` entry has a `rewrite` that appends a copy of each layer, drawn as a light with additive blending and a
+---tint of 0.3 in each channel. The group must not be modified.
+---@type IconCompositionGroup
+IconComposition.glow_group = GLOW_GROUP
 
 ---Indicates whether the given `value` is an `IconComposition`.
 ---
@@ -1795,7 +2141,9 @@ pictures_projection = {
 				lowered[1] = contribution.sprite
 			else
 				for index, layer in pairs(contribution.layers or {}) do
-					lowered[index] = _sprites.create_sprite_from_icon(layer)
+					local sprite = _sprites.create_sprite_from_icon(layer)
+					sprite.mipmap_count = contribution.mipmap_count
+					lowered[index] = sprite
 				end
 			end
 
@@ -1839,9 +2187,9 @@ pictures_projection = {
 ---@class IconCompositionProjections
 ---The projection that builds an array of `IconData` objects and includes label content.
 ---@field icon IconCompositionProjection<SafeIconData[]>
----The projection that builds a `SpriteVariations` for the `pictures` field of an item. Label content is included only
----if its group has a `pictures` entry.
----@field pictures IconCompositionProjection<SpriteVariations>
+---The projection that builds one sprite of the `pictures` field of an item. Label content is included only if its group
+---has a `pictures` entry. The `mipmap_count` of content is set on the sprites lowered from it.
+---@field pictures IconCompositionProjection<Sprite>
 IconComposition.projections = {
 	icon = icon_projection,
 	pictures = pictures_projection,

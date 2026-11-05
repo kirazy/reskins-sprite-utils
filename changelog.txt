@@ -4,15 +4,26 @@ Date: ????
   Features:
     - Added `utils.unpack_vector`, which gets the x and y components of a vector in either form.
     - Added `belt-animation-sets`, with methods for finding the prototypes that use the belt animation set of a transport belt, matched by the files and tints of its layers and its speed, and for setting a belt animation set on them.
+    - Added icon definitions, with `icons.assign_icons` for assigning a table of them to the prototypes of one type and `icons.get_icon_composition` for resolving one into an `IconComposition`; a definition gives the icon as artwork, as a composition, or as sources read from other prototypes, with an optional label, and a source that names no existing prototype is replaced by the red striped square of the game and named in a log line.
+    - Added `prototypes` module, with `prototypes.select_name` for selecting a prototype from names in order of precedence, by the recipe that uses it and then by whether it is hidden.
+    - Added content with variations to `IconComposition`, through `IconComposition:add_variations` and `IconComposition:from_variations`, and the `variation` field of `IconCompositionBuildOptions` for `IconComposition:project`.
+    - Added `IconComposition.glow_group` and `IconComposition:add_glow`, for artwork that is drawn again as a light in the pictures.
+    - Added the `mipmap_count` field to `IconDatumSource` and `IconDataSource`, the `mipmap_count` parameter to `IconComposition:from_icon`, `IconComposition:from_icons`, `IconComposition:add_variations`, and `IconComposition:from_variations`, and `validation.common.mipmap_count`; the pictures of a composition set the count on the sprites lowered from the content that gives it.
   Changes:
+    - `IconComposition:build` now returns `pictures` as an array of sprites, with one sprite for each variation, and the `pictures` projection is annotated as returning one `Sprite`.
+    - `icons.apply_icon_assignment` now validates its argument, and raises an error for a field that is not a field of an `IconAssignment`, such as `picture`.
+    - `icons.apply_icon_assignment` now builds a composition with `to` set to the type of the prototype.
     - `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` no longer scale circuit connectors, and now move each connector and its shadow to the same position relative to the resized entity.
     - `sprites.rescale_prototype` now replaces circuit connector definitions with copies.
     - `icons.assign_icons_to_prototype_and_related_prototypes` and `icons.apply_icon_assignment` now find the related explosions and corpses of an entity by name only, and no longer follow its `dying_explosion` and `corpse` fields; the `explosion_by_convention` and `corpse_by_convention` fields of `IconAssignmentOptions` are removed.
   Bugfixes:
+    - Fixed that `icons.assign_icons_to_prototype_and_related_prototypes` and `icons.apply_icon_assignment` set `pictures` only on the `item` and `item-with-entity-data` of the same name, so an item of another type, such as a `tool`, `ammo`, `capsule`, or `module`, kept its previous pictures.
     - Fixed that `icons.assign_icons_to_prototype_and_related_prototypes` and `icons.apply_icon_assignment` assigned the icon of an entity to explosions and corpses that other entities share, such as the generic remnants of the base game and the remnants that the tiers of a machine copy from the base machine.
     - Fixed that `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` scaled fields that keep their size, such as sprite positions in the image file, heat connections, pipe covers, and the radius visualisation.
     - Fixed that `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` did not scale some positions and sizes, such as wire connection points, turret and projectile positions, and `drawing_box_vertical_extension`.
     - Fixed that `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` scaled a table once for each field through which it was reached.
+  Deprecated:
+    - Deprecated `icons.create_and_assign_composed_icons_from_sources_to_recipe`; use `icons.assign_icons` with icon definitions that give `sources`.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.0
 Date: 2026-11-01

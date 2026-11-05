@@ -166,12 +166,16 @@ _common.transform = V.class("Transform", {
 	:strict()
 	:describe_as("a Transform")
 
+---A validator that checks that a value is a mipmap count, an integer between 0 and 255.
+_common.mipmap_count = V.integer():in_range(0, 255):describe_as("a mipmap count")
+
 ---A validator that checks that a value is an `IconDatumSource`, an icon source that provides a single
 ---[`IconData`](https://lua-api.factorio.com/latest/types/IconData.html) object.
 ---@see IconDatumSource
 _common.icon_datum_source = V.class("IconDatumSource", {
 	icon_datum = _common.icon_datum,
 	defaults_type = _common.icon_defaults_type:optional(),
+	mipmap_count = _common.mipmap_count:optional(),
 	scale = _common.positive_number:optional(),
 	shift = _common.vector:optional(),
 	tint = _common.color:optional(),
@@ -185,6 +189,7 @@ _common.icon_datum_source = V.class("IconDatumSource", {
 _common.icon_data_source = V.class("IconDataSource", {
 	icon_data = _common.icon_data,
 	defaults_type = _common.icon_defaults_type:optional(),
+	mipmap_count = _common.mipmap_count:optional(),
 	scale = _common.positive_number:optional(),
 	shift = _common.vector:optional(),
 	tint = _common.color:optional(),

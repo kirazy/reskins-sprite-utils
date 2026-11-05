@@ -139,6 +139,9 @@
 ---[IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized types resolve to
 ---`defines.constant.default_icon_size`.
 ---@field defaults_type? IconDefaultsType
+---The number of mipmaps in the file of `icon_datum`. An `IconComposition` sets it on each sprite of the pictures
+---lowered from the source. Default `nil`.
+---@field mipmap_count? integer
 
 ---Defines an icon source that holds an array of `IconData` objects.
 ---@class IconDataSource : TransformableIconBase
@@ -148,6 +151,9 @@
 ---[IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized types resolve to
 ---`defines.constant.default_icon_size`.
 ---@field defaults_type? IconDefaultsType
+---The number of mipmaps in the files of `icon_data`. An `IconComposition` sets it on each sprite of the pictures
+---lowered from the source. Default `nil`.
+---@field mipmap_count? integer
 
 ---Defines an icon source that names the prototype from which the icon is retrieved.
 ---@class PrototypeIconSource : TransformableIconBase
@@ -163,6 +169,47 @@
 ---Defines an array of icon sources, each an `IconData` object, an array of `IconData` objects, or the name and type of
 ---a prototype from which an icon is retrieved.
 ---@alias IconSources (IconDatumSource|IconDataSource|PrototypeIconSource)[]
+
+---Defines an icon source that names several prototypes, in order of precedence, from which the icon is retrieved.
+---`Prototypes.select_name` selects one of them when the icon definition is resolved.
+---@class PrototypeNamesIconSource : TransformableIconBase
+---The names of the prototypes, in order of precedence.
+---@field names string[]
+---The type name of the prototypes.
+---@field type_name string
+
+---Defines a source of an `IconDefinition`: an `IconData` object, an array of `IconData` objects, or the name or names
+---and the type of the prototype from which the icon is retrieved.
+---@alias IconDefinitionSource IconDatumSource|IconDataSource|PrototypeIconSource|PrototypeNamesIconSource
+
+---Defines the icon of a prototype, for `Icons.assign_icons` and `Icons.get_icon_composition`.
+---
+---Exactly one of `icon_datum`, `icon_data`, `composition`, and `sources` is set.
+---@class IconDefinition
+---The icon, as a single image.
+---@field icon_datum? IconData
+---The icon, as an array of images.
+---@field icon_data? IconData[]
+---The icon, as an `IconComposition`.
+---@field composition? IconComposition
+---The sources from which the icon is composed when the definition is resolved. The first source is added to the
+---canvas group, and each other source to the overlay group.
+---@field sources? IconDefinitionSource[]
+---The layers added to `IconComposition.label_group` after the icon is resolved.
+---@field label? IconData[]
+---The options that configure how icon assignment resolves related prototypes. When `nil`, every related prototype that
+---can be resolved is assigned the icon.
+---@field options? IconAssignmentOptions
+
+---Defines the options with which icon definitions are resolved.
+---@class IconDefinitionOptions
+---The function that returns the group of each layer of an icon read from a prototype, and of each layer of the
+---`icon_data` or `icon_datum` of a definition. Layers that it puts in a group of the `label` stratum are left out of an
+---icon read for a source. When `nil`, every layer is in the canvas group.
+---@field classify? IconLayerClassifier
+---The name of the prototype to which the icon is assigned. When `nil`, a recipe definition selects the name of a source
+---without reference to the recipe. `Icons.assign_icons` sets it for each definition.
+---@field name? string
 
 ---Defines a stratum of an icon composition.
 ---
@@ -212,6 +259,8 @@
 ---@field sprite? Sprite
 ---The entry of the group for the projection, if the group defines one.
 ---@field entry? table
+---The number of mipmaps in the files of the content, if known.
+---@field mipmap_count? integer
 
 ---Defines the information about the composition that is passed to the `lower` function of a projection.
 ---@class IconCompositionProjectionContext
@@ -241,6 +290,9 @@
 ---The name of the type-specific icon defaults to which the output is converted. The scale and shift of every layer,
 ---including label layers, are converted. If `nil`, the output is not converted.
 ---@field to? IconDefaultsType
+---The variation of the content with variations that `project` builds, between 1 and the number of variations.
+---`build` builds every variation and does not take the field. Default `1`.
+---@field variation? integer
 
 ---Defines the content that may be added to an icon composition: an `IconData` object, an array of `IconData` objects,
 ---an `IconSource`, a prototype defining an icon, or an `IconComposition`.

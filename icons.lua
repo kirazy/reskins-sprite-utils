@@ -14,6 +14,8 @@ local _icons = {}
 local V = require("validation")
 local Common = require("validation.common")
 local Colors = require("colors")
+local _prototypes = require("prototypes")
+local _result = require("validation.result")
 
 ---The expected icon size for `SpaceLocationPrototype::starmap_icon`.
 local STARMAP_ICON_SIZE = 512
@@ -942,7 +944,8 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 	})
 
 ---Sets the given `icon_data` on the prototype with the given `name` and `type_name`, and its related prototypes. The
----`pictures` field on the related item prototypes are set to the given `pictures`; when `nil`, the field is cleared.
+---`pictures` field of the related item prototypes, and of the named prototype when it is an item, such as a `tool` or an
+---`ammo`, is set to the given `pictures`; when `nil`, the field is cleared.
 ---
 ---`options` controls which related prototypes are assigned the icon.
 ---No related prototype is assigned the icon when `type_name` is `"technology"` or `"recipe"`.
@@ -961,7 +964,7 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 ---@param name string The name of the prototype.
 ---@param type_name? string The type name of the prototype.
 ---@param icon_data IconData[] An icon represented by an array of `IconData` objects.
----@param pictures? SpriteVariations A `SpriteVariations` object to use as the in-world sprite, or `nil` to clear any existing one so the icon is used instead. Typical use is when `icon_data` has a layer, such as a badge, that the in-world sprite should not. Ignored when `infer_item` is `false`.
+---@param pictures? SpriteVariations A `SpriteVariations` object to use as the in-world sprite, or `nil` to clear any existing one so the icon is used instead. Typical use is when `icon_data` has a layer, such as a badge, that the in-world sprite should not. The related items are not assigned it when `infer_item` is `false`.
 ---@param options? IconAssignmentOptions Controls which related prototypes the icon is assigned to. Defaults apply as per `IconAssignmentOptions`.
 ---
 ---#### Examples
@@ -1044,6 +1047,10 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 	if prototype then
 		set_icon_on_prototype(prototype, icon_data_copy)
 
+		if defines.prototypes.item[prototype.type] then
+			prototype.pictures = pictures
+		end
+
 		if assigns_to_related and resolved_options.infer_explosion then
 			for _, explosion in pairs(resolve_related_by_convention("explosion", name, "-explosion")) do
 				set_icon_on_prototype(explosion, icon_data_copy)
@@ -1058,9 +1065,33 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 	end
 end
 
+local icon_assignment_validator = V.struct({
+	name = Common.prototype_name,
+	type_name = Common.prototype_type_name,
+	icon_data = V.array(Common.icon_datum):optional(),
+	icon_datum = Common.icon_datum:optional(),
+	composition = Common.icon_composition:optional(),
+	pictures = V.table():optional(),
+	options = Common.icon_assignment_options:optional(),
+})
+	:strict()
+	:where(function(value)
+		return (value.icon_data ~= nil and value.icon_data[1] ~= nil)
+			or value.icon_datum ~= nil
+			or value.composition ~= nil
+	end, "must define a non-empty 'icon_data', an 'icon_datum', or a 'composition'")
+	:describe_as("an IconAssignment")
+
+local check_apply_icon_assignment = V.signature("apply_icon_assignment", {
+	{ "icon_assignment", icon_assignment_validator },
+})
+
 ---Assigns the icon from the given `icon_assignment` to the associated prototype and its related prototypes.
 ---The `pictures` field on the related item prototypes are set when `pictures` content is available from the assignment;
 ---otherwise, the field is cleared.
+---
+---A composition is built with `to` set to `icon_assignment.type_name`, so its layers are converted to the icon defaults
+---type of the prototype.
 ---
 ---`icon_assignment.options` controls which related prototypes are assigned the icon.
 ---No related prototype is assigned the icon when `type_name` is `"technology"` or `"recipe"`.
@@ -1096,9 +1127,13 @@ end
 ---@throws When `icon_assignment.name` is `nil` or an empty string.
 ---@throws When `icon_assignment.type_name` is not a registered prototype type name.
 ---@throws When `icon_assignment.icon_data` is not an array of valid `IconData` objects, or `icon_assignment.icon_datum` is not a valid `IconData` object, or `icon_assignment.composition` is not a valid `IconComposition`.
+---@throws When `icon_assignment` defines none of a non-empty `icon_data`, an `icon_datum`, and a `composition`.
 ---@throws When `icon_assignment.options` is not an `IconAssignmentOptions`.
+---@throws When `icon_assignment` has a field that is not a field of an `IconAssignment`.
 ---@see Icons.assign_icons_to_prototype_and_related_prototypes
 function _icons.apply_icon_assignment(icon_assignment)
+	check_apply_icon_assignment(icon_assignment)
+
 	local icon_data = {}
 	local pictures = nil
 	if icon_assignment.icon_data and icon_assignment.icon_data[1] then
@@ -1107,8 +1142,7 @@ function _icons.apply_icon_assignment(icon_assignment)
 	elseif icon_assignment.icon_datum then
 		icon_data = { icon_assignment.icon_datum }
 	elseif icon_assignment.composition then
-		Common.icon_composition:assert(icon_assignment.composition, "icon_assignment.composition", "apply_icon_assignment")
-		icon_data, pictures = icon_assignment.composition:build()
+		icon_data, pictures = icon_assignment.composition:build({ to = icon_assignment.type_name })
 	end
 
 	_icons.assign_icons_to_prototype_and_related_prototypes(
@@ -1118,6 +1152,357 @@ function _icons.apply_icon_assignment(icon_assignment)
 		pictures,
 		icon_assignment.options
 	)
+end
+
+---The icon that replaces a source of an icon definition that names no existing prototype. The file has 4 mipmaps.
+local MISSING_SOURCE_ICON = { icon = "__core__/graphics/buildability-collision.png", icon_size = 64 }
+
+---A validator that checks that a value is an `IconDefinition` with no unknown fields, without validating its sources.
+local icon_definition = V.struct({
+	icon_datum = Common.icon_datum:optional(),
+	icon_data = Common.icon_data:optional(),
+	composition = Common.icon_composition:optional(),
+	sources = V.array(V.table()):not_empty():optional(),
+	label = Common.icon_data:optional(),
+	options = Common.icon_assignment_options:optional(),
+})
+	:strict()
+	:where(function(value)
+		local defined = 0
+		for _, field in pairs({ "icon_datum", "icon_data", "composition", "sources" }) do
+			if value[field] ~= nil then
+				defined = defined + 1
+			end
+		end
+
+		return defined == 1
+	end, "must define exactly one of the 'icon_datum', 'icon_data', 'composition', and 'sources' fields")
+	:describe_as("an IconDefinition")
+
+---A validator that checks that a value is an `IconDatumSource` with no unknown fields.
+local strict_icon_datum_source = Common.icon_datum_source:strict()
+
+---A validator that checks that a value is an `IconDataSource` with no unknown fields.
+local strict_icon_data_source = Common.icon_data_source:strict()
+
+---A validator that checks that a value is a `PrototypeIconSource` with no unknown fields.
+local strict_prototype_icon_source = Common.prototype_icon_source:strict()
+
+---A validator that checks that a value is a `PrototypeNamesIconSource` with no unknown fields.
+local prototype_names_icon_source = V.class("PrototypeNamesIconSource", {
+	names = V.array(Common.prototype_name):not_empty(),
+	type_name = Common.prototype_type_name,
+	scale = Common.positive_number:optional(),
+	shift = Common.vector:optional(),
+	tint = Common.color:optional(),
+	floating = V.boolean():optional(),
+	transform = Common.transform:optional(),
+})
+	:strict()
+	:describe_as("a PrototypeNamesIconSource")
+
+---A validator that checks that a value is an `IconDefinitionOptions` with no unknown fields.
+local icon_definition_options = V.struct({
+	classify = V.func():optional(),
+	name = Common.prototype_name:optional(),
+})
+	:strict()
+	:describe_as("an IconDefinitionOptions")
+
+---Raises an error when the given `definition` is not a valid `IconDefinition`. The validator of each source is selected
+---by the field that names its icon, and a failure names the field within the source.
+---@param definition table The definition to check.
+---@param path string The path of the definition, for error messages.
+---@param function_name string The name of the calling function, for error messages.
+local function check_icon_definition(definition, path, function_name)
+	icon_definition:assert(definition, path, function_name)
+
+	for index, source in pairs(definition.sources or {}) do
+		local source_path = string.format("%s.sources[%d]", path, index)
+		if source.icon_datum ~= nil then
+			strict_icon_datum_source:assert(source, source_path, function_name)
+		elseif source.icon_data ~= nil then
+			strict_icon_data_source:assert(source, source_path, function_name)
+		elseif source.names ~= nil then
+			prototype_names_icon_source:assert(source, source_path, function_name)
+		else
+			strict_prototype_icon_source:assert(source, source_path, function_name)
+		end
+	end
+end
+
+---Gets the placement of the given `source`, from its `transform`, or from its `scale` and `shift`.
+---@param source IconDefinitionSource The source.
+---@return Transform? # The placement, or `nil` if the source gives none.
+---@nodiscard
+local function get_source_placement(source)
+	if source.transform then
+		return source.transform
+	end
+
+	if source.scale or source.shift then
+		return { scale = source.scale, shift = source.shift }
+	end
+
+	return nil
+end
+
+---Gets the layers of the icon of the given `prototype` without the layers that `classify` puts in a group of the
+---`label` stratum.
+---@param prototype PrototypeWithIcons The prototype from which the icon is read.
+---@param classify? IconLayerClassifier The function that returns the group of each layer.
+---@param function_name string The name of the calling function, for error messages.
+---@return SafeIconData[] # The layers. Empty if every layer is in a label group.
+---@nodiscard
+local function get_source_layers_from_prototype(prototype, classify, function_name)
+	local icon_data = _icons.get_icon_from_prototype(prototype)
+	if not classify then
+		return icon_data
+	end
+
+	local layers = {}
+	for index = 1, #icon_data do
+		local group = classify(icon_data[index], index)
+		Common.icon_composition_group:assert(group, string.format("classify(icon_data[%d])", index), function_name)
+
+		if group.stratum ~= "label" then
+			layers[#layers + 1] = icon_data[index]
+		end
+	end
+
+	return layers
+end
+
+---Gets the icon source to which the given definition `source` resolves. A prototype source is resolved to the layers of
+---the icon of the prototype that `Prototypes.select_name` selects. When no prototype is selected, or its icon has no
+---layers outside a label group, the source is resolved to the missing source icon, and a log line names it.
+---@param source IconDefinitionSource The source of the definition.
+---@param index integer The index of the source in the definition.
+---@param type_name string The type name of the prototype of the definition.
+---@param name? string The name of the prototype of the definition.
+---@param classify? IconLayerClassifier The function that returns the group of each layer of a prototype icon.
+---@param function_name string The name of the calling function, for error messages.
+---@return IconDatumSource|IconDataSource # The resolved source.
+---@nodiscard
+local function resolve_definition_source(source, index, type_name, name, classify, function_name)
+	if source.icon_datum or source.icon_data then
+		return source --[[@as IconDatumSource|IconDataSource]]
+	end
+
+	local names = source.names or { source.name }
+	local prototypes = data.raw[source.type_name]
+	local recipe = type_name == "recipe" and name and data.raw["recipe"][name] or nil
+
+	local selected = prototypes and _prototypes.select_name(source.type_name, names, recipe) or nil
+	local prototype = selected and prototypes[selected] or nil
+
+	---@type SafeIconData[]?
+	local layers
+	if prototype and (prototype.icons or prototype.icon) then
+		layers = get_source_layers_from_prototype(prototype, classify, function_name)
+	end
+
+	if not layers or #layers == 0 then
+		local quoted = {}
+		for position = 1, #names do
+			quoted[position] = string.format("'%s'", names[position])
+		end
+
+		log(
+			string.format(
+				"Icons: no prototype with an icon for source %d of %s (%s %s); using the error icon.",
+				index,
+				name and string.format("%s '%s'", type_name, name) or string.format("a %s definition", type_name),
+				source.type_name,
+				table.concat(quoted, ", ")
+			)
+		)
+
+		return {
+			icon_datum = MISSING_SOURCE_ICON,
+			defaults_type = "default",
+			mipmap_count = 4,
+			transform = get_source_placement(source),
+		}
+	end
+
+	return {
+		icon_data = layers,
+		defaults_type = source.type_name,
+		tint = source.tint,
+		floating = source.floating,
+		transform = get_source_placement(source),
+	}
+end
+
+---Gets the composition of the given `definition`, without validating it.
+---@param definition IconDefinition The definition.
+---@param type_name string The type name of the prototype of the definition, which is the icon defaults type of the composition.
+---@param name? string The name of the prototype of the definition.
+---@param classify? IconLayerClassifier The function that returns the group of each layer.
+---@param function_name string The name of the calling function, for error messages.
+---@return IconComposition
+---@nodiscard
+local function resolve_icon_definition(definition, type_name, name, classify, function_name)
+	local IconComposition = require("__reskins-sprite-utils__.icon-composition")
+
+	---@type IconComposition
+	local composition
+	if definition.composition then
+		composition = definition.composition
+	elseif definition.sources then
+		local sources = definition.sources --[[@as IconDefinitionSource[] ]]
+		local first = resolve_definition_source(sources[1], 1, type_name, name, classify, function_name)
+		composition = IconComposition:from_source(first, IconComposition.canvas_group, type_name)
+
+		for index = 2, #sources do
+			local source = resolve_definition_source(sources[index], index, type_name, name, classify, function_name)
+			composition = composition:add(IconComposition.overlay_group, source)
+		end
+
+		composition = composition:outline()
+	else
+		local icon_data = definition.icon_data or { definition.icon_datum }
+		if classify then
+			composition = IconComposition:from_classified_icons(icon_data, classify, type_name)
+		else
+			composition = IconComposition:from_icons(icon_data, nil, type_name)
+		end
+	end
+
+	if definition.label then
+		composition = composition:add_label(definition.label)
+	end
+
+	return composition
+end
+
+local check_get_icon_composition = V.signature("get_icon_composition", {
+	{ "definition", V.table() },
+	{ "type_name", Common.prototype_type_name },
+	{ "options", icon_definition_options:optional() },
+})
+
+---Gets the composition of the icon that the given `definition` gives for a prototype of the given `type_name`.
+---
+---- The composition is in the icon defaults type of `type_name`.
+---- An `icon_data` or `icon_datum` is added as by `IconComposition:from_classified_icons` with `options.classify`, or
+---  to the canvas group when `options.classify` is `nil`. A `composition` is used as it is.
+---- The first source is added to the canvas group with its placement, and each other source to the overlay group, and
+---  the composition is outlined. The icon of a prototype source is read from `data.raw`, without the layers that
+---  `options.classify` puts in a group of the `label` stratum. A source that names several prototypes uses the one that
+---  `Prototypes.select_name` selects, with the recipe named by `options.name` when `type_name` is `"recipe"`.
+---- A prototype source for which no prototype with an icon exists is replaced by the red striped square of the game,
+---  `__core__/graphics/buildability-collision.png`, at the placement of the source, and a log line names it.
+---- `label` is added to `IconComposition.label_group`.
+---
+---#### Parameters
+---@param definition IconDefinition The definition of the icon.
+---@param type_name string The type name of the prototype to which the icon is assigned.
+---@param options? IconDefinitionOptions The options with which the definition is resolved.
+---
+---#### Returns
+---@return IconComposition # The composition of the icon.
+---
+---#### Examples
+---```lua
+----- Compose the icon of a recipe from its product and an ingredient in the corner.
+---local composition = _icons.get_icon_composition({
+---    sources = {
+---        { names = { "bob-aluminium-plate", "angels-plate-aluminium" }, type_name = "item" },
+---        { name = "angels-liquid-molten-aluminium", type_name = "fluid", transform = corner },
+---    },
+---}, "recipe", { name = "angels-plate-aluminium" })
+----- The plate is in the canvas group, and the fluid is in the overlay group in the corner. Each is outlined.
+---```
+---@throws When `definition` is not a valid `IconDefinition`, or one of its sources is not a valid `IconDefinitionSource`.
+---@throws When `type_name` is `nil` or an empty string.
+---@throws When `options` is not an `IconDefinitionOptions`.
+---@throws When `options.classify` returns something other than a valid `IconCompositionGroup`.
+---@see Icons.assign_icons
+---@see Prototypes.select_name
+---@nodiscard
+function _icons.get_icon_composition(definition, type_name, options)
+	check_get_icon_composition(definition, type_name, options)
+
+	local name = options and options.name or nil
+	local path = name and _result.child_path("definitions", name) or "definition"
+	check_icon_definition(definition, path, "get_icon_composition")
+
+	return resolve_icon_definition(definition, type_name, name, options and options.classify, "get_icon_composition")
+end
+
+local check_assign_icons = V.signature("assign_icons", {
+	{ "type_name", Common.prototypes.is_registered_type },
+	{ "definitions", V.map(Common.prototype_name, V.table()) },
+	{ "options", icon_definition_options:optional() },
+})
+
+---Assigns the icon that each of the given `definitions` gives to the prototype of the given `type_name` with its name.
+---
+---- The definitions are assigned in the order of their names. A definition for a prototype that does not exist is
+---  skipped, and is not validated.
+---- Each definition is resolved as by `get_icon_composition`, with `options.name` set to its name, built with `to` set
+---  to `type_name`, and assigned as by `assign_icons_to_prototype_and_related_prototypes` with its `options`.
+---- `pictures` is set on the items that are assigned the icon.
+---
+---#### Parameters
+---@param type_name string The type name of the prototypes.
+---@param definitions table<string, IconDefinition> The definitions, under the name of the prototype to which each is assigned.
+---@param options? IconDefinitionOptions The options with which the definitions are resolved.
+---
+---#### Examples
+---```lua
+----- Assign the icons of two recipes. A source that names several prototypes uses the one the recipe makes.
+---local corner = _defines.icon_transforms.compass.northwest
+---local roll_composition = IconComposition:from_icon({ icon = "__my-mod__/graphics/icons/roll.png", icon_size = 64 })
+---local numeral = { { icon = "__my-mod__/graphics/icons/numeral-1.png", icon_size = 64 } }
+---
+---_icons.assign_icons("recipe", {
+---    ["angels-plate-aluminium"] = {
+---        sources = {
+---            { names = { "bob-aluminium-plate", "angels-plate-aluminium" }, type_name = "item" },
+---            { name = "angels-liquid-molten-aluminium", type_name = "fluid", transform = corner },
+---        },
+---    },
+---    ["angels-roll-brass-casting"] = { composition = roll_composition, label = numeral },
+---})
+----- The icon of "angels-plate-aluminium" has the plate in the canvas group and the fluid in the overlay group in the
+----- corner, each outlined. The icon of "angels-roll-brass-casting" is the roll with the numeral as its label.
+---```
+---@throws When `type_name` is not a registered prototype type name.
+---@throws When `definitions` is not a table of tables keyed by prototype names.
+---@throws When a definition for a prototype that exists is not a valid `IconDefinition`, or one of its sources is not a valid `IconDefinitionSource`.
+---@throws When `options` is not an `IconDefinitionOptions`.
+---@see Icons.get_icon_composition
+function _icons.assign_icons(type_name, definitions, options)
+	check_assign_icons(type_name, definitions, options)
+
+	local classify = options and options.classify or nil
+
+	local names = {}
+	for name in pairs(definitions) do
+		names[#names + 1] = name
+	end
+	table.sort(names)
+
+	for _, name in pairs(names) do
+		if data.raw[type_name][name] then
+			local definition = definitions[name]
+			check_icon_definition(definition, _result.child_path("definitions", name), "assign_icons")
+
+			local composition = resolve_icon_definition(definition, type_name, name, classify, "assign_icons")
+			local icon_data, pictures = composition:build({ to = type_name })
+
+			_icons.assign_icons_to_prototype_and_related_prototypes(
+				name,
+				type_name,
+				icon_data,
+				pictures,
+				definition.options
+			)
+		end
+	end
 end
 
 ---
@@ -2328,6 +2713,7 @@ end
 ---@throws When an entry is not a non-empty array of valid `IconSource` objects.
 ---@see Icons.create_icons_from_sources
 ---@see Icons.assign_icons_to_prototype_and_related_prototypes
+---@deprecated Use `assign_icons` with icon definitions that give `sources`.
 function _icons.create_and_assign_composed_icons_from_sources_to_recipe(recipe_icon_source_map)
 	for recipe_name, sources in pairs(recipe_icon_source_map) do
 		local icon_data = _icons.create_icons_from_sources(sources)
