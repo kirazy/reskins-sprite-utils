@@ -954,12 +954,14 @@ local function resolve_related_by_convention(type_name, name, suffix)
 	return prototypes
 end
 
----Replaces the icon of the given `prototype` with the given `icon_data`.
+---Replaces the icon of the given `prototype` with a copy of the given `icon_data`.
 ---@param prototype PrototypeWithIcons The prototype on which the icon is set.
----@param icon_data SafeIconData[] The icon, with missing fields set to default values.
+---@param icon_data SafeIconData[] The icon, with missing fields set to default values. The icon is not modified.
 local function set_icon_on_prototype(prototype, icon_data)
 	_icons.clear_icon_from_prototype(prototype)
-	prototype.icons = icon_data
+
+	-- Other mods edit the icon of one prototype in place, such as with `table.insert`, so prototypes never share it.
+	prototype.icons = util.copy(icon_data)
 end
 
 ---Gets the only sprite of the given `pictures` when `pictures` is an array of one sprite, as the base game gives the
@@ -1151,7 +1153,7 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 			set_icon_on_prototype(item, icon_data_copy)
 
 			-- Note: item-with-entity-data ignores the field.
-			item.pictures = item_pictures
+			item.pictures = item_pictures and util.copy(item_pictures)
 		end
 	end
 
@@ -1164,7 +1166,7 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 			-- An icon is required when `main_product` is an empty string. A recipe with one product and no `main_product`
 			-- inherits the icon of its product, as do the copies of it that other mods make.
 			if recipe.main_product == "" then
-				recipe.icons = icon_data_copy
+				recipe.icons = util.copy(icon_data_copy)
 			end
 		end
 	end
@@ -1173,7 +1175,7 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 		set_icon_on_prototype(prototype, icon_data_copy)
 
 		if defines.prototypes.item[prototype.type] then
-			prototype.pictures = item_pictures
+			prototype.pictures = item_pictures and util.copy(item_pictures)
 		end
 
 		if assigns_to_related and resolved_options.infer_explosion then

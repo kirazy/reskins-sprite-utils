@@ -19,6 +19,7 @@ Date: ????
     - `sprites.rescale_prototype` now replaces circuit connector definitions with copies.
     - `icons.assign_icons_to_prototype_and_related_prototypes` and `icons.apply_icon_assignment` now find the related explosions and corpses of an entity by name only, and no longer follow its `dying_explosion` and `corpse` fields; the `explosion_by_convention` and `corpse_by_convention` fields of `IconAssignmentOptions` are removed.
   Bugfixes:
+    - Fixed that `icons.assign_icons_to_prototype_and_related_prototypes` and `icons.apply_icon_assignment` gave a prototype and its related prototypes one shared icon and pictures table, so that a mod that changed the icon of one of them, such as the item, changed the icons of the others.
     - Fixed that `icons.assign_icons_to_prototype_and_related_prototypes` and `icons.apply_icon_assignment` set `pictures` only on the `item` and `item-with-entity-data` of the same name, so an item of another type, such as a `tool`, `ammo`, `capsule`, or `module`, kept its previous pictures.
     - Fixed that `icons.assign_icons_to_prototype_and_related_prototypes` and `icons.apply_icon_assignment` assigned the icon of an entity to explosions and corpses that other entities share, such as the generic remnants of the base game and the remnants that the tiers of a machine copy from the base machine.
     - Fixed that `sprites.rescale_prototype` and `sprites.get_rescaled_prototype` scaled fields that keep their size, such as sprite positions in the image file, heat connections, pipe covers, and the radius visualisation.
