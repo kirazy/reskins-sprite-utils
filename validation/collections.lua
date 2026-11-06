@@ -473,8 +473,8 @@ end
 
 ---Creates a validator for the named class that checks the named fields of a table against their validators.
 ---
----The language server checks each field validator against the type of the class field of the same name. At runtime, the
----class name is not checked, and the validator is the one that `struct` creates.
+---The language server checks each field validator against the type of the class field with the same name. At runtime,
+---the class name is not checked, and the validator is the one that `struct` creates.
 ---
 ---#### Parameters
 ---@generic T

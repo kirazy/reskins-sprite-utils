@@ -129,7 +129,7 @@ local function apply_icon_defaults(icon_datum, defaults_type)
 	}
 end
 
----Sets the missing fields of every layer of the given `icon_data` to default values.
+---Sets the missing fields of every layer in the given `icon_data` to default values.
 ---No validation is performed; callers are expected to have pre-validated the input.
 ---@param icon_data IconData[] A valid array of `IconData` objects.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults.
@@ -939,7 +939,7 @@ end
 ---Gets the prototypes of the given `type_name` named `<name><suffix>` and `ar-<name><suffix>`, if found.
 ---@param type_name "explosion"|"corpse" The type name of the related prototypes.
 ---@param name string The name of the entity prototype.
----@param suffix "-explosion"|"-remnants" The suffix of the names of the related prototypes.
+---@param suffix "-explosion"|"-remnants" The suffix in the names of the related prototypes.
 ---@return PrototypeWithIcons[] # The prototypes that exist, in that order.
 ---@nodiscard
 local function resolve_related_by_convention(type_name, name, suffix)
@@ -978,7 +978,7 @@ local function as_item_pictures(pictures)
 end
 
 ---Gets a copy of the given `icon_data` with the bordered square that marks an assigned icon added as its first layer,
----at the size of the first layer of `icon_data`.
+---at the size of the first layer in `icon_data`.
 ---@param icon_data SafeIconData[]
 ---@return SafeIconData[] # The icon. The layers of `icon_data` are shared.
 ---@nodiscard
@@ -1000,7 +1000,7 @@ local function add_mark_to_icon(icon_data)
 end
 
 ---Gets a copy of the given `sprite` with the bordered square that marks an assigned icon added as its first layer, at
----the width of the first layer of `sprite`.
+---the width of the first layer in `sprite`.
 ---@param sprite Sprite
 ---@return Sprite # The sprite. The layers of `sprite` are shared.
 ---@nodiscard
@@ -1372,7 +1372,7 @@ local function get_source_placement(source)
 	return nil
 end
 
----Gets the layers of the icon of the given `prototype` without the layers that `classify` puts in a group of the
+---Gets the layers in the icon of the given `prototype` without the layers that `classify` puts in a group of the
 ---`label` stratum.
 ---@param prototype PrototypeWithIcons The prototype from which the icon is read.
 ---@param classify? IconLayerClassifier The function that returns the group of each layer.
@@ -1398,14 +1398,14 @@ local function get_source_layers_from_prototype(prototype, classify, function_na
 	return layers
 end
 
----Gets the icon source to which the given definition `source` resolves. A prototype source is resolved to the layers of
+---Gets the icon source to which the given definition `source` resolves. A prototype source is resolved to the layers in
 ---the icon of the prototype that `Prototypes.select_name` selects. When no prototype is selected, or its icon has no
 ---layers outside a label group, the source is resolved to the missing source icon, and a log line names it.
 ---@param source IconDefinitionSource The source of the definition.
 ---@param index integer The index of the source in the definition.
----@param type_name string The type name of the prototype of the definition.
----@param name? string The name of the prototype of the definition.
----@param classify? IconLayerClassifier The function that returns the group of each layer of a prototype icon.
+---@param type_name string The type name of the prototype to which the definition is assigned.
+---@param name? string The name of the prototype to which the definition is assigned.
+---@param classify? IconLayerClassifier The function that returns the group of each layer in a prototype icon.
 ---@param function_name string The name of the calling function, for error messages.
 ---@return IconDatumSource|IconDataSource # The resolved source.
 ---@nodiscard
@@ -1462,8 +1462,8 @@ end
 
 ---Gets the composition of the given `definition`, without validating it.
 ---@param definition IconDefinition The definition.
----@param type_name string The type name of the prototype of the definition, which is the icon defaults type of the composition.
----@param name? string The name of the prototype of the definition.
+---@param type_name string The type name of the prototype to which the definition is assigned, which is the icon defaults type of the composition.
+---@param name? string The name of the prototype to which the definition is assigned.
 ---@param classify? IconLayerClassifier The function that returns the group of each layer.
 ---@param function_name string The name of the calling function, for error messages.
 ---@return IconComposition
@@ -1729,7 +1729,7 @@ end
 ---
 ---#### Parameters
 ---@param deferred_icon_store DeferredIconStore The dictionary of deferrable icons, indexed by stage, from which the deferrable icons are assigned.
----@param stage Stage The index of the data stage from which the deferrable icons are taken.
+---@param stage Stage The index of the data stage from which the deferrable icons are retrieved.
 ---
 ---#### Examples
 ---```lua
@@ -2029,7 +2029,7 @@ local function layer_with_field(icon_datum, field, value)
 	return layer
 end
 
----Gets an array of the results of the given `fn` for each layer of the given `icon_data`, in order.
+---Gets an array of the results from the given `fn` for each layer of the given `icon_data`, in order.
 ---@generic T
 ---@param icon_data IconData[] A valid array of `IconData` objects.
 ---@param fn fun(icon_datum: IconData, ...): T The function called with each layer and the extra arguments.
@@ -2230,7 +2230,7 @@ local check_convert_icons_defaults_type = V.signature("convert_icons_defaults_ty
 	{ "to_type", Common.icon_defaults_type:optional() },
 })
 
----Converts the scale and shift of every layer of the given `icon_data` from the expected icon size of one icon defaults
+---Converts the scale and shift of every layer in the given `icon_data` from the expected icon size of one icon defaults
 ---type to that of another.
 ---
 ---#### Parameters
@@ -2368,7 +2368,7 @@ end
 
 ---Removes the outline from the given `icon_datum`.
 ---
----`draw_background` is set to `false`, as the game draws the outline of the first layer of an icon
+---`draw_background` is set to `false`, as the game draws the outline of the first layer in an icon
 ---when `draw_background` is omitted.
 ---@param icon_datum IconData An `IconData` object.
 ---@return IconData # A copy of `icon_datum` with `draw_background` set to `false`.
@@ -2384,7 +2384,7 @@ end
 
 ---Removes the outline from the given `icon_data`.
 ---
----`draw_background` is set to `false` on every layer, as the game draws the outline of the first layer of an icon when
+---`draw_background` is set to `false` on every layer, as the game draws the outline of the first layer in an icon when
 ---`draw_background` is omitted.
 ---@param icon_data IconData[] An array of `IconData` objects.
 ---@return IconData[] # A copy of `icon_data` with `draw_background` set to `false` on every layer.
@@ -2453,7 +2453,7 @@ local check_set_icons_tint = V.signature("set_icons_tint", {
 	{ "tint", Common.color },
 })
 
----Sets the tint of every layer of the given `icon_data`. Colors are replaced, not blended. A layer with a tint
+---Sets the tint of every layer in the given `icon_data`. Colors are replaced, not blended. A layer with a tint
 ---alpha of zero, which the game renders additively, is returned unchanged.
 ---@param icon_data IconData[] An array of `IconData` objects.
 ---@param tint Color The tint to set.
@@ -2476,7 +2476,7 @@ function _icons.set_icons_tint(icon_data, tint)
 	return map_layers(icon_data, layer_with_tint_unless_additive, tint)
 end
 
----Defines a blending function that takes the existing tint of a layer and the incoming tint, both normalized, and
+---Defines a blending function that accepts the existing tint of a layer and the incoming tint, both normalized, and
 ---returns the resulting tint of the layer.
 ---@alias IconTintBlender fun(existing: NormalizedColor, incoming: NormalizedColor): Color
 
@@ -2574,7 +2574,7 @@ local check_blend_icons_tint = V.signature("blend_icons_tint", {
 	{ "blender", blender_function:optional() },
 })
 
----Blends the given `tint` into the tint of every layer of the given `icon_data`.
+---Blends the given `tint` into the tint of every layer in the given `icon_data`.
 ---
 ---- A layer without a tint is blended as if its tint were white.
 ---- A layer with a tint alpha of zero, which the game renders additively, is not modified.
@@ -2689,7 +2689,7 @@ local function apply_icons_from_sources(icon_data, sources, defaults_type)
 			local icon_datum = transformed_icon[index]
 
 			-- Set `draw_background` on the first layer of each sourced icon. The game draws the outline of
-			-- the first layer of an icon when `draw_background` is absent, and the sourced layer is no
+			-- the first layer in an icon when `draw_background` is absent, and the sourced layer is no
 			-- longer first.
 			if index == 1 then
 				icon_datum.draw_background = true

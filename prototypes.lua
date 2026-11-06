@@ -45,7 +45,7 @@ local check_select_name = V.signature("select_name", {
 	{ "recipe", recipe_prototype:optional() },
 })
 
----Gets the name of the prototype of the given `type_name` to use from the given `names`, which are in order of
+---Gets the name of the prototype with the given `type_name` to use from the given `names`, which are in order of
 ---precedence.
 ---
 ---The name is selected by the first of these rules that selects one:

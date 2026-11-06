@@ -205,7 +205,7 @@ _common.prototype_name = V.string():not_empty():describe_as("a prototype name")
 _common.prototype_type_name = V.string():not_empty():describe_as("a prototype type name")
 
 ---A validator that checks that a value is a `PrototypeIconSource`, an icon source that names the prototype from which
----the icon is taken.
+---the icon is retrieved.
 ---@see PrototypeIconSource
 _common.prototype_icon_source = V.class("PrototypeIconSource", {
 	name = _common.prototype_name,

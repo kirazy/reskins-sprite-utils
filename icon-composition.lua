@@ -68,8 +68,8 @@ local LIGHT_GROUP = {
 	projections = { icon = false },
 }
 
----The tint of the copy of each layer that the glow group draws as a light.
-local GLOW_TINT = { r = 0.3, g = 0.3, b = 0.3, a = 0.3 } -- The tint of the light of uranium ore in the base game.
+---The tint for the copy of each layer that the glow group draws as a light.
+local GLOW_TINT = { r = 0.3, g = 0.3, b = 0.3, a = 0.3 } -- The tint of the light from uranium ore in the base game.
 
 ---Gets an array of the given sprite layers followed by a copy of each, which is drawn as a light with additive blending.
 ---@param layers Sprite[] The sprite layers of the content.
@@ -136,7 +136,7 @@ end
 ---The layers of the content, in the icon defaults type of the composition. The field is `nil` when the contribution has
 ---a sprite. For content with variations, the field is the first variation.
 ---@field content? IconData[]
----The layers of each variation of the content, in the icon defaults type of the composition. The field is `nil` when
+---The layers of each variation in the content, in the icon defaults type of the composition. The field is `nil` when
 ---the content has no variations.
 ---@field variations? IconData[][]
 ---The number of mipmaps in the files of the content, which is set on each sprite lowered from it. The field is `nil`
@@ -241,7 +241,7 @@ local sprite_layer = V.struct({
 	filename = Common.mod_file_path,
 }):describe_as("a Sprite")
 
----Defines a function that returns the group of a layer of an icon.
+---Defines a function that returns the group of a layer in an icon.
 ---@alias IconLayerClassifier fun(icon_datum: IconData, index: integer): IconCompositionGroup
 
 ---A validator that checks that a value is a classifier function.
@@ -711,7 +711,7 @@ local function get_layers_from_content(self, content)
 	---@cast content -IconComposition
 	---@diagnostic disable-next-line: undefined-field
 	if content.type then
-		-- The icon is read in the icon defaults type of the `type` of the prototype. Set `draw_background`
+		-- The icon is read in the icon defaults type for the `type` of the prototype. Set `draw_background`
 		-- on the first layer.
 		---@cast content PrototypeWithIcons
 		local layers = _icons.get_icon_from_prototype(content)
@@ -921,7 +921,7 @@ local function has_variations(composition)
 	return false
 end
 
----Gets the number of variations of the given composition. A composition without content with variations has one.
+---Gets the number of variations in the given composition. A composition without content with variations has one.
 ---@param composition IconComposition The composition.
 ---@return integer
 ---@nodiscard
@@ -2177,7 +2177,7 @@ pictures_projection = {
 ---@class IconCompositionProjections
 ---The projection that builds an array of `IconData` objects and includes label content.
 ---@field icon IconCompositionProjection<SafeIconData[]>
----The projection that builds one sprite of the `pictures` field of an item. Label content is included only if its group
+---The projection that builds one sprite in the `pictures` field of an item. Label content is included only if its group
 ---has a `pictures` entry. The `mipmap_count` of content is set on the sprites lowered from it.
 ---@field pictures IconCompositionProjection<Sprite>
 IconComposition.projections = {

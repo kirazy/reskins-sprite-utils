@@ -60,7 +60,7 @@ local check_create_sprite_from_icons = V.signature("create_sprite_from_icons", {
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects.
 ---@param scale? double The factor by which the scale and shift of every layer are multiplied. Default `1`.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults of `icon_data`, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults for `icon_data`, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return Sprite # A `Sprite` with one layer per element of `icon_data`.
@@ -122,7 +122,7 @@ local check_create_sprite_from_icon = V.signature("create_sprite_from_icon", {
 ---#### Parameters
 ---@param icon_datum IconData An `IconData` object.
 ---@param scale? double The factor by which the scale and shift of the layer are multiplied. Default `1`.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults of `icon_datum`, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults for `icon_datum`, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`.
 ---
 ---#### Returns
 ---@return Sprite # A `Sprite` with the file, size, scale, shift, and tint of `icon_datum`.
@@ -385,7 +385,7 @@ local check_make_rotated_animation_variations_from_spritesheet =
 ---Creates a `RotatedAnimationVariations` from the given `sheet` by slicing the sprite sheet into `variation_count`
 ---`RotatedAnimation` objects, each with its own `y` offset.
 ---
----Every variation occupies the same number of rows of the sheet, computed from the `frame_count`, `line_length`, and
+---Every variation occupies the same number of rows in the sheet, computed from the `frame_count`, `line_length`, and
 ---`direction_count` of `sheet`. A sheet with `layers` is sliced layer by layer. `sheet` is not modified.
 ---
 ---#### Parameters
@@ -469,7 +469,7 @@ local function get_scaled_numbers(value, scalar)
 	return value
 end
 
----Gets the given `sprite` with its shift, or the shift of each of its layers, moved by the given `offset`.
+---Gets the given `sprite` with its shift, or the shift of each layer, moved by the given `offset`.
 ---
 ---The result is a copy.
 ---@param sprite Sprite
@@ -627,7 +627,7 @@ local scaled_fields = {
 	["left_wire_connection_point"] = true,
 	["right_wire_connection_point"] = true,
 
-	-- Each of these fields holds a position, a height, a distance, or an array of positions of an artillery cannon.
+	-- Each of these fields holds a position, a height, a distance, or an array of positions for an artillery cannon.
 	["cannon_base_shift"] = true,
 	["cannon_base_height"] = true,
 	["cannon_base_shift_when_vertical"] = true,

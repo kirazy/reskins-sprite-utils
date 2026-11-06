@@ -57,7 +57,7 @@ local function format_tint(tint)
 	return string.format("[%.3f,%.3f,%.3f,%.3f]", color.r, color.g, color.b, color.a)
 end
 
----Adds the file name and the tint of each layer of the given `animation` to `parts` in order, in place.
+---Adds the file name and the tint of each layer in the given `animation` to `parts` in order, in place.
 ---@param animation table A `RotatedAnimation`, or a layer of one.
 ---@param parts string[] The array to which the text of each layer is added.
 local function add_layer_parts(animation, parts)
@@ -82,8 +82,8 @@ local function add_layer_parts(animation, parts)
 	parts[#parts + 1] = table.concat(filenames, ",") .. format_tint(animation.tint)
 end
 
----Gets the identity of the belt animation set of the given `prototype`, from the file name and the tint of each layer
----of its animation set and the speed of `prototype`.
+---Gets the identity of the belt animation set on the given `prototype`, from the file name and the tint of each layer
+---in its animation set and the speed of `prototype`.
 ---
 ---Two prototypes with belt animation sets that draw the same files in the same tints, at the same speed, have the same
 ---identity, whether or not they share one table. The identity is lowercase, so the file names are compared without

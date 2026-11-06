@@ -135,7 +135,7 @@ local check_are_equal = V.signature("are_equal", {
 ---@param tolerance? float The largest difference allowed between matching channels, between 0 and 1. When 0, the channels must match exactly. Default `0.5 / 255`.
 ---
 ---#### Returns
----@return boolean # `true` if every channel of `c1` is within `tolerance` of the matching channel of `c2`; otherwise, `false`.
+---@return boolean # `true` if every channel of `c1` is within `tolerance` of the matching channel in `c2`; otherwise, `false`.
 ---
 ---#### Examples
 ---```lua

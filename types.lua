@@ -85,7 +85,7 @@
 ---@class (exact) IconDataAssignment : IconAssignmentBase
 ---The icon, as an array of images.
 ---@field icon_data IconData[]
----The sprite assigned to the `pictures` field of the item of the same name.
+---The sprite assigned to the `pictures` field of the item with the same name.
 ---When `nil`, the field is cleared.
 ---@field pictures? SpriteVariations
 
@@ -113,10 +113,10 @@
 
 ---Defines the fields shared by every form of icon source.
 ---@class TransformableIconBase
----The factor by which the scale of every layer of the sourced icon is multiplied. An ordinary 64px icon has a scale of
+---The factor by which the scale of every layer in the sourced icon is multiplied. An ordinary 64px icon has a scale of
 ---0.5, and a factor of 0.5 gives 0.25. The field is ignored when `transform` is set. Default `nil`.
 ---@field scale? double
----The offset added to the shift of every layer of the sourced icon, after the existing shift is scaled. The offset is
+---The offset added to the shift of every layer in the sourced icon, after the existing shift is scaled. The offset is
 ---measured as [IconData::shift](https://lua-api.factorio.com/latest/types/IconData.html#shift) is, where the whole icon
 ---spans `expected_icon_size / 2`. An ordinary icon spans 32, and `{ 8, -8 }` places the source in its upper-right
 ---quadrant. The field is ignored when `transform` is set. Default `nil`.
@@ -135,7 +135,7 @@
 ---@class IconDatumSource : TransformableIconBase
 ---The layer of the sourced icon.
 ---@field icon_datum IconData
----The name of the type-specific icon defaults of `icon_datum`, as per
+---The name of the type-specific icon defaults for `icon_datum`, as per
 ---[IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized types resolve to
 ---`defines.constant.default_icon_size`.
 ---@field defaults_type? IconDefaultsType
@@ -147,7 +147,7 @@
 ---@class IconDataSource : TransformableIconBase
 ---The layers of the sourced icon.
 ---@field icon_data IconData[]
----The name of the type-specific icon defaults of `icon_data`, as per
+---The name of the type-specific icon defaults for `icon_data`, as per
 ---[IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized types resolve to
 ---`defines.constant.default_icon_size`.
 ---@field defaults_type? IconDefaultsType
@@ -203,7 +203,7 @@
 
 ---Defines the options with which icon definitions are resolved.
 ---@class IconDefinitionOptions
----The function that returns the group of each layer of an icon read from a prototype, and of each layer of the
+---The function that returns the group of each layer in an icon read from a prototype, and of each layer in the
 ---`icon_data` or `icon_datum` of a definition. Layers that it puts in a group of the `label` stratum are left out of an
 ---icon read for a source. When `nil`, every layer is in the canvas group.
 ---@field classify? IconLayerClassifier
@@ -291,7 +291,7 @@
 ---including label layers, are converted. If `nil`, the output is not converted.
 ---@field to? IconDefaultsType
 ---The variation of the content with variations that `project` builds, between 1 and the number of variations.
----`build` builds every variation and does not take the field. Default `1`.
+---`build` builds every variation and does not use the field. Default `1`.
 ---@field variation? integer
 
 ---Defines the content that may be added to an icon composition: an `IconData` object, an array of `IconData` objects,
