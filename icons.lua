@@ -1020,7 +1020,7 @@ local function add_mark_to_sprite(sprite)
 		},
 	}
 
-	for _, layer in ipairs(layers) do
+	for _, layer in pairs(layers) do
 		marked.layers[#marked.layers + 1] = layer
 	end
 
@@ -1036,7 +1036,7 @@ end
 local function add_mark_to_pictures(pictures)
 	if pictures[1] then
 		local marked = {}
-		for index, sprite in ipairs(pictures) do
+		for index, sprite in pairs(pictures) do
 			marked[index] = add_mark_to_sprite(sprite)
 		end
 

@@ -62,7 +62,7 @@ end
 ---@param parts string[] The array to which the text of each layer is added.
 local function add_layer_parts(animation, parts)
 	if animation.layers then
-		for _, layer in ipairs(animation.layers) do
+		for _, layer in pairs(animation.layers) do
 			add_layer_parts(layer, parts)
 		end
 		return
@@ -74,7 +74,7 @@ local function add_layer_parts(animation, parts)
 	elseif animation.filenames then
 		filenames = animation.filenames
 	elseif animation.stripes then
-		for _, stripe in ipairs(animation.stripes) do
+		for _, stripe in pairs(animation.stripes) do
 			filenames[#filenames + 1] = stripe.filename
 		end
 	end
@@ -155,7 +155,7 @@ function _belt_animation_sets.find_belt_animation_set_users(prototype)
 		return users
 	end
 
-	for _, type_name in ipairs(user_types) do
+	for _, type_name in pairs(user_types) do
 		for _, candidate in pairs(data.raw[type_name] or {}) do
 			---@cast candidate TransportBeltConnectablePrototype
 			if candidate ~= prototype and _belt_animation_sets.get_belt_animation_set_identity(candidate) == identity then
@@ -175,7 +175,7 @@ end
 function _belt_animation_sets.set_belt_animation_set(prototypes, belt_animation_set)
 	check_set_belt_animation_set(prototypes, belt_animation_set)
 
-	for _, target in ipairs(prototypes) do
+	for _, target in pairs(prototypes) do
 		target.belt_animation_set = util.copy(belt_animation_set)
 	end
 end
