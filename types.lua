@@ -204,8 +204,9 @@
 ---Defines the options with which icon definitions are resolved.
 ---@class IconDefinitionOptions
 ---The function that returns the group of each layer in an icon read from a prototype, and of each layer in the
----`icon_data` or `icon_datum` of a definition. Layers that it puts in a group of the `label` stratum are left out of an
----icon read for a source. When `nil`, every layer is in the canvas group.
+---`icon_data` or `icon_datum` of a definition. Layers that it puts in a group of the `label` stratum are added to that
+---group for the first source of a definition, without the placement of the source, and are left out for each other
+---source. When `nil`, every layer is in the canvas group.
 ---@field classify? IconLayerClassifier
 ---The name of the prototype to which the icon is assigned. When `nil`, a recipe definition selects the name of a source
 ---without reference to the recipe. `Icons.assign_icons` sets it for each definition.

@@ -1374,59 +1374,82 @@ local function get_source_placement(source)
 	return nil
 end
 
+---Defines a run of consecutive layers in an icon that a classifier puts in one group of the `label` stratum.
+---@class (exact) SourceLabelRun
+---The group of the layers.
+---@field group IconCompositionGroup
+---The layers, in the order of the icon.
+---@field layers SafeIconData[]
+
 ---Gets the layers in the icon of the given `prototype` without the layers that `classify` puts in a group of the
----`label` stratum.
+---`label` stratum, and the label layers in runs of consecutive layers in one group.
 ---@param prototype PrototypeWithIcons The prototype from which the icon is read.
 ---@param classify? IconLayerClassifier The function that returns the group of each layer.
 ---@param function_name string The name of the calling function, for error messages.
----@return SafeIconData[] # The layers. Empty if every layer is in a label group.
+---@return SafeIconData[] layers The layers outside a label group. Empty if every layer is in a label group.
+---@return SourceLabelRun[] label_runs The runs of label layers, in the order of the icon. Empty when `classify` is `nil`.
 ---@nodiscard
 local function get_source_layers_from_prototype(prototype, classify, function_name)
 	local icon_data = _icons.get_icon_from_prototype(prototype)
 	if not classify then
-		return icon_data
+		return icon_data, {}
 	end
 
 	local layers = {}
+
+	---@type SourceLabelRun[]
+	local label_runs = {}
+
+	---@type IconCompositionGroup?
+	local previous_group
 	for index = 1, #icon_data do
 		local group = classify(icon_data[index], index)
 		Common.icon_composition_group:assert(group, string.format("classify(icon_data[%d])", index), function_name)
 
 		if group.stratum ~= "label" then
 			layers[#layers + 1] = icon_data[index]
+		elseif previous_group and previous_group.name == group.name then
+			local run = label_runs[#label_runs] --[[@as SourceLabelRun]]
+			run.layers[#run.layers + 1] = icon_data[index]
+		else
+			label_runs[#label_runs + 1] = { group = group, layers = { icon_data[index] } }
 		end
+
+		previous_group = group
 	end
 
-	return layers
+	return layers, label_runs
 end
 
----Gets the icon source to which the given definition `source` resolves. A prototype source is resolved to the layers in
----the icon of the prototype that `Prototypes.select_name` selects. When no prototype is selected, or its icon has no
----layers outside a label group, the source is resolved to the missing source icon, and a log line names it.
+---Gets the icon source to which the given definition `source` resolves, and the label layers in the icon of its
+---prototype. A prototype source is resolved to the layers in the icon of the prototype that `Prototypes.select_name`
+---selects. When no prototype is selected, or its icon has no layers outside a label group, the source is resolved to
+---the missing source icon, and a log line names it.
 ---@param source IconDefinitionSource The source of the definition.
 ---@param index integer The index of the source in the definition.
 ---@param type_name string The type name of the prototype to which the definition is assigned.
 ---@param name? string The name of the prototype to which the definition is assigned.
 ---@param classify? IconLayerClassifier The function that returns the group of each layer in a prototype icon.
 ---@param function_name string The name of the calling function, for error messages.
----@return IconDatumSource|IconDataSource # The resolved source.
+---@return IconDatumSource|IconDataSource source The resolved source.
+---@return SourceLabelRun[] label_runs The runs of label layers in the icon of the prototype. Their layers are converted to the icon defaults type of `type_name`. Empty for a source that gives `icon_datum` or `icon_data`, and for the missing source icon.
 ---@nodiscard
 local function resolve_definition_source(source, index, type_name, name, classify, function_name)
 	if source.icon_datum or source.icon_data then
-		return source --[[@as IconDatumSource|IconDataSource]]
+		return source --[[@as IconDatumSource|IconDataSource]], {}
 	end
 
 	local names = source.names or { source.name }
 	local prototypes = data.raw[source.type_name]
 	local recipe = type_name == "recipe" and name and data.raw["recipe"][name] or nil
 
-	local selected = prototypes and _prototypes.select_name(source.type_name, names, recipe) or nil
+	local selected = prototypes and _prototypes.select_name(source.type_name --[[@cast -?]], names, recipe) or nil
 	local prototype = selected and prototypes[selected] or nil
 
-	---@type SafeIconData[]?
-	local layers
+	---@type SafeIconData[]?, SourceLabelRun[]
+	local layers, label_runs
 	if prototype and (prototype.icons or prototype.icon) then
-		layers = get_source_layers_from_prototype(prototype, classify, function_name)
+		layers, label_runs = get_source_layers_from_prototype(prototype, classify, function_name)
 	end
 
 	if not layers or #layers == 0 then
@@ -1445,21 +1468,33 @@ local function resolve_definition_source(source, index, type_name, name, classif
 			)
 		)
 
-		return {
+		---@type IconDatumSource
+		local missing_source = {
 			icon_datum = MISSING_SOURCE_ICON,
 			defaults_type = "default",
 			mipmap_count = 4,
 			transform = get_source_placement(source),
 		}
+
+		return missing_source, {}
 	end
 
-	return {
+	if resolve_expected_icon_size(source.type_name) ~= resolve_expected_icon_size(type_name) then
+		for _, run in pairs(label_runs) do
+			run.layers = _icons.convert_icons_defaults_type(run.layers, source.type_name, type_name)
+		end
+	end
+
+	---@type IconDataSource
+	local resolved_source = {
 		icon_data = layers,
 		defaults_type = source.type_name,
 		tint = source.tint,
 		floating = source.floating,
 		transform = get_source_placement(source),
 	}
+
+	return resolved_source, label_runs
 end
 
 ---Gets the composition of the given `definition`, without validating it.
@@ -1479,8 +1514,14 @@ local function resolve_icon_definition(definition, type_name, name, classify, fu
 		composition = definition.composition
 	elseif definition.sources then
 		local sources = definition.sources --[[@as IconDefinitionSource[] ]]
-		local first = resolve_definition_source(sources[1], 1, type_name, name, classify, function_name)
+		local first, label_runs =
+			resolve_definition_source(sources[1] --[[@cast -?]], 1, type_name, name, classify, function_name)
 		composition = IconComposition:from_source(first, IconComposition.canvas_group, type_name)
+
+		-- Add the labels of the first source. The labels of the other sources are left out.
+		for _, run in pairs(label_runs) do
+			composition = composition:add(run.group, run.layers)
+		end
 
 		for index = 2, #sources do
 			local source = resolve_definition_source(sources[index], index, type_name, name, classify, function_name)
@@ -1517,9 +1558,10 @@ local check_get_icon_composition = V.signature("get_icon_composition", {
 ---- An `icon_data` or `icon_datum` is added as by `IconComposition:from_classified_icons` with `options.classify`, or
 ---  to the canvas group when `options.classify` is `nil`. A `composition` is used as it is.
 ---- The first source is added to the canvas group with its placement, and each other source to the overlay group, and
----  the composition is outlined. The icon of a prototype source is read from `data.raw`, without the layers that
----  `options.classify` puts in a group of the `label` stratum. A source that names several prototypes uses the one that
----  `Prototypes.select_name` selects, with the recipe named by `options.name` when `type_name` is `"recipe"`.
+---  the composition is outlined. The icon of a prototype source is read from `data.raw`. Layers in it that
+---  `options.classify` puts in a group of the `label` stratum are added to that group for the first source, without the
+---  placement of the source, and are left out for each other source. A source that names several prototypes uses the
+---  one that `Prototypes.select_name` selects, with the recipe named by `options.name` when `type_name` is `"recipe"`.
 ---- A prototype source for which no prototype with an icon exists is replaced by the red striped square of the game,
 ---  `__core__/graphics/buildability-collision.png`, at the placement of the source, and a log line names it.
 ---- `label` is added to `IconComposition.label_group`.
