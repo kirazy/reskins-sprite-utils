@@ -168,7 +168,7 @@
 
 ---Defines an array of icon sources, each an `IconData` object, an array of `IconData` objects, or the name and type of
 ---a prototype from which an icon is retrieved.
----@alias IconSources (IconDatumSource|IconDataSource|PrototypeIconSource)[]
+---@alias IconSources IconSource[]
 
 ---Defines an icon source that names several prototypes, in order of precedence, from which the icon is retrieved.
 ---`Prototypes.select_name` selects one of them when the icon definition is resolved.
