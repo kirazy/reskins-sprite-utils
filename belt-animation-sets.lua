@@ -27,7 +27,7 @@ local user_types = {
 }
 
 ---A validator that checks that a value is a prototype, as a table with a `type` and a `name`.
-local prototype = V.class("TransportBeltConnectablePrototype", {
+local prototype = V.struct({
 	type = Common.prototype_type_name,
 	name = Common.prototype_name,
 }):describe_as("a prototype")
