@@ -1728,6 +1728,7 @@ local check_from_icon = V.signature("IconComposition:from_icon", {
 local function set_mipmap_count_of_only_contribution(composition, mipmap_count)
 	if mipmap_count ~= nil then
 		local contribution = util.copy(composition.contributions[1])
+		---@cast contribution -?
 		contribution.mipmap_count = mipmap_count
 		composition.contributions[1] = contribution
 	end

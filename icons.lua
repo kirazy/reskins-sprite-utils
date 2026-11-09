@@ -971,7 +971,7 @@ end
 ---@nodiscard
 local function as_item_pictures(pictures)
 	if pictures and #pictures == 1 then
-		return pictures[1]
+		return pictures[1] --[[@as SpriteVariations]]
 	end
 
 	return pictures
@@ -984,6 +984,7 @@ end
 ---@nodiscard
 local function add_mark_to_icon(icon_data)
 	local first = icon_data[1]
+	---@cast first -?
 	local marked = {
 		{
 			icon = MARK_FILE,
@@ -1007,6 +1008,7 @@ end
 local function add_mark_to_sprite(sprite)
 	local layers = sprite.layers or { sprite }
 	local first = layers[1]
+	---@cast first -?
 	local width = first.width or (type(first.size) == "table" and first.size[1]) or first.size or MARK_SIZE
 
 	local marked = {
@@ -1047,7 +1049,7 @@ local function add_mark_to_pictures(pictures)
 		return pictures
 	end
 
-	return add_mark_to_sprite(pictures --[[@as Sprite]])
+	return add_mark_to_sprite(pictures --[[@as Sprite]]) --[[@as SpriteVariations]]
 end
 
 local check_assign_icons_to_prototype_and_related_prototypes =
@@ -1495,6 +1497,7 @@ local function resolve_icon_definition(definition, type_name, name, classify, fu
 		end
 	end
 
+	---@cast composition -?
 	if definition.label then
 		composition = composition:add_label(definition.label)
 	end
