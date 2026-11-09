@@ -25,23 +25,3 @@ data:extend({
 		order = "a",
 	},
 })
-
--- Marks the icons that this library assigns:
---
---   true   Draws the square of `__core__/graphics/buildability-collision-elevated.png` under each icon and item picture
---          that `icons.assign_icons_to_prototype_and_related_prototypes` assigns, at the size of the icon. An icon
---          that is assigned another way has no square.
---   false  Draws the icons as given. Default.
---
--- The setting is shown in the startup mod settings. A mod can turn it on by default from a settings-final-fixes.lua:
---
---   data.raw["bool-setting"]["reskins-sprite-utils-mark-assigned-icons"].default_value = true
-data:extend({
-	{
-		type = "bool-setting",
-		name = "reskins-sprite-utils-mark-assigned-icons",
-		setting_type = "startup",
-		default_value = false,
-		order = "b",
-	},
-})
