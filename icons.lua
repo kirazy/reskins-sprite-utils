@@ -20,34 +20,6 @@ local _result = require("validation.result")
 ---The expected icon size for `SpaceLocationPrototype::starmap_icon`.
 local STARMAP_ICON_SIZE = 512
 
----The file of the bordered square that marks an assigned icon.
-local MARK_FILE = "__core__/graphics/buildability-collision-elevated.png"
-
----The size of the bordered square that marks an assigned icon, in pixels.
-local MARK_SIZE = 64
-
----The number of mipmaps in the file of the bordered square that marks an assigned icon.
-local MARK_MIPMAP_COUNT = 4
-
----Gets the value of the `reskins-sprite-utils-mark-assigned-icons` startup setting.
----
----`false` is returned when `settings` is not available, as in the settings stage.
----@return boolean
----@nodiscard
-local function read_mark_setting()
-	local ok, value = pcall(function()
-		return settings.startup["reskins-sprite-utils-mark-assigned-icons"].value
-	end)
-
-	return ok and value == true
-end
-
----When `true`, indicates that `assign_icons_to_prototype_and_related_prototypes` draws a bordered square under each
----icon and item picture that it assigns. Default `false`.
----
----The value is read from the `reskins-sprite-utils-mark-assigned-icons` startup setting.
-_icons.marks_assigned_icons = read_mark_setting()
-
 ---The expected icon sizes for each type, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale).
 local default_icon_sizes = {
 	["technology"] = 256,
@@ -977,81 +949,6 @@ local function as_item_pictures(pictures)
 	return pictures
 end
 
----Gets a copy of the given `icon_data` with the bordered square that marks an assigned icon added as its first layer,
----at the size of the first layer in `icon_data`.
----@param icon_data SafeIconData[]
----@return SafeIconData[] # The icon. The layers of `icon_data` are shared.
----@nodiscard
-local function add_mark_to_icon(icon_data)
-	local first = icon_data[1]
-	---@cast first -?
-	local marked = {
-		{
-			icon = MARK_FILE,
-			icon_size = MARK_SIZE,
-			scale = first.icon_size * first.scale / MARK_SIZE,
-		},
-	}
-
-	for index = 1, #icon_data do
-		marked[index + 1] = icon_data[index]
-	end
-
-	return marked
-end
-
----Gets a copy of the given `sprite` with the bordered square that marks an assigned icon added as its first layer, at
----the width of the first layer in `sprite`.
----@param sprite Sprite
----@return Sprite # The sprite. The layers of `sprite` are shared.
----@nodiscard
-local function add_mark_to_sprite(sprite)
-	local layers = sprite.layers or { sprite }
-	local first = layers[1]
-	---@cast first -?
-	local width = first.width or (type(first.size) == "table" and first.size[1]) or first.size or MARK_SIZE
-
-	local marked = {
-		layers = {
-			{
-				filename = MARK_FILE,
-				size = MARK_SIZE,
-				mipmap_count = MARK_MIPMAP_COUNT,
-				scale = width * (first.scale or 1) / MARK_SIZE,
-			},
-		},
-	}
-
-	for _, layer in pairs(layers) do
-		marked.layers[#marked.layers + 1] = layer
-	end
-
-	return marked
-end
-
----Gets a copy of the given `pictures` with the bordered square that marks an assigned icon added under each sprite.
----
----When `pictures` is given as a sheet, `pictures` is returned and is not modified.
----@param pictures SpriteVariations
----@return SpriteVariations
----@nodiscard
-local function add_mark_to_pictures(pictures)
-	if pictures[1] then
-		local marked = {}
-		for index, sprite in pairs(pictures) do
-			marked[index] = add_mark_to_sprite(sprite)
-		end
-
-		return marked
-	end
-
-	if pictures.sheet then
-		return pictures
-	end
-
-	return add_mark_to_sprite(pictures --[[@as Sprite]]) --[[@as SpriteVariations]]
-end
-
 local check_assign_icons_to_prototype_and_related_prototypes =
 	V.signature("assign_icons_to_prototype_and_related_prototypes", {
 		{ "name", Common.prototype_name },
@@ -1078,9 +975,6 @@ local check_assign_icons_to_prototype_and_related_prototypes =
 ---
 ---An explosion or corpse that the prototype names in its `dying_explosion` or `corpse` field under any other name, such
 ---as an explosion or corpse that several entities share, is not assigned the icon.
----
----When `marks_assigned_icons` is `true`, a bordered square is drawn under the icon and under each sprite of the
----pictures, at the size of their first layers.
 ---
 ---#### Parameters
 ---@param name string The name of the prototype.
@@ -1139,11 +1033,6 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 
 	local icon_data_copy = apply_icons_defaults(icon_data, type_name)
 	local item_pictures = as_item_pictures(pictures)
-
-	if _icons.marks_assigned_icons then
-		icon_data_copy = add_mark_to_icon(icon_data_copy)
-		item_pictures = item_pictures and add_mark_to_pictures(item_pictures)
-	end
 
 	local prototype = resolve_target_prototype(name, type_name)
 
@@ -1281,7 +1170,7 @@ function _icons.apply_icon_assignment(icon_assignment)
 	)
 end
 
----The icon that replaces a source of an icon definition that names no existing prototype. The file has 4 mipmaps.
+---The icon that replaces an icon source for which no prototype with an icon exists. The file has 4 mipmaps.
 local MISSING_SOURCE_ICON = { icon = "__core__/graphics/buildability-collision.png", icon_size = 64 }
 
 ---A validator that checks that a value is an `IconDefinition` with no unknown fields, without validating its sources.
@@ -1315,18 +1204,8 @@ local strict_icon_data_source = Common.icon_data_source:strict()
 ---A validator that checks that a value is a `PrototypeIconSource` with no unknown fields.
 local strict_prototype_icon_source = Common.prototype_icon_source:strict()
 
----A validator that checks that a value is a `PrototypeNamesIconSource` with no unknown fields.
-local prototype_names_icon_source = V.class("PrototypeNamesIconSource", {
-	names = V.array(Common.prototype_name):not_empty(),
-	type_name = Common.prototype_type_name,
-	scale = Common.positive_number:optional(),
-	shift = Common.vector:optional(),
-	tint = Common.color:optional(),
-	floating = V.boolean():optional(),
-	transform = Common.transform:optional(),
-})
-	:strict()
-	:describe_as("a PrototypeNamesIconSource")
+---A validator that checks that a value is a `SelectedPrototypeIconSource` with no unknown fields.
+local strict_selected_prototype_icon_source = Common.selected_prototype_icon_source:strict()
 
 ---A validator that checks that a value is an `IconDefinitionOptions` with no unknown fields.
 local icon_definition_options = V.struct({
@@ -1351,7 +1230,7 @@ local function check_icon_definition(definition, path, function_name)
 		elseif source.icon_data ~= nil then
 			strict_icon_data_source:assert(source, source_path, function_name)
 		elseif source.names ~= nil then
-			prototype_names_icon_source:assert(source, source_path, function_name)
+			strict_selected_prototype_icon_source:assert(source, source_path, function_name)
 		else
 			strict_prototype_icon_source:assert(source, source_path, function_name)
 		end
@@ -1359,7 +1238,7 @@ local function check_icon_definition(definition, path, function_name)
 end
 
 ---Gets the placement of the given `source`, from its `transform`, or from its `scale` and `shift`.
----@param source IconDefinitionSource The source.
+---@param source IconSource The source.
 ---@return Transform? # The placement, or `nil` if the source gives none.
 ---@nodiscard
 local function get_source_placement(source)
@@ -1421,68 +1300,96 @@ local function get_source_layers_from_prototype(prototype, classify, function_na
 	return layers, label_runs
 end
 
----Gets the icon source to which the given definition `source` resolves, and the label layers in the icon of its
----prototype. A prototype source is resolved to the layers in the icon of the prototype that `Prototypes.select_name`
----selects. When no prototype is selected, or its icon has no layers outside a label group, the source is resolved to
----the missing source icon, and a log line names it.
----@param source IconDefinitionSource The source of the definition.
----@param index integer The index of the source in the definition.
----@param type_name string The type name of the prototype to which the definition is assigned.
----@param name? string The name of the prototype to which the definition is assigned.
----@param classify? IconLayerClassifier The function that returns the group of each layer in a prototype icon.
----@param function_name string The name of the calling function, for error messages.
----@return IconDatumSource|IconDataSource source The resolved source.
----@return SourceLabelRun[] label_runs The runs of label layers in the icon of the prototype. Their layers are converted to the icon defaults type of `type_name`. Empty for a source that gives `icon_datum` or `icon_data`, and for the missing source icon.
+---Gets the prototype that the given prototype `source` names, if it exists and has an icon. A
+---`SelectedPrototypeIconSource` names the prototype that `Prototypes.select_name` selects.
+---@param source PrototypeIconSource|SelectedPrototypeIconSource The source.
+---@param recipe? RecipePrototype The recipe for which the prototype is selected.
+---@return PrototypeWithIcons? # The prototype, or `nil` if no prototype with an icon exists.
 ---@nodiscard
-local function resolve_definition_source(source, index, type_name, name, classify, function_name)
-	if source.icon_datum or source.icon_data then
-		return source --[[@as IconDatumSource|IconDataSource]], {}
+local function get_source_prototype(source, recipe)
+	local prototypes = data.raw[source.type_name]
+	if not prototypes then
+		return nil
 	end
 
-	local names = source.names or { source.name }
-	local prototypes = data.raw[source.type_name]
-	local recipe = type_name == "recipe" and name and data.raw["recipe"][name] or nil
+	---@type string?
+	local name
+	if source.names then
+		---@cast source SelectedPrototypeIconSource
+		name = _prototypes.select_name(source.type_name, source.names, recipe)
+	else
+		---@cast source PrototypeIconSource
+		name = source.name
+	end
 
-	local selected = prototypes and _prototypes.select_name(source.type_name --[[@cast -?]], names, recipe) or nil
-	local prototype = selected and prototypes[selected] or nil
-
-	---@type SafeIconData[]?, SourceLabelRun[]
-	local layers, label_runs
+	local prototype = name and prototypes[name] or nil
 	if prototype and (prototype.icons or prototype.icon) then
+		return prototype --[[@as PrototypeWithIcons]]
+	end
+
+	return nil
+end
+
+---Writes a log line that names the given prototype `source`, for which no prototype with an icon exists.
+---@param source PrototypeIconSource|SelectedPrototypeIconSource The source.
+---@param description string The description of the source, such as `"source 2 of recipe 'iron-plate'"`.
+local function log_missing_source(source, description)
+	local names = source.names or { source.name }
+
+	local quoted = {}
+	for position = 1, #names do
+		quoted[position] = string.format("'%s'", names[position])
+	end
+
+	log(
+		string.format(
+			"Icons: no prototype with an icon for %s (%s %s); using the error icon.",
+			description,
+			source.type_name,
+			table.concat(quoted, ", ")
+		)
+	)
+end
+
+---Gets the icon source to which the given `source` resolves, and the label layers in the icon of its prototype, without
+---validating the source. A prototype source is resolved to the layers in the icon of its prototype. When no prototype
+---with an icon exists, or the icon has no layers outside a label group, the source is resolved to the missing source
+---icon at the placement of the source, and a log line names it.
+---@param source IconSource The source.
+---@param description string The description of the source in the log line, such as `"source 2 of recipe 'iron-plate'"`.
+---@param recipe? RecipePrototype The recipe for which the prototype of a `SelectedPrototypeIconSource` is selected.
+---@param classify? IconLayerClassifier The function that returns the group of each layer in the icon of the prototype.
+---@param function_name string The name of the calling function, for error messages.
+---@return IconDatumSource|IconDataSource source The resolved source. A source that gives `icon_datum` or `icon_data` is returned as it is.
+---@return SourceLabelRun[] label_runs The runs of label layers in the icon of the prototype. The array is empty for a source that gives `icon_datum` or `icon_data`, for the missing source icon, and when `classify` is `nil`.
+---@nodiscard
+local function resolve_source(source, description, recipe, classify, function_name)
+	if source.icon_datum or source.icon_data then
+		return source, --[[@as IconDatumSource|IconDataSource]]
+			{}
+	end
+
+	---@cast source PrototypeIconSource|SelectedPrototypeIconSource
+	local prototype = get_source_prototype(source, recipe)
+
+	---@type SafeIconData[], SourceLabelRun[]
+	local layers, label_runs = {}, {}
+	if prototype then
 		layers, label_runs = get_source_layers_from_prototype(prototype, classify, function_name)
 	end
 
-	if not layers or #layers == 0 then
-		local quoted = {}
-		for position = 1, #names do
-			quoted[position] = string.format("'%s'", names[position])
-		end
-
-		log(
-			string.format(
-				"Icons: no prototype with an icon for source %d of %s (%s %s); using the error icon.",
-				index,
-				name and string.format("%s '%s'", type_name, name) or string.format("a %s definition", type_name),
-				source.type_name,
-				table.concat(quoted, ", ")
-			)
-		)
+	if #layers == 0 then
+		log_missing_source(source, description)
 
 		---@type IconDatumSource
 		local missing_source = {
-			icon_datum = MISSING_SOURCE_ICON,
-			defaults_type = "default",
+			icon_datum = util.copy(MISSING_SOURCE_ICON),
+			defaults_type = source.type_name,
 			mipmap_count = 4,
 			transform = get_source_placement(source),
 		}
 
 		return missing_source, {}
-	end
-
-	if resolve_expected_icon_size(source.type_name) ~= resolve_expected_icon_size(type_name) then
-		for _, run in pairs(label_runs) do
-			run.layers = _icons.convert_icons_defaults_type(run.layers, source.type_name, type_name)
-		end
 	end
 
 	---@type IconDataSource
@@ -1495,6 +1402,83 @@ local function resolve_definition_source(source, index, type_name, name, classif
 	}
 
 	return resolved_source, label_runs
+end
+
+---Gets the icon source to which the given definition `source` resolves, and the label layers in the icon of its
+---prototype, as by `resolve_source`. A `SelectedPrototypeIconSource` of a recipe definition uses the recipe in the
+---selection.
+---@param source IconSource The source of the definition.
+---@param index integer The index of the source in the definition.
+---@param type_name string The type name of the prototype to which the definition is assigned.
+---@param name? string The name of the prototype to which the definition is assigned.
+---@param classify? IconLayerClassifier The function that returns the group of each layer in a prototype icon.
+---@param function_name string The name of the calling function, for error messages.
+---@return IconDatumSource|IconDataSource source The resolved source.
+---@return SourceLabelRun[] label_runs The runs of label layers in the icon of the prototype. Their layers are converted to the icon defaults type of `type_name`. Empty for a source that gives `icon_datum` or `icon_data`, and for the missing source icon.
+---@nodiscard
+local function resolve_definition_source(source, index, type_name, name, classify, function_name)
+	local recipe = type_name == "recipe" and name and data.raw["recipe"][name] or nil
+	local description = string.format(
+		"source %d of %s",
+		index,
+		name and string.format("%s '%s'", type_name, name) or string.format("a %s definition", type_name)
+	)
+
+	local resolved_source, label_runs = resolve_source(source, description, recipe, classify, function_name)
+
+	local defaults_type = resolved_source.defaults_type
+	if resolve_expected_icon_size(defaults_type) ~= resolve_expected_icon_size(type_name) then
+		for _, run in pairs(label_runs) do
+			run.layers = _icons.convert_icons_defaults_type(run.layers, defaults_type, type_name)
+		end
+	end
+
+	return resolved_source, label_runs
+end
+
+local check_resolve_icon_source = V.signature("resolve_icon_source", {
+	{ "source", Common.icon_source },
+})
+
+---Gets the icon source that holds the artwork of the given `source`.
+---
+---- A source that gives `icon_datum` or `icon_data` is resolved to itself.
+---- A source that names a prototype is resolved to an `IconDataSource` that holds the icon of the prototype, with the
+---  tint, floating, and placement of the source. The `defaults_type` of the result is the `type_name` of the source. A
+---  `SelectedPrototypeIconSource` uses the prototype that `Prototypes.select_name` selects.
+---- A source for which no prototype with an icon exists is resolved to an `IconDatumSource` that holds the red striped
+---  square of the game, `__core__/graphics/buildability-collision.png`, at the placement of the source, and a log line
+---  names the source.
+---
+---The result is a copy.
+---
+---#### Parameters
+---@param source IconSource The source to resolve.
+---
+---#### Returns
+---@return IconDatumSource|IconDataSource # The source that holds the artwork.
+---
+---#### Examples
+---```lua
+----- Resolve a source that names two plates, placed in the upper-left corner.
+---local source = _icons.resolve_icon_source({
+---    names = { "bob-tin-plate", "angels-plate-tin" },
+---    type_name = "item",
+---    transform = _defines.icon_transforms.compass.northwest,
+---})
+----- source.icon_data holds the icon of the first plate that exists and is not hidden. When neither plate exists,
+----- source.icon_datum holds the red striped square.
+---```
+---@throws When `source` is not a valid `IconSource`.
+---@see Prototypes.select_name
+---@see IconComposition.from_source
+---@nodiscard
+function _icons.resolve_icon_source(source)
+	check_resolve_icon_source(source)
+
+	local resolved_source = resolve_source(source, "an icon source", nil, nil, "resolve_icon_source")
+
+	return util.copy(resolved_source)
 end
 
 ---Gets the composition of the given `definition`, without validating it.
@@ -1513,7 +1497,7 @@ local function resolve_icon_definition(definition, type_name, name, classify, fu
 	if definition.composition then
 		composition = definition.composition
 	elseif definition.sources then
-		local sources = definition.sources --[[@as IconDefinitionSource[] ]]
+		local sources = definition.sources --[[@as IconSource[] ]]
 		local first, label_runs =
 			resolve_definition_source(sources[1] --[[@cast -?]], 1, type_name, name, classify, function_name)
 		composition = IconComposition:from_source(first, IconComposition.canvas_group, type_name)
@@ -1585,7 +1569,7 @@ local check_get_icon_composition = V.signature("get_icon_composition", {
 ---}, "recipe", { name = "angels-plate-aluminium" })
 ----- The plate is in the canvas group, and the fluid is in the overlay group in the corner. Each is outlined.
 ---```
----@throws When `definition` is not a valid `IconDefinition`, or one of its sources is not a valid `IconDefinitionSource`.
+---@throws When `definition` is not a valid `IconDefinition`, or one of its sources is not a valid `IconSource`.
 ---@throws When `type_name` is `nil` or an empty string.
 ---@throws When `options` is not an `IconDefinitionOptions`.
 ---@throws When `options.classify` returns something other than a valid `IconCompositionGroup`.
@@ -1642,7 +1626,7 @@ local check_assign_icons = V.signature("assign_icons", {
 ---```
 ---@throws When `type_name` is not a registered prototype type name.
 ---@throws When `definitions` is not a table of tables keyed by prototype names.
----@throws When a definition for a prototype that exists is not a valid `IconDefinition`, or one of its sources is not a valid `IconDefinitionSource`.
+---@throws When a definition for a prototype that exists is not a valid `IconDefinition`, or one of its sources is not a valid `IconSource`.
 ---@throws When `options` is not an `IconDefinitionOptions`.
 ---@see Icons.get_icon_composition
 function _icons.assign_icons(type_name, definitions, options)
@@ -2664,37 +2648,19 @@ function _icons.blend_icons_tint(icon_data, tint, weight, blender)
 	)
 end
 
----Gets the icon named by the given `source`, or a blank icon when the named prototype does not exist.
----No validation is performed; callers are expected to have pre-validated the input.
----@param source? IconSource The `IconSource` to resolve.
----@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate.
----@return SafeIconData[] icon_data A copy of the icon data from `source`, if it exists; otherwise, a blank icon.
----@return boolean is_blank_icon When `true`, a blank icon was created.
+---Gets the icon that the given resolved `source` holds, with icon defaults set.
+---@param source IconDatumSource|IconDataSource The source, as resolved by `resolve_source`.
+---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate when the source gives none.
+---@return SafeIconData[] # A copy of the icon from `source`.
 ---@nodiscard
 local function get_icons_from_source(source, defaults_type)
-	---@type IconData[]
-	local icon_data
-
-	if source and source.icon_data then
+	if source.icon_data then
 		---@cast source IconDataSource
-		icon_data = apply_icons_defaults(source.icon_data, source.defaults_type or defaults_type)
-	elseif source and source.icon_datum then
-		---@cast source IconDatumSource
-		icon_data = { apply_icon_defaults(source.icon_datum, source.defaults_type or defaults_type) }
-	elseif source and source.name then
-		local prototype = data.raw[source.type_name] and data.raw[source.type_name][source.name] or nil
-		if prototype ~= nil then
-			icon_data = _icons.get_icon_from_prototype(prototype--[[@as Prototype]])
-		end
+		return apply_icons_defaults(source.icon_data, source.defaults_type or defaults_type)
 	end
 
-	local is_blank_icon = false
-	if not icon_data then
-		is_blank_icon = true
-		icon_data = { _icons.empty_icon(defaults_type) }
-	end
-
-	return icon_data, is_blank_icon
+	---@cast source IconDatumSource
+	return { apply_icon_defaults(source.icon_datum, source.defaults_type or defaults_type) }
 end
 
 local check_add_icons_from_sources_to_icons = V.signature("add_icons_from_sources_to_icons", {
@@ -2706,29 +2672,27 @@ local check_add_icons_from_sources_to_icons = V.signature("add_icons_from_source
 ---Adds the icons named by the given `sources` on top of the given `icon_data`.
 ---No validation is performed; callers are expected to have pre-validated the input.
 ---@param icon_data IconData[] A valid array of `IconData` objects.
----@param sources IconSources The sources of the icons added on top of `icon_data`.
+---@param sources IconSource[] The sources of the icons added on top of `icon_data`.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate.
+---@param function_name string The name of the calling function, for error messages.
 ---@return SafeIconData[] # A copy of `icon_data` with the sourced icons on top.
----@return boolean # `true` if a blank icon was substituted for a source naming a prototype that does not exist; otherwise, `false`.
 ---@nodiscard
-local function apply_icons_from_sources(icon_data, sources, defaults_type)
+local function apply_icons_from_sources(icon_data, sources, defaults_type, function_name)
 	---@type IconData[]
 	local combined_icon = apply_icons_defaults(icon_data, defaults_type)
 
-	local has_blank_layers = false
 	for _, source in pairs(sources) do
-		-- The icon is blank when the prototype does not exist.
-		local icon, is_blank_icon = get_icons_from_source(source, defaults_type)
-		has_blank_layers = has_blank_layers or is_blank_icon
+		local resolved_source = resolve_source(source, "an icon source", nil, nil, function_name)
+		local icon = get_icons_from_source(resolved_source, defaults_type)
 
 		-- A `transform` replaces `scale` and `shift`. `tint` and `floating` are applied separately.
-		local placement = source.transform or source
+		local placement = resolved_source.transform or resolved_source
 		local transformed_icon = apply_icons_transform(icon, {
 			scale = placement.scale,
 			shift = placement.shift,
-			tint = source.tint,
-			floating = source.floating,
-		}, source.type_name or source.defaults_type or defaults_type)
+			tint = resolved_source.tint,
+			floating = resolved_source.floating,
+		}, resolved_source.defaults_type or defaults_type)
 
 		for index = 1, #transformed_icon do
 			local icon_datum = transformed_icon[index]
@@ -2744,34 +2708,33 @@ local function apply_icons_from_sources(icon_data, sources, defaults_type)
 		end
 	end
 
-	return combined_icon, has_blank_layers
+	return combined_icon
 end
 
 ---Adds the icons from the given `sources` to a copy of the given `icon_data` array, and applies any of the optional
 ---transformations.
 ---
----- Any layer of the icon using a `PrototypeIconSource` for a prototype that does not exist will be replaced with a
----  blank icon.
+---- Any layer of the icon using a prototype source for which no prototype with an icon exists will be replaced with the
+---  red striped square of the game, as by `resolve_icon_source`.
 ---- `draw_background` is set on the first layer of each sourced icon.
 ---
 ---#### Parameters
 ---@param icon_data IconData[] An array of `IconData` objects to receive the sourced icons.
----@param sources IconSources An array of `IconData` sources to layer on `icon_data`.
+---@param sources IconSource[] An array of `IconData` sources to layer on `icon_data`.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`. The `defaults_type` or `type_name` of a source takes precedence for the layers of that source.
 ---
 ---#### Returns
 ---@return SafeIconData[] combined_icon A copy of `icon_data` with the sourced icons transformed and layered on top.
----@return boolean has_blank_layers When `true`, a blank icon layer was created.
 ---@throws When `icon_data` is not a non-empty array of valid `IconData` objects.
 ---@throws When `sources` is not an array of valid `IconSource` objects.
 ---@throws When `defaults_type` is an empty string.
 ---@see Icons.create_icons_from_sources
----@see Icons.get_icon_from_named_prototype
+---@see Icons.resolve_icon_source
 ---@nodiscard
 function _icons.add_icons_from_sources_to_icons(icon_data, sources, defaults_type)
 	check_add_icons_from_sources_to_icons(icon_data, sources, defaults_type)
 
-	return apply_icons_from_sources(icon_data, sources, defaults_type)
+	return apply_icons_from_sources(icon_data, sources, defaults_type, "add_icons_from_sources_to_icons")
 end
 
 local check_create_icons_from_sources = V.signature("create_icons_from_sources", {
@@ -2785,16 +2748,15 @@ local check_create_icons_from_sources = V.signature("create_icons_from_sources",
 ---- The `scale`, `shift`, `transform`, and `floating` of the first source are ignored, and its `tint` is applied to
 ---  each layer of its icon.
 ---- The remaining sources are added as by `add_icons_from_sources_to_icons`.
----- Any layer of the icon using a `PrototypeIconSource` for a prototype that does not exist will be replaced with a
----  blank icon, including the base layer.
+---- Any layer of the icon using a prototype source for which no prototype with an icon exists will be replaced with the
+---  red striped square of the game, as by `resolve_icon_source`, including the base layer.
 ---
 ---#### Parameters
----@param sources IconSources An array of `IconData` sources, with the base icon first.
+---@param sources IconSource[] An array of `IconData` sources, with the base icon first.
 ---@param defaults_type? IconDefaultsType The name of the type-specific icon defaults to generate, as per [IconData::scale](https://lua-api.factorio.com/latest/types/IconData.html#scale). Unrecognized names resolve to `defines.constant.default_icon_size`. The `defaults_type` or `type_name` of a source takes precedence for the layers of that source.
 ---
 ---#### Returns
 ---@return SafeIconData[] icon A new icon created from the sources, with the base icon from the first source, and icons from the remaining sources layered on top.
----@return boolean has_blank_layers When `true`, a blank icon layer was created.
 ---
 ---#### Examples
 ---```lua
@@ -2825,16 +2787,18 @@ local check_create_icons_from_sources = V.signature("create_icons_from_sources",
 function _icons.create_icons_from_sources(sources, defaults_type)
 	check_create_icons_from_sources(sources, defaults_type)
 
-	---@type IconSources
+	---@type IconSource[]
 	local sources_copy = util.copy(sources)
 
-	local has_blank_layers = false
-
 	-- Get the base icon from the first source.
-	local base_source = table.remove(sources_copy, 1)
-	local base_icon_data, is_blank_icon = get_icons_from_source(base_source, defaults_type)
-
-	has_blank_layers = (has_blank_layers or is_blank_icon)
+	local base_source = resolve_source(
+		table.remove(sources_copy, 1) --[[@as IconSource]],
+		"an icon source",
+		nil,
+		nil,
+		"create_icons_from_sources"
+	)
+	local base_icon_data = get_icons_from_source(base_source, defaults_type)
 
 	for _, icon_datum in pairs(base_icon_data) do
 		if not has_additive_tint(icon_datum) then
@@ -2842,10 +2806,7 @@ function _icons.create_icons_from_sources(sources, defaults_type)
 		end
 	end
 
-	local icon_data, added_blank_layers = apply_icons_from_sources(base_icon_data, sources_copy, defaults_type)
-	has_blank_layers = (has_blank_layers or added_blank_layers)
-
-	return icon_data, has_blank_layers
+	return apply_icons_from_sources(base_icon_data, sources_copy, defaults_type, "create_icons_from_sources")
 end
 
 ---Creates an icon from the sources given for each recipe in the given `recipe_icon_source_map`, and assigns it to that
@@ -2853,17 +2814,17 @@ end
 ---
 ---- Each icon is created as by `create_icons_from_sources`, and assigned as by
 ---  `assign_icons_to_prototype_and_related_prototypes`.
----- Any layer of the icon using a `PrototypeIconSource` for a prototype that does not exist will be replaced with a
----  blank icon.
+---- Any layer of the icon using a prototype source for which no prototype with an icon exists will be replaced with the
+---  red striped square of the game, as by `resolve_icon_source`.
 ---- Missing icon fields are set to default values as appropriate.
 ---
 ---#### Parameters
----@param recipe_icon_source_map table<string, IconSources> A map of recipe names to the icon sources used to create a combined icon. The first entry in each `IconSources` is the first layer of the created icon.
+---@param recipe_icon_source_map table<string, IconSource[]> A map of recipe names to the icon sources used to create a combined icon. The first entry in each array is the first layer of the created icon.
 ---
 ---#### Examples
 ---```lua
 ----- Assign a recipe an icon of its product with a half-size ingredient in the upper-left corner.
-------@type table<string, IconSources>
+------@type table<string, IconSource[]>
 ---local recipe_icon_source_map = {
 ---    ["bio-resin-wood-reprocessing"] = {
 ---        { name = "resin", type_name = "item" },

@@ -162,29 +162,20 @@
 ---The type name of the prototype from which the icon is retrieved.
 ---@field type_name string
 
----Defines the source of a single icon source: an `IconData` object, an array of `IconData` objects, or the name and
----type of a prototype from which the icon is retrieved.
----@alias IconSource IconDatumSource|IconDataSource|PrototypeIconSource
-
----Defines an array of icon sources, each an `IconData` object, an array of `IconData` objects, or the name and type of
----a prototype from which an icon is retrieved.
----@alias IconSources IconSource[]
-
 ---Defines an icon source that names several prototypes, in order of precedence, from which the icon is retrieved.
----`Prototypes.select_name` selects one of them when the icon definition is resolved.
----@class PrototypeNamesIconSource : TransformableIconBase
----The names of the prototypes, in order of precedence.
+---@class SelectedPrototypeIconSource : TransformableIconBase
+---The names of the prototypes from which the icon is retrieved, in order of precedence.
 ---@field names string[]
----The type name of the prototypes.
+---The type name of the prototypes from which the icon is retrieved.
 ---@field type_name string
 
----Defines a source of an `IconDefinition`: an `IconData` object, an array of `IconData` objects, or the name or names
----and the type of the prototype from which the icon is retrieved.
----@alias IconDefinitionSource IconDatumSource|IconDataSource|PrototypeIconSource|PrototypeNamesIconSource
+---Defines the source of a single icon: an `IconData` object, an array of `IconData` objects, or the name(s) and type of
+---a prototype from which the icon is retrieved.
+---@alias IconSource IconDatumSource|IconDataSource|PrototypeIconSource|SelectedPrototypeIconSource
 
 ---Defines the icon of a prototype, for `Icons.assign_icons` and `Icons.get_icon_composition`.
 ---
----Exactly one of `icon_datum`, `icon_data`, `composition`, and `sources` is set.
+---Exactly one of `icon_datum`, `icon_data`, `composition`, and `sources` is allowed.
 ---@class IconDefinition
 ---The icon, as a single image.
 ---@field icon_datum? IconData
@@ -194,7 +185,7 @@
 ---@field composition? IconComposition
 ---The sources from which the icon is composed when the definition is resolved. The first source is added to the
 ---canvas group, and each other source to the overlay group.
----@field sources? IconDefinitionSource[]
+---@field sources? IconSource[]
 ---The layers added to `IconComposition.label_group` after the icon is resolved.
 ---@field label? IconData[]
 ---The options that configure how icon assignment resolves related prototypes. When `nil`, every related prototype that

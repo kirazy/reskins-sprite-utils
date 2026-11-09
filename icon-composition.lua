@@ -649,27 +649,16 @@ local function get_artwork_layers_from_composition(inner, defaults_type)
 	})
 end
 
----Gets the layers of the icon named by the given `source`, converted to the given `defaults_type`. The `scale`,
+---Gets the layers of the icon in the given resolved `source`, converted to the given `defaults_type`. The `scale`,
 ---`shift`, or `transform` of the source is applied to the layers, the `tint` is set on each layer except layers with a
 ---tint alpha of zero, `floating` is set on each layer, and `draw_background` is set on the first layer.
----@param source IconSource The `IconSource` to resolve.
+---@param source IconDatumSource|IconDataSource The source, as resolved by `Icons.resolve_icon_source`.
 ---@param defaults_type? IconDefaultsType The icon defaults type of the composition.
 ---@return SafeIconData[]
 ---@nodiscard
 local function get_layers_from_source(source, defaults_type)
-	---@type IconData[], IconDefaultsType?
-	local layers, source_defaults_type
-
-	if source.icon_datum then
-		---@cast source IconDatumSource
-		layers, source_defaults_type = { source.icon_datum }, source.defaults_type or defaults_type
-	elseif source.icon_data then
-		---@cast source IconDataSource
-		layers, source_defaults_type = source.icon_data, source.defaults_type or defaults_type
-	else
-		---@cast source PrototypeIconSource
-		layers, source_defaults_type = _icons.get_icon_from_named_prototype(source.name, source.type_name), source.type_name
-	end
+	local layers = source.icon_data or { source.icon_datum }
+	local source_defaults_type = source.defaults_type or defaults_type
 
 	local placement = source.transform or { scale = source.scale, shift = source.shift }
 	local placed = _icons.transform_icons(layers, placement, source_defaults_type)
@@ -700,7 +689,7 @@ end
 ---@param self IconComposition The composition to which the content is added.
 ---@param content IconCompositionContent The content from which the layers are read.
 ---@return IconData[] # A copy of the layers. Empty only if `content` is a composition with no artwork.
----@return integer? # The `mipmap_count` of an `IconDatumSource` or `IconDataSource`, if any.
+---@return integer? # The `mipmap_count` of the source to which an `IconSource` resolves, if any.
 ---@nodiscard
 local function get_layers_from_content(self, content)
 	if is_icon_composition(content) then
@@ -733,14 +722,10 @@ local function get_layers_from_content(self, content)
 		return { util.copy(content) }
 	end
 
-	if content.icon_datum or content.icon_data then
-		---@cast content IconDatumSource|IconDataSource
-		return get_layers_from_source(content, self.defaults_type), content.mipmap_count
-	end
-
-	if content.name then
-		---@cast content PrototypeIconSource
-		return get_layers_from_source(content, self.defaults_type)
+	if content.icon_datum or content.icon_data or content.name or content.names then
+		---@cast content IconSource
+		local source = _icons.resolve_icon_source(content)
+		return get_layers_from_source(source, self.defaults_type), source.mipmap_count
 	end
 
 	---@cast content IconData[]
@@ -1007,9 +992,11 @@ local check_add = V.signature("IconComposition:add", {
 ---Adds the given `content` to the given `group`.
 ---
 ---If the group is `unique`, the existing content of the group is removed. An `IconSource` or a prototype is resolved to
----layers when it is added, and `draw_background` is set on the first layer. An `IconComposition` is added as its
----artwork layers. Layers with a different icon defaults type are converted to the icon defaults type of the
----composition. `placement` is applied in addition to the scale and shift of the layers.
+---layers when it is added, and `draw_background` is set on the first layer. An `IconSource` is resolved as by
+---`Icons.resolve_icon_source`, and a source for which no prototype with an icon exists is replaced by the red striped
+---square of the game. An `IconComposition` is added as its artwork layers. Layers with a different icon defaults type
+---are converted to the icon defaults type of the composition. `placement` is applied in addition to the scale and shift
+---of the layers.
 ---
 ---#### Parameters
 ---@param group IconCompositionGroup The group to which the content is added.
@@ -1028,7 +1015,7 @@ local check_add = V.signature("IconComposition:add", {
 ----- The badge is drawn on the finished icon, and is not transformed or tinted with the artwork.
 ---```
 ---@throws When `group` is not a valid `IconCompositionGroup`, or is not equal to the stored definition of the group with the same name.
----@throws When `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws When `content` is not valid content, or is a composition with no artwork.
 ---@throws When `placement` is not a `Transform`, or is given for a label group.
 ---@see IconComposition.replace
 ---@see IconComposition.remove
@@ -1055,7 +1042,7 @@ local check_replace = V.signature("IconComposition:replace", {
 ---#### Returns
 ---@return self # A copy of the composition with the content replaced.
 ---@throws When `group` is not a valid `IconCompositionGroup`, or is not equal to the stored definition of the group with the same name.
----@throws When `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws When `content` is not valid content, or is a composition with no artwork.
 ---@throws When `placement` is not a `Transform`, or is given for a label group.
 ---@see IconComposition.add
 ---@nodiscard
@@ -1089,7 +1076,7 @@ local check_add_symbol = placed_content_signature("IconComposition:add_symbol")
 ---
 ---#### Returns
 ---@return self # A copy of the composition with the content added.
----@throws When `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws When `content` is not valid content, or is a composition with no artwork.
 ---@throws When `placement` is not a `Transform`.
 ---@see IconComposition.add
 ---@nodiscard
@@ -1107,7 +1094,7 @@ end
 ---
 ---#### Returns
 ---@return self # A copy of the composition with the content added.
----@throws When `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws When `content` is not valid content, or is a composition with no artwork.
 ---@throws When `placement` is not a `Transform`.
 ---@see IconComposition.add
 ---@nodiscard
@@ -1135,7 +1122,7 @@ end
 ---    :build()
 ----- The plate is drawn outlined at half size in the southwest corner.
 ---```
----@throws When `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws When `content` is not valid content, or is a composition with no artwork.
 ---@throws When `placement` is not a `Transform`.
 ---@see IconComposition.add
 ---@nodiscard
@@ -1153,7 +1140,7 @@ end
 ---
 ---#### Returns
 ---@return self # A copy of the composition with the content added.
----@throws When `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws When `content` is not valid content, or is a composition with no artwork.
 ---@throws When `placement` is not a `Transform`.
 ---@see IconComposition.add
 ---@nodiscard
@@ -1174,7 +1161,7 @@ local check_add_label = V.signature("IconComposition:add_label", {
 ---
 ---#### Returns
 ---@return self # A copy of the composition with the content added.
----@throws When `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws When `content` is not valid content, or is a composition with no artwork.
 ---@see IconComposition.add
 ---@nodiscard
 function IconComposition:add_label(content)
@@ -1532,7 +1519,7 @@ local check_add_glow = placed_content_signature("IconComposition:add_glow")
 ----- The icon has the backdrop and the isotope. The pictures have the backdrop, the isotope, and a copy of the isotope
 ----- drawn as a light.
 ---```
----@throws When `content` is not valid content, names a prototype that does not exist, or is a composition with no artwork.
+---@throws When `content` is not valid content, or is a composition with no artwork.
 ---@throws When `placement` is not a `Transform`.
 ---@see IconComposition.add_light
 ---@see IconComposition.glow_group
@@ -1804,6 +1791,9 @@ local check_from_source = V.signature("IconComposition:from_source", {
 
 ---Creates a composition containing the icon from the given `source` in the given `group`.
 ---
+---The source is resolved as by `Icons.resolve_icon_source`. A source for which no prototype with an icon exists is
+---replaced by the red striped square of the game.
+---
 ---#### Parameters
 ---@param source IconSource The `IconSource` to resolve.
 ---@param group? IconCompositionGroup The group to which the icon is added. Default `IconComposition.canvas_group`.
@@ -1822,7 +1812,7 @@ local check_from_source = V.signature("IconComposition:from_source", {
 ---})
 ----- The composition holds one layer with scale 0.25 and shift { 0, 8 }.
 ---```
----@throws When `source` is not a valid `IconSource`, or names a prototype that does not exist.
+---@throws When `source` is not a valid `IconSource`.
 ---@throws When `group` is not a valid `IconCompositionGroup`.
 ---@throws When `defaults_type` is an empty string.
 ---@see IconComposition.from_named_prototype
@@ -1871,6 +1861,9 @@ local check_from_named_prototype = V.signature("IconComposition:from_named_proto
 ---Creates a composition containing the icon of the prototype with the given `name` and `type_name` in the given
 ---`group`.
 ---
+---When no prototype with an icon exists, the composition contains the red striped square of the game, as by
+---`Icons.resolve_icon_source`.
+---
 ---#### Parameters
 ---@param name string The name of the prototype.
 ---@param type_name string The type name of the prototype.
@@ -1879,7 +1872,7 @@ local check_from_named_prototype = V.signature("IconComposition:from_named_proto
 ---
 ---#### Returns
 ---@return self # A composition containing the icon in the given group.
----@throws When `name` or `type_name` is `nil` or an empty string, or no such prototype exists.
+---@throws When `name` or `type_name` is `nil` or an empty string.
 ---@throws When `group` is not a valid `IconCompositionGroup`.
 ---@throws When `defaults_type` is an empty string.
 ---@see IconComposition.from_prototype

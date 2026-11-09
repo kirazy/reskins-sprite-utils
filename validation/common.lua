@@ -217,10 +217,28 @@ _common.prototype_icon_source = V.class("PrototypeIconSource", {
 	transform = _common.transform:optional(),
 }):describe_as("a PrototypeIconSource")
 
----A validator that checks that a value is an `IconDatumSource`, an `IconDataSource`, or a `PrototypeIconSource`.
+---A validator that checks that a value is a `SelectedPrototypeIconSource`, an icon source that names several
+---prototypes, in order of precedence, from which the icon is retrieved.
+---@see SelectedPrototypeIconSource
+_common.selected_prototype_icon_source = V.class("SelectedPrototypeIconSource", {
+	names = V.array(_common.prototype_name):not_empty(),
+	type_name = _common.prototype_type_name,
+	scale = _common.positive_number:optional(),
+	shift = _common.vector:optional(),
+	tint = _common.color:optional(),
+	floating = V.boolean():optional(),
+	transform = _common.transform:optional(),
+}):describe_as("a SelectedPrototypeIconSource")
+
+---A validator that checks that a value is an `IconDatumSource`, an `IconDataSource`, a `PrototypeIconSource`, or a
+---`SelectedPrototypeIconSource`.
 ---@see IconSource
-_common.icon_source = V.any_of(_common.icon_datum_source, _common.icon_data_source, _common.prototype_icon_source)
-	:describe_as("an IconSource")
+_common.icon_source = V.any_of(
+	_common.icon_datum_source,
+	_common.icon_data_source,
+	_common.prototype_icon_source,
+	_common.selected_prototype_icon_source
+):describe_as("an IconSource")
 
 ---A validator that checks that a value is an `IconAssignmentOptions` object with no unknown fields.
 ---@see IconAssignmentOptions
