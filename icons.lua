@@ -865,14 +865,13 @@ local function resolve_icon_assignment_options(options)
 	}
 end
 
----Gets the prototype with the given `name` and `type_name`, if `type_name` is given and is not a related prototype
----type; otherwise, returns `nil`.
+---Gets the prototype with the given `name` and `type_name`, if `type_name` is given; otherwise, returns `nil`.
 ---@param name EntityID The name of the prototype.
 ---@param type_name? string The type name of the prototype.
 ---@return PrototypeWithIcons?
 ---@nodiscard
 local function resolve_target_prototype(name, type_name)
-	if type_name and not related_prototypes[type_name] then
+	if type_name then
 		return data.raw[type_name][name]
 	end
 
@@ -1041,10 +1040,12 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 
 	if assigns_to_related and resolved_options.infer_item then
 		for _, item in pairs(resolve_related_items(name)) do
-			set_icon_on_prototype(item, icon_data_copy)
+			if item ~= prototype then
+				set_icon_on_prototype(item, icon_data_copy)
 
-			-- Note: item-with-entity-data ignores the field.
-			item.pictures = item_pictures and util.copy(item_pictures)
+				-- Note: item-with-entity-data ignores the field.
+				item.pictures = item_pictures and util.copy(item_pictures)
+			end
 		end
 	end
 
@@ -1068,6 +1069,9 @@ function _icons.assign_icons_to_prototype_and_related_prototypes(name, type_name
 		if defines.prototypes.item[prototype.type] then
 			prototype.pictures = item_pictures and util.copy(item_pictures)
 		end
+
+		-- An item, explosion, or corpse has no explosion or corpse of its own.
+		assigns_to_related = assigns_to_related and not related_prototypes[type_name]
 
 		if assigns_to_related and resolved_options.infer_explosion then
 			for _, explosion in pairs(resolve_related_by_convention("explosion", name, "-explosion")) do
