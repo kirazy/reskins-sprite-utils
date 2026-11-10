@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.1
-Date: ????
+Date: 2026-11-09
   Features:
     - Added `utils.unpack_vector`, which gets the x and y components of a vector in either form.
     - Added `prototypes` module, with `prototypes.select_name` for selecting a prototype from a list of names.
